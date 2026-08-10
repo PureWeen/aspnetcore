@@ -443,6 +443,17 @@ surfaces appropriate to the information:
 - Executable invariants belong in paired behavioral tests.
 - Cross-cutting review guidance belongs in repository agent instructions.
 
+For every proposed comment or documentation change, name both the current
+surface and the durable replacement. Removing prose is complete only when the
+local intent is made evident through a precise name or smaller responsibility,
+or when the executable invariant is explicitly tied to existing or required
+paired tests. Do not summarize this as "no test changes" without naming the
+existing behavioral coverage that already preserves the invariant.
+
+A name is not intent-revealing merely because it repeats the trigger or uses a
+generic lifecycle verb; it must expose the resulting state transition or
+responsibility at the call site.
+
 Do not put internal callback or state-machine mechanics in public API
 documentation.
 

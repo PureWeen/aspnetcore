@@ -4,6 +4,7 @@
 
 import argparse
 import json
+import re
 import statistics
 import sys
 from collections import defaultdict
@@ -94,24 +95,306 @@ def aggregate_document(
     }, []
 
 
+def parse_vally_results(
+    result_paths: list[Path],
+    expected_skill_name: str | None = None,
+) -> tuple[dict[str, float], list[str]]:
+    scores: dict[str, list[float]] = defaultdict(list)
+    expected_run_counts: dict[str, int] = {}
+    trajectory_states: dict[str, str] = {}
+    grader_error_sources: dict[str, str] = {}
+    errors: list[str] = []
+
+    for result_path in result_paths:
+        try:
+            lines = result_path.read_text(encoding="utf-8").splitlines()
+        except OSError as error:
+            errors.append(f"{result_path}: unable to read Vally results: {error}")
+            continue
+
+        for line_number, line in enumerate(lines, start=1):
+            if not line.strip():
+                continue
+            try:
+                outcome = json.loads(line)
+            except json.JSONDecodeError as error:
+                errors.append(
+                    f"{result_path}:{line_number}: invalid JSON: {error}"
+                )
+                continue
+            if outcome.get("type") == "run-summary":
+                continue
+
+            grade_result = outcome.get("gradeResult")
+            trajectory = outcome.get("trajectory")
+            stimulus_name = (
+                grade_result.get("stimulusName")
+                if isinstance(grade_result, dict)
+                else None
+            )
+            if not isinstance(stimulus_name, str):
+                top_level_stimulus = outcome.get("stimulus")
+                if isinstance(top_level_stimulus, str):
+                    stimulus_name = top_level_stimulus
+
+            stimulus = (
+                trajectory.get("stimulus")
+                if isinstance(trajectory, dict)
+                else None
+            )
+            if not isinstance(stimulus_name, str) and isinstance(stimulus, dict):
+                stimulus_name = stimulus.get("name")
+
+            if not isinstance(stimulus_name, str):
+                errors.append(
+                    f"{result_path}:{line_number}: missing stimulus name"
+                )
+                continue
+            match = re.fullmatch(r"eval-(\d+)(?:-.+)?", stimulus_name)
+            if match is None:
+                errors.append(
+                    f"{result_path}:{line_number}: unsupported stimulus name "
+                    f"{stimulus_name!r}"
+                )
+                continue
+            identifier = str(int(match.group(1)))
+
+            if outcome.get("status") != "success":
+                errors.append(
+                    f"{result_path}:{line_number}: {stimulus_name} did not "
+                    f"complete successfully: {outcome.get('error', 'unknown error')}"
+                )
+                continue
+            if not isinstance(trajectory, dict):
+                errors.append(
+                    f"{result_path}:{line_number}: {stimulus_name} is missing "
+                    "its successful trajectory"
+                )
+                continue
+            trajectory_id = trajectory.get("id")
+            if not isinstance(trajectory_id, str) or not trajectory_id:
+                errors.append(
+                    f"{result_path}:{line_number}: missing trajectory id"
+                )
+                continue
+            tags = stimulus.get("tags") if isinstance(stimulus, dict) else None
+            if expected_skill_name is not None and not isinstance(tags, dict):
+                errors.append(
+                    f"{result_path}:{line_number}: {stimulus_name} is missing "
+                    "Vally governance tags"
+                )
+                continue
+            if isinstance(tags, dict):
+                expected_runs = tags.get("expected_runs")
+                expected_model = tags.get("executor_model")
+                tagged_skill = tags.get("skill_name")
+                if expected_skill_name is not None and (
+                    not isinstance(expected_runs, str)
+                    or not expected_runs.isdigit()
+                    or int(expected_runs) <= 0
+                    or not isinstance(expected_model, str)
+                    or not expected_model
+                    or not isinstance(tagged_skill, str)
+                    or not tagged_skill
+                ):
+                    errors.append(
+                        f"{result_path}:{line_number}: {stimulus_name} has "
+                        "missing or invalid Vally governance tags"
+                    )
+                    continue
+                if isinstance(expected_runs, str) and expected_runs.isdigit():
+                    run_count = int(expected_runs)
+                    prior_count = expected_run_counts.setdefault(
+                        identifier, run_count
+                    )
+                    if prior_count != run_count:
+                        errors.append(
+                            f"{result_path}:{line_number}: {stimulus_name} has "
+                            "inconsistent expected_runs tags"
+                        )
+                        continue
+
+                metadata = trajectory.get("metadata")
+                actual_model = (
+                    metadata.get("model")
+                    if isinstance(metadata, dict)
+                    else None
+                )
+                if (
+                    isinstance(expected_model, str)
+                    and actual_model != expected_model
+                ):
+                    errors.append(
+                        f"{result_path}:{line_number}: {stimulus_name} ran with "
+                        f"model {actual_model!r}; expected {expected_model!r}"
+                    )
+                    continue
+
+                if (
+                    expected_skill_name is not None
+                    and tagged_skill != expected_skill_name
+                ):
+                    errors.append(
+                        f"{result_path}:{line_number}: {stimulus_name} is tagged "
+                        f"for skill {tagged_skill!r}; expected "
+                        f"{expected_skill_name!r}"
+                    )
+                    continue
+
+            if expected_skill_name is not None:
+                metadata = trajectory.get("metadata")
+                loaded_skills = (
+                    metadata.get("skillsLoaded")
+                    if isinstance(metadata, dict)
+                    else None
+                )
+                if (
+                    not isinstance(loaded_skills, list)
+                    or expected_skill_name not in loaded_skills
+                ):
+                    errors.append(
+                        f"{result_path}:{line_number}: {stimulus_name} did not "
+                        f"load skill {expected_skill_name!r}"
+                    )
+                    continue
+
+            if not isinstance(grade_result, dict):
+                errors.append(
+                    f"{result_path}:{line_number}: {stimulus_name} has no grade"
+                )
+                continue
+            prior_state = trajectory_states.get(trajectory_id)
+            if grader_has_error(grade_result):
+                if prior_state is not None:
+                    errors.append(
+                        f"{result_path}:{line_number}: duplicate trajectory id "
+                        f"{trajectory_id!r}"
+                    )
+                    continue
+                trajectory_states[trajectory_id] = "grader-error"
+                grader_error_sources[trajectory_id] = (
+                    f"{result_path}:{line_number}: {stimulus_name}"
+                )
+                continue
+            if prior_state == "success":
+                errors.append(
+                    f"{result_path}:{line_number}: duplicate trajectory id "
+                    f"{trajectory_id!r}"
+                )
+                continue
+            if prior_state == "grader-error":
+                grader_error_sources.pop(trajectory_id, None)
+            trajectory_states[trajectory_id] = "success"
+
+            score = grade_result.get("score")
+            if (
+                not isinstance(score, (int, float))
+                or isinstance(score, bool)
+                or not 0 <= score <= 1
+            ):
+                errors.append(
+                    f"{result_path}:{line_number}: {stimulus_name} has invalid "
+                    f"score {score!r}"
+                )
+                continue
+            scores[identifier].append(float(score))
+
+    for source in grader_error_sources.values():
+        errors.append(f"{source} contains a grader infrastructure error")
+
+    for identifier, expected_count in expected_run_counts.items():
+        actual_count = len(scores.get(identifier, []))
+        if actual_count != expected_count:
+            errors.append(
+                f"eval {identifier} has {actual_count} completed trials; "
+                f"expected {expected_count}"
+            )
+
+    if errors:
+        return {}, errors
+
+    return {
+        identifier: mean(trial_scores)
+        for identifier, trial_scores in scores.items()
+    }, errors
+
+
+def grader_has_error(result: Any) -> bool:
+    if not isinstance(result, dict):
+        return False
+    metadata = result.get("metadata")
+    if isinstance(metadata, dict) and metadata.get("error"):
+        return True
+    details = result.get("details")
+    return isinstance(details, list) and any(
+        grader_has_error(detail) for detail in details
+    )
+
+
+def parse_vally_result_arguments(
+    arguments: list[str],
+) -> tuple[dict[str, list[Path]], list[str]]:
+    result_paths: dict[str, list[Path]] = defaultdict(list)
+    errors: list[str] = []
+    for argument in arguments:
+        skill_name, separator, path_text = argument.partition("=")
+        if not separator or not skill_name or not path_text:
+            errors.append(
+                f"invalid --vally-results value {argument!r}; "
+                "expected SKILL_NAME=RESULTS_JSONL"
+            )
+            continue
+        result_paths[skill_name].append(Path(path_text))
+    return result_paths, errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Macro-aggregate ASP.NET Core reviewer eval scores."
     )
     parser.add_argument("eval_files", nargs="+", type=Path)
-    parser.add_argument(
+    score_source = parser.add_mutually_exclusive_group(required=True)
+    score_source.add_argument(
         "--scores",
-        required=True,
         type=Path,
         help="JSON object keyed by skill_name, then eval id, with scores from 0 to 1",
     )
+    score_source.add_argument(
+        "--vally-results",
+        action="append",
+        metavar="SKILL_NAME=RESULTS_JSONL",
+        help=(
+            "Vally JSONL results for a skill; repeat for multiple files or skills"
+        ),
+    )
     args = parser.parse_args()
 
-    try:
-        score_data = json.loads(args.scores.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        print(f"ERROR: unable to read scores: {error}", file=sys.stderr)
-        return 1
+    score_data: dict[str, Any]
+    if args.scores is not None:
+        try:
+            score_data = json.loads(args.scores.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"ERROR: unable to read scores: {error}", file=sys.stderr)
+            return 1
+    else:
+        score_data = {}
+        result_paths, argument_errors = parse_vally_result_arguments(
+            args.vally_results
+        )
+        if argument_errors:
+            for error in argument_errors:
+                print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        for skill_name, paths in result_paths.items():
+            scores, score_errors = parse_vally_results(
+                paths,
+                expected_skill_name=skill_name,
+            )
+            if score_errors:
+                for error in score_errors:
+                    print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            score_data[skill_name] = scores
 
     result: dict[str, Any] = {}
     errors: list[str] = []
