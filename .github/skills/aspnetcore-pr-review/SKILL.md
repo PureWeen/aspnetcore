@@ -435,9 +435,16 @@ corrected, or difficult to discover during the review. Recommend only durable
 surfaces appropriate to the information:
 
 - Public observable behavior belongs in API documentation.
-- Internal lifecycle and ownership invariants belong next to the state machine.
-- Retention and takeover behavior belongs in paired behavioral tests.
+- Express local mechanics through precise names, named methods or variables, and
+  smaller responsibilities rather than comments that narrate the call graph.
+- Reserve concise comments for durable nonlocal reasons that structure cannot
+  express, such as callback ordering, ownership transfer, compatibility, or
+  cross-language and protocol behavior.
+- Executable invariants belong in paired behavioral tests.
 - Cross-cutting review guidance belongs in repository agent instructions.
+
+Do not put internal callback or state-machine mechanics in public API
+documentation.
 
 Do not leak review-session mechanics, model identities, local paths, or private
 conversation into repository guidance.

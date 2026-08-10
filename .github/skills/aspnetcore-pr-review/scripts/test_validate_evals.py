@@ -134,6 +134,46 @@ class ValidateEvalsTests(unittest.TestCase):
             any("provenance concentration" in warning for warning in result.warnings)
         )
 
+    def test_unrelated_families_do_not_silence_provenance_span_warning(self):
+        evals = []
+        for identifier in range(1, 10):
+            eval_data = valid_eval()
+            eval_data["id"] = identifier
+            eval_data["eval_metadata"]["mechanism"] = f"mechanism-{identifier}"
+            eval_data["eval_metadata"]["score_family"] = f"family-{identifier}"
+            eval_data["eval_metadata"]["provenance"]["source"] = (
+                "shared-source" if identifier <= 3 else f"source-{identifier}"
+            )
+            evals.append(eval_data)
+
+        result = validate_documents([("evals.json", {"evals": evals})])
+
+        self.assertEqual([], result.errors)
+        self.assertTrue(
+            any(
+                "provenance historical:shared-source spans 3/9 score families"
+                in warning
+                for warning in result.warnings
+            )
+        )
+
+    def test_two_family_provenance_does_not_trigger_span_warning(self):
+        evals = []
+        for identifier in range(1, 3):
+            eval_data = valid_eval()
+            eval_data["id"] = identifier
+            eval_data["eval_metadata"]["mechanism"] = f"mechanism-{identifier}"
+            eval_data["eval_metadata"]["score_family"] = f"family-{identifier}"
+            eval_data["eval_metadata"]["provenance"]["source"] = "shared-source"
+            evals.append(eval_data)
+
+        result = validate_documents([("evals.json", {"evals": evals})])
+
+        self.assertEqual([], result.errors)
+        self.assertFalse(
+            any("provenance historical:shared-source spans" in warning for warning in result.warnings)
+        )
+
     def test_family_weights_are_scoped_to_each_eval_file(self):
         first = valid_eval()
         second = valid_eval()

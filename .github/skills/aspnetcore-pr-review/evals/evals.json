@@ -52,7 +52,7 @@
     {
       "id": 2,
       "prompt": "In a dotnet/aspnetcore checkout, review a local patch for a stateful browser component that opens a long list at an initial anchor. The implementation appears to finish the initial state after pixel alignment, but an authoritative maintainer note says the anchor must remain pinned through unrelated content growth and transfer control only after explicit user navigation. Do not post or push. Prove or reject a separate report that boundary keys cannot take over while the initial anchor is active.",
-      "expected_output": "A lifecycle-aware review that treats the maintainer clarification as the product oracle, rejects alignment completion as inferred intent, and proves the separate boundary-key defect with a focused real-browser red/green assertion while preserving retention through one adjacent content change.",
+      "expected_output": "A lifecycle-aware review that treats the maintainer clarification as the product oracle, rejects alignment completion as inferred intent, proves the separate boundary-key defect with a focused real-browser red/green assertion while preserving retention through one adjacent content change, and places the resulting knowledge on an appropriate public, internal, or executable surface.",
       "files": [],
       "eval_metadata": {
         "mechanism": "lifecycle-product-oracle",
@@ -65,7 +65,7 @@
         "tier": "train",
         "discovery_mode": "verification",
         "controls": {
-          "positive": [0, 1, 3, 4, 7],
+          "positive": [0, 1, 3, 4, 7, 12],
           "negative": [2, 5, 9, 15]
         },
         "forbidden_prompt_terms": []
@@ -83,7 +83,7 @@
         "The empirical agent does not replace the focused one-item change with a global layout-mode change.",
         "A human product clarification overrides earlier model consensus and is reflected in all downstream recommendations.",
         "Before synthesis, the review compares the live PR head with the frozen evidence head and reruns or narrows evidence if relevant paths changed.",
-        "The final report recommends durable public documentation, internal invariants, paired behavioral tests, or agent guidance for product knowledge that was previously missing.",
+        "The final report keeps internal callback and ownership mechanics out of public API documentation, prefers structural clarity for locally discoverable mechanics, uses paired behavioral tests for executable retention and takeover behavior, and reserves any internal comment for nonlocal rationale.",
         "Suggested review comments lead with the concrete user action and visible failure instead of unexplained proof terminology.",
         "The final report separately states finding proof, scenario proof, candidate proof, and whether an exact implementation can safely be recommended.",
         "No GitHub state or parent worktree is modified."
@@ -572,6 +572,44 @@
         "Earlier-head success is not presented as proof for the later shared-producer change.",
         "The final report attributes any immediate-retry regression to the later head.",
         "The review does not generalize the result beyond retry policies returning null."
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "Review the proposed documentation and code-clarity changes in the supplied ASP.NET Core Servers fixture. Decide which knowledge should be expressed through code structure, comments, public API documentation, or tests. Keep the review local.",
+      "expected_output": "A bounded documentation-placement review that replaces an ambiguous local state transition with intent-revealing structure instead of a narrating comment, preserves a concise nonlocal ordering comment, keeps internal callback machinery out of public XML documentation, and treats paired behavioral tests as the primary executable contract.",
+      "files": [
+        ".github/skills/aspnetcore-pr-review/evals/fixtures/documentation-placement.md"
+      ],
+      "eval_metadata": {
+        "mechanism": "documentation-placement",
+        "provenance": {
+          "kind": "synthetic",
+          "source": "paired server documentation scenario"
+        },
+        "area": "Servers/Connections",
+        "score_family": "repository-knowledge-placement",
+        "tier": "train",
+        "discovery_mode": "discovery",
+        "controls": {
+          "positive": [0, 1, 2, 3, 4],
+          "negative": [5]
+        },
+        "forbidden_prompt_terms": [
+          "PendingReadState",
+          "Abort",
+          "callback generation",
+          "CloseAsync",
+          "narrating"
+        ]
+      },
+      "expectations": [
+        "The review rejects the local cleanup comment because the unique call path makes the transition mechanically discoverable and the vague Abort name can be improved.",
+        "The review proposes an intent-revealing state-transition name or equivalent structural improvement instead of explanatory prose for the local cleanup.",
+        "The review preserves a concise comment for the deferred callback ordering because the reason spans handoff, reattachment, generation ownership, and the first resumed completion.",
+        "The proposed public XML remarks are rejected because they expose internal callback-generation and handoff machinery rather than observable CloseAsync behavior.",
+        "The paired stale-generation and current-generation tests are treated as the primary durable record of the executable ownership invariant.",
+        "The review does not apply a blanket rule that comments are always required or always undesirable."
       ]
     }
   ]

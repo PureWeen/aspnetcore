@@ -394,7 +394,9 @@ def collect_warnings(records: list[EvalRecord]) -> list[str]:
             for record in tier_records:
                 provenance_families[record.provenance].add(record.family)
             for provenance, families in sorted(provenance_families.items()):
-                if len(tier_families) >= 3 and len(families) / len(tier_families) > 1 / 3:
+                # Keep the signal monotonic: unrelated new families must not silence
+                # an existing provenance that already spans several mechanisms.
+                if len(families) >= 3:
                     warnings.append(
                         f"{source}: {tier} provenance {provenance} spans "
                         f"{len(families)}/{len(tier_families)} score families; "
