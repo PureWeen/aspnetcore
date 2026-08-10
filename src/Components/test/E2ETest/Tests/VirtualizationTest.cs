@@ -5395,6 +5395,101 @@ public class VirtualizationTest : ServerTestBase<ToggleExecutionModeServerFixtur
         return (Dictionary<string, object>)((IJavaScriptExecutor)Browser).ExecuteAsyncScript(script);
     }
 
+    private Dictionary<string, object> ExecuteVisibleItemScrollJumpDetectionScript(
+        string containerId, int scrollCount = 25, int scrollDelta = 100)
+    {
+        var script = $@"
+            var done = arguments[0];
+            (async () => {{
+                const container = document.getElementById('{containerId}');
+                const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+                const readTopVisibleIndex = () => {{
+                    const containerRect = container.getBoundingClientRect();
+                    const elements = Array.from(container.querySelectorAll('.item, .loading-placeholder'));
+                    let topElement = null;
+                    let topPosition = Number.POSITIVE_INFINITY;
+                    for (const element of elements) {{
+                        const rect = element.getBoundingClientRect();
+                        if (rect.bottom <= containerRect.top + 1 || rect.top >= containerRect.bottom - 1) {{
+                            continue;
+                        }}
+                        if (rect.top < topPosition) {{
+                            topPosition = rect.top;
+                            topElement = element;
+                        }}
+                    }}
+                    if (!topElement || topElement.classList.contains('loading-placeholder')) {{
+                        return -1;
+                    }}
+                    return Number(topElement.getAttribute('data-index'));
+                }};
+
+                const transitions = [];
+                let previousIndex = -1;
+                let initialIndex = -1;
+                let highestIndex = -1;
+                let maxBackwardItems = 0;
+                let validSampleCount = 0;
+                let hasScrolled = false;
+                let recording = true;
+                let lastMutationTime = performance.now();
+                const observer = new MutationObserver(() => lastMutationTime = performance.now());
+                observer.observe(container, {{ childList: true, subtree: true, attributes: true }});
+                // Sampling continuously catches a range reset even when the DOM is empty between renders.
+                const recordFrame = () => {{
+                    const currentIndex = readTopVisibleIndex();
+                    if (currentIndex >= 0) {{
+                        highestIndex = Math.max(highestIndex, currentIndex);
+                        validSampleCount++;
+                    }}
+                    if (currentIndex >= 0 && currentIndex !== previousIndex) {{
+                        if (initialIndex < 0) {{
+                            initialIndex = currentIndex;
+                        }}
+                        if (hasScrolled && previousIndex >= 0) {{
+                            const delta = currentIndex - previousIndex;
+                            const before = Math.round(container.firstElementChild.getBoundingClientRect().height);
+                            const after = Math.round(container.lastElementChild.getBoundingClientRect().height);
+                            transitions.push(`${{previousIndex}}->${{currentIndex}}(${{delta}})@${{Math.round(container.scrollTop)}}[${{before}},${{after}}]`);
+                            if (delta < 0) {{
+                                maxBackwardItems = Math.max(maxBackwardItems, -delta);
+                            }}
+                        }}
+                        previousIndex = currentIndex;
+                    }}
+                    if (recording) {{
+                        requestAnimationFrame(recordFrame);
+                    }}
+                }};
+                requestAnimationFrame(recordFrame);
+                await wait(100);
+
+                for (let i = 0; i < {scrollCount}; i++) {{
+                    hasScrolled = true;
+                    container.scrollTop += {scrollDelta};
+                    await wait(80);
+                }}
+                const settleDeadline = performance.now() + 2000;
+                while (performance.now() - lastMutationTime < 250 && performance.now() < settleDeadline) {{
+                    await wait(50);
+                }}
+                recording = false;
+                observer.disconnect();
+                recordFrame();
+
+                done({{
+                    initialIndex: initialIndex,
+                    highestIndex: highestIndex,
+                    finalIndex: previousIndex,
+                    maxBackwardItems: maxBackwardItems,
+                    validSampleCount: validSampleCount,
+                    transitions: transitions.join(',')
+                }});
+            }})();";
+
+        return (Dictionary<string, object>)((IJavaScriptExecutor)Browser).ExecuteAsyncScript(script);
+    }
+
     private void MountAnchorModeForScrollToItem(bool useProvider, bool variableHeight = false, bool delay = false)
     {
         Browser.MountTestComponent<VirtualizationAnchorMode>();
@@ -5674,6 +5769,42 @@ public class VirtualizationTest : ServerTestBase<ToggleExecutionModeServerFixtur
 
         // The target item must sit at the top of the viewport even for small indices and with a delayed provider.
         Browser.True(() => GetTopRenderedIndex(js) == initialIndex);
+    }
+
+    [Fact]
+    public void InitialIndex_UserScrollWithVariableHeight_DoesNotResetToEarlierRange()
+    {
+        const int initialIndex = 500;
+        const int maximumAllowedBackwardItems = 25;
+
+        MountAnchorModeForScrollToItem(useProvider: true, variableHeight: true);
+        var js = (IJavaScriptExecutor)Browser;
+
+        Browser.Exists(By.Id("unload-list")).Click();
+        Browser.Exists(By.Id("list-not-loaded"));
+        js.ExecuteScript("document.getElementById('scroll-container').scrollTop = 0;");
+        SetManualInitialIndex(initialIndex);
+        Browser.Exists(By.Id("reload-with-initial-index")).Click();
+        Browser.True(() => GetTopRenderedIndex(js) == initialIndex);
+
+        var result = ExecuteVisibleItemScrollJumpDetectionScript("scroll-container");
+        var observedInitialIndex = Convert.ToInt64(result["initialIndex"], CultureInfo.InvariantCulture);
+        var highestIndex = Convert.ToInt64(result["highestIndex"], CultureInfo.InvariantCulture);
+        var finalIndex = Convert.ToInt64(result["finalIndex"], CultureInfo.InvariantCulture);
+        var maxBackwardItems = Convert.ToInt64(result["maxBackwardItems"], CultureInfo.InvariantCulture);
+        var validSampleCount = Convert.ToInt64(result["validSampleCount"], CultureInfo.InvariantCulture);
+
+        Assert.InRange(observedInitialIndex, initialIndex - 2, initialIndex + 2);
+        Assert.True(highestIndex >= observedInitialIndex + 10,
+            $"Downward scrolling must advance the visible range. " +
+            $"Initial={observedInitialIndex}, highest={highestIndex}, final={finalIndex}, " +
+            $"valid samples={validSampleCount}, transitions={result["transitions"]}");
+        Assert.True(validSampleCount >= 10,
+            $"Continuous telemetry must capture the scrolling lifecycle. Captured {validSampleCount} valid samples.");
+        Assert.True(maxBackwardItems <= maximumAllowedBackwardItems,
+            $"Downward scrolling must not reset the visible range to substantially earlier items. " +
+            $"Initial={observedInitialIndex}, highest={highestIndex}, final={finalIndex}, " +
+            $"max backward items={maxBackwardItems}, transitions={result["transitions"]}");
     }
 
     [Theory]
