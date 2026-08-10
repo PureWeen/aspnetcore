@@ -105,14 +105,44 @@ hashes, and train/held-out governance. `sync_vally_evals.py` projects every case
 into the repository-standard Vally schema under `eng/skill-evals/` without
 duplicating hand-maintained rubrics.
 
+Official and comparison runs use `@microsoft/vally-cli@0.13.0`. Invoke that
+exact package rather than an unversioned global `vally`; otherwise local results
+can silently depend on an older schema or grading implementation. Record the
+resolved version with the retained results. The repository-wide eval directory
+does not currently pin a Vally package version, so update this pin deliberately
+only after regenerating and strict-linting all three generated specs. ASP.NET
+Core's `.npmrc` points at an authenticated Azure DevOps feed, while Vally 0.13
+is not available from public npm. Authenticate that feed or select an approved
+Microsoft mirror before running `npx`; the following mirror was used for the
+retained local results:
+
+```bash
+export npm_config_registry=https://packagefeedproxy.microsoft.io/npm/
+npx --yes --package @microsoft/vally-cli@0.13.0 vally --version
+npx --yes --package @microsoft/vally-cli@0.13.0 vally lint \
+  --eval-spec eng/skill-evals/aspnetcore-pr-review/regression.vally.yaml \
+  --strict
+npx --yes --package @microsoft/vally-cli@0.13.0 vally lint \
+  --eval-spec eng/skill-evals/aspnetcore-pr-review/model-guardrail.vally.yaml \
+  --strict
+npx --yes --package @microsoft/vally-cli@0.13.0 vally lint \
+  --eval-spec eng/skill-evals/aspnetcore-try-fix/regression.vally.yaml \
+  --strict
+```
+
+Vally 0.13 emits `--output jsonl` records on standard output. Official runs
+must retain that stream as `results.jsonl` and retain diagnostics separately;
+`--output-dir` stores the Markdown report and telemetry, not the JSONL consumed
+by `aggregate_eval_scores.py`.
+
 Use Vally for both repository and local execution. For example, this runs the
 documentation-placement case locally with the reviewer skill and Vally's prompt
 grader:
 
 ```bash
-vally eval \
+npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   -e eng/skill-evals/aspnetcore-pr-review/regression.vally.yaml \
-  --skill-dir /tmp/aspnetcore-review-skills/aspnetcore-pr-review \
+  --skill-dir /tmp/aspnetcore-review-skills \
   --tag eval_id=17 \
   --runs 1 \
   --timeout 1200s \
@@ -128,35 +158,70 @@ specs are standalone Vally capability suites rather than inputs to the generic
 `skills-vs-baseline` experiment. They need a sibling skill and repository
 identity, so treating a live checkout as the baseline would auto-discover the
 skills under test and invalidate the A/B comparison. Direct local runs can
-select a case by its `eval_id` tag. Their generated environments use a minimal
-git repository and neutral fixture aliases. `--stage-skills` copies only the
-runtime files required by the reviewer and its sibling try-fix into a directory
-outside the checkout, so repository skill discovery and checked-in answer keys
-cannot influence the evaluated model.
+select a case by its `eval_id` tag. Their generated environments copy the
+repository's build infrastructure, shared code, and only the source area named
+by the stimulus into a new independent Git repository. The reviewer skill
+directories are never copied, generated reviewer specs are deleted before the
+initial commit, ignored build outputs are removed using the copied root
+`.gitignore`, fixture names are neutral, and the origin has a disabled push URL.
+This gives trials real source and test infrastructure without sharing the host
+checkout's Git metadata or making answer keys reachable through local history.
+`--stage-skills` copies only the runtime files required by the reviewer and its
+sibling try-fix into a directory outside the checkout.
+
+Run official suites from a committed revision with no unrelated changes in the
+copied source areas. The snapshot copies working-tree files, so an uncommitted
+production change would otherwise alter the eval environment. This isolation is
+not a security sandbox: the executor still has the host process environment,
+network, and model credentials. Injection cases measure instruction adherence,
+not containment. Run them in a least-privileged environment and never treat a
+passing score as proof that a hostile model process could not exfiltrate data.
+
+Scoped source makes repository inspection possible, but it does not recreate a
+historical PR patch, guarantee every project dependency needed by a build, or
+invent an empirical assertion contract. A case that supplies only a mechanism
+fixture must stay in `candidate-review` or another explicitly bounded phase,
+and its rubric must grade the validation plan rather than claim commands ran.
+Require empirical execution only when the stimulus supplies a concrete
+candidate state, independently justified assertion, all source dependency areas
+needed by the command, and a safe restoration boundary.
+
+Vally 0.13 removed the `pairwise` grader type from eval specs. These capability
+suites use prompt grading only. Run the pinned CLI's `compare` command over an
+experiment output directory when a comparative judgment is needed.
 
 A one-trial local run is diagnostic feedback only. Official score aggregation
 requires the five trials and executor model pinned in each generated stimulus.
 Run the GPT suites and the Claude guardrail separately when using direct Vally:
 
 ```bash
-vally eval \
+set -o pipefail
+mkdir -p /tmp/pr-review-main /tmp/pr-review-guardrail /tmp/try-fix
+
+npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   -e eng/skill-evals/aspnetcore-pr-review/regression.vally.yaml \
-  --skill-dir /tmp/aspnetcore-review-skills/aspnetcore-pr-review \
+  --skill-dir /tmp/aspnetcore-review-skills \
   --runs 5 --timeout 1200s \
   --model gpt-5.6-sol --judge-model claude-opus-5 \
-  --output jsonl --output-dir /tmp/pr-review-main
-vally eval \
+  --output jsonl --output-dir /tmp/pr-review-main/artifacts \
+  2>/tmp/pr-review-main/run.log |
+  tee /tmp/pr-review-main/results.jsonl
+npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   -e eng/skill-evals/aspnetcore-pr-review/model-guardrail.vally.yaml \
-  --skill-dir /tmp/aspnetcore-review-skills/aspnetcore-pr-review \
+  --skill-dir /tmp/aspnetcore-review-skills \
   --runs 5 --timeout 1200s \
   --model claude-sonnet-5 --judge-model claude-opus-5 \
-  --output jsonl --output-dir /tmp/pr-review-guardrail
-vally eval \
+  --output jsonl --output-dir /tmp/pr-review-guardrail/artifacts \
+  2>/tmp/pr-review-guardrail/run.log |
+  tee /tmp/pr-review-guardrail/results.jsonl
+npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   -e eng/skill-evals/aspnetcore-try-fix/regression.vally.yaml \
-  --skill-dir /tmp/aspnetcore-review-skills/aspnetcore-try-fix \
+  --skill-dir /tmp/aspnetcore-review-skills \
   --runs 5 --timeout 1200s \
   --model gpt-5.6-sol --judge-model claude-opus-5 \
-  --output jsonl --output-dir /tmp/try-fix
+  --output jsonl --output-dir /tmp/try-fix/artifacts \
+  2>/tmp/try-fix/run.log |
+  tee /tmp/try-fix/results.jsonl
 ```
 
 Vally supplies the score-producing prompt grader, repeated trials, and
@@ -170,9 +235,9 @@ The reviewer aggregation needs both its GPT and Claude result files:
 python3 .github/skills/aspnetcore-pr-review/scripts/aggregate_eval_scores.py \
   .github/skills/aspnetcore-pr-review/evals/evals.json \
   .github/skills/aspnetcore-try-fix/evals/evals.json \
-  --vally-results aspnetcore-pr-review=/tmp/pr-review-main/<timestamp>/results.jsonl \
-  --vally-results aspnetcore-pr-review=/tmp/pr-review-guardrail/<timestamp>/results.jsonl \
-  --vally-results aspnetcore-try-fix=/tmp/try-fix/<timestamp>/results.jsonl
+  --vally-results aspnetcore-pr-review=/tmp/pr-review-main/results.jsonl \
+  --vally-results aspnetcore-pr-review=/tmp/pr-review-guardrail/results.jsonl \
+  --vally-results aspnetcore-try-fix=/tmp/try-fix/results.jsonl
 ```
 
 The legacy `--scores <path>` input remains available for importing results from
@@ -188,7 +253,7 @@ preserve the repaired JSONL separately:
 jq -c \
   'select(.type != "run-summary" and any(.gradeResult.details[]?; .metadata.error? != null))' \
   <original-results.jsonl> |
-  vally grade \
+  npx --yes --package @microsoft/vally-cli@0.13.0 vally grade \
     -e <eval.vally.yaml> \
     --judge-model claude-opus-5 \
     --output jsonl >regraded.jsonl

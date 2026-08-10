@@ -3,12 +3,16 @@ import unittest
 from pathlib import Path
 
 from sync_vally_evals import (
+    AREA_SOURCE_PATHS,
+    COMMON_SOURCE_PATHS,
     MAIN_OUTPUTS,
     MODEL_GUARDRAIL_MECHANISM,
     MODEL_GUARDRAIL_OUTPUT,
     REVIEWER_EVALS,
+    SANITIZED_SOURCE_PATHS,
     TRY_FIX_EVALS,
     STAGED_SKILL_FILES,
+    VALLY_PACKAGE,
     check_outputs,
     expected_outputs,
     load_document,
@@ -55,6 +59,7 @@ class SyncVallyEvalsTests(unittest.TestCase):
         )
 
         self.assertIn("model: claude-sonnet-5", guardrail)
+        self.assertIn("          threshold: 1.0", guardrail)
         self.assertIn(
             f'eval-{guardrail_eval["id"]:02d}-',
             guardrail,
@@ -84,21 +89,46 @@ class SyncVallyEvalsTests(unittest.TestCase):
                 self.assertNotIn(f"- {file_path}", combined)
 
     def test_specs_pin_executor_model_trial_count_and_grader_threshold(self):
-        for content in expected_outputs().values():
+        for path, content in expected_outputs().items():
+            self.assertIn(f"# Validated with {VALLY_PACKAGE}.", content)
             self.assertIn('executor_model: "', content)
             self.assertIn('expected_runs: "5"', content)
-            self.assertIn("          threshold: 0.7", content)
+            if path != MODEL_GUARDRAIL_OUTPUT:
+                self.assertIn("          threshold: 0.7", content)
+            self.assertNotIn("type: pairwise", content)
 
-    def test_specs_use_minimal_git_repository(self):
+    def test_specs_do_not_contain_trailing_whitespace(self):
         for content in expected_outputs().values():
+            for line in content.splitlines():
+                self.assertEqual(line.rstrip(), line)
+
+    def test_specs_use_independent_sanitized_source_snapshots(self):
+        outputs = expected_outputs()
+        combined = "\n".join(outputs.values())
+        for content in outputs.values():
             self.assertNotIn("type: worktree", content)
             self.assertNotIn("\nconfig:", content)
+            for path in COMMON_SOURCE_PATHS:
+                self.assertIn(path, content)
+            for path in SANITIZED_SOURCE_PATHS:
+                self.assertIn(path, content)
+            self.assertIn("git init --quiet", content)
+            self.assertIn("git clean -fdX", content)
             self.assertIn(
                 "git remote add origin "
                 "https://github.com/dotnet/aspnetcore.git",
                 content,
             )
+            self.assertIn(
+                "git remote set-url --push origin "
+                "no-push://dotnet/aspnetcore",
+                content,
+            )
             self.assertIn("commit --quiet --allow-empty", content)
+            self.assertNotIn('dest: ".github/skills', content)
+
+        for path in AREA_SOURCE_PATHS.values():
+            self.assertIn(path, combined)
 
     def test_staged_skills_contain_only_runtime_files(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -326,7 +326,10 @@ def main() -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    print("ASP.NET Core review artifacts are complete and calibrated.")
+    print(
+        "ASP.NET Core review artifacts are structurally complete and "
+        "internally calibrated; log provenance is not authenticated."
+    )
     return 0
 
 
