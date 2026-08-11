@@ -6,7 +6,7 @@ description: >-
   CI does not enforce and that a general-purpose reviewer cannot infer:
   Arcade-owned paths under eng/common, Components and Components.Testing test and
   packaging conventions, and obsoletion diagnostic IDs. Also lists what CI already
-  blocks so reviews do not repeat it, and when to stay quiet on dependency-flow
+  checks so reviews do not repeat it, and when to stay quiet on dependency-flow
   and generated pull requests. Read-only: analysis and review comments only.
   DO NOT USE FOR building or testing the repository, restating build or CI output,
   or designing the shape of a new public API (use review-public-api).
@@ -21,36 +21,40 @@ review.
 Each check is decided by reading files: the diff changes one thing, so open a
 file the pull request **did not touch** and confirm it agrees.
 
-## What CI already blocks — do not repeat it
+## What CI already checks — do not repeat it
 
 `eng/scripts/CodeCheck.ps1` runs on every pull request
-(`.azure/pipelines/ci.yml`) and already fails the build for duplicate project
-file names, `package-lock.json` entries from the wrong registry, solution and
-`.slnf` inconsistencies, **stale generated files** (it re-runs
-`eng/scripts/GenerateProjectList.ps1` and errors on any diff, so
-`eng/SharedFramework.Local.props` and `eng/TrimmableProjects.props` cannot drift),
-**modifications to an existing `PublicAPI.Shipped.txt`**, `eng/Dependencies.props`
-changes without a Dependabot discovery update, and SignalR TypeScript changes
-without a `CHANGELOG.md` entry.
+(`.azure/pipelines/ci.yml`) and covers a range of repository-consistency rules.
+Two matter most because reviewers duplicate them:
+
+- It re-runs `eng/scripts/GenerateProjectList.ps1` and errors on any diff, so the
+  generated project lists — including `eng/SharedFramework.Local.props` and
+  `eng/TrimmableProjects.props` — cannot silently drift from the projects.
+- It fails on **modifications to an existing `PublicAPI.Shipped.txt`**. Note it
+  only inspects files the pull request *modified*: a newly added baseline file is
+  not covered, and `DevServer/src/PublicAPI.Shipped.txt` is exempt.
 
 The build also treats warnings as errors (`eng/build.sh`) and enables
-`Microsoft.CodeAnalysis.PublicApiAnalyzers` on implementation projects
-(`eng/targets/CSharp.Common.targets`), so a missing or stale public API entry
-(RS0016/RS0017) is already a **build error**.
+`Microsoft.CodeAnalysis.PublicApiAnalyzers` on implementation projects that have
+not opted out (`eng/targets/CSharp.Common.targets`), so a missing or stale public
+API entry (RS0016/RS0017) is normally already a **build error**.
 
-Commenting on any of that costs the author attention for something they will be
-told anyway.
+Read the CI result before commenting in these areas; if CI is green and you
+believe there is still a problem, say what CI missed rather than restating the
+rule.
 
 ## 1. Automated pull requests — stay quiet
 
-Roughly a fifth of pull requests here are machine-generated. Keep reviews short
-or silent on:
+Roughly a fifth of pull requests here are machine-generated. When the pull request
+itself is a dependency-flow or mirror update — "Update dependencies from build
+...", "[main] Source code updates from dotnet/dotnet", Dependabot bumps — keep the
+review short or stay silent, including on its generated files, localization
+`.resx` churn, and submodule pointer updates under `src/submodules/**`.
 
-- dependency flow and mirror pull requests — "Update dependencies from build
-  ...", "[main] Source code updates from dotnet/dotnet", Dependabot bumps
-- generated files, including `*.g.cs`, `*.verified.cs` snapshot baselines, and
-  minified JavaScript
-- localization `.resx` churn and submodule pointer updates under `src/submodules/**`
+The same restraint applies to genuinely generated output anywhere (`*.g.cs`,
+minified JavaScript). It does **not** apply to snapshot baselines such as
+`*.verified.cs` in a human-authored pull request: those change because someone
+accepted new behavior, so the diff is a signal worth reading.
 
 A wrong comment on an automated pull request costs more than a missing one.
 
@@ -62,8 +66,9 @@ builds, merges, and then silently disappears on the next Arcade flow. Point the
 author to `dotnet/arcade`.
 
 This applies to `eng/common/` only — the rest of `eng/` is repo-owned and normally
-edited. Dependency-flow pull requests update `eng/common/` legitimately; see
-section 1.
+edited, apart from generated or dependency-flow files such as
+`eng/Version.Details.props`. Dependency-flow pull requests update `eng/common/`
+legitimately; see section 1.
 
 ## 3. Blazor and Components
 
@@ -72,8 +77,11 @@ analyzer encodes:
 
 - E2E tests belong in `src/Components/test/E2ETest`. Prefer extending existing
   test components and assets over adding new ones, and avoid new startup files in
-  `Components.TestServer` unless genuinely necessary. Sample scaffolding from
-  `src/Components/Samples` should not ship as part of a feature change.
+  `Components.TestServer` unless genuinely necessary. The projects under
+  `src/Components/Samples` are canonical maintained apps and are edited
+  legitimately — but scratch scenarios added there to develop a feature are meant
+  to be removed before it merges, so flag leftover development scaffolding rather
+  than sample changes as such.
 - Under `src/Components/Testing`, the assembly, generators, tasks, and shipped
   MSBuild assets are **product code for external package consumers**, and must stay
   "independent of the ASP.NET Core repository layout, build graph, source-build
@@ -86,11 +94,14 @@ analyzer encodes:
 
 Two registries exist and are easy to confuse:
 
-- Analyzer diagnostics (`ASP####`, `BL####`, `MVC####`, `SSG####`) belong in
-  `docs/list-of-diagnostics.md`. Check a new ID is registered and not already taken.
-- **Obsoletion IDs (`ASPDEPR####`) live in `src/Shared/Obsoletions.cs`, not in that
-  doc.** A new `[Obsolete(..., DiagnosticId = "ASPDEPR###")]` should declare its
-  constant there and continue the existing numbering. Nothing validates this.
+- Analyzer diagnostics (`ASP0000`, `BL0000`, `MVC0000`, `RDG0000`, `SSG0000`, ...)
+  belong in `docs/list-of-diagnostics.md`. Check a new ID is registered there and
+  not already taken.
+- **Obsoletion IDs (`ASPDEPR000`) are not in that doc** — they are tracked in
+  `src/Shared/Obsoletions.cs`. A new
+  `[Obsolete(..., DiagnosticId = "ASPDEPR000")]` should continue the existing
+  numbering rather than reuse or skip a number; the newest entries also declare
+  the ID as a constant there. Nothing validates this.
 
 ## Scope
 
