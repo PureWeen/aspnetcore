@@ -124,7 +124,7 @@ stimuli:
       - "The recommendation is calibrated as a compatibility question or defensive option rather than a proven required change."
   - name: "eval-04-timeout-cleanup-build-bypass"
     prompt: |-
-      Use aspnetcore-try-fix in empirical mode to calibrate this retained result without editing or rerunning it: untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while an unrelated frontend target is disabled; two mechanism-derived cleanup variants pass; timed-out inner tasks are deterministically canceled and their exceptions observed; the standard build and exact CI path were not run. State exactly what is proven, the regression-assertion disposition, and the highest honest candidate label.
+      Use aspnetcore-try-fix in empirical mode to calibrate this retained result without editing or rerunning it. Untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while a frontend asset-generation target is disabled. Baseline/source evidence shows that target only emits static browser assets and is not read by the focused task-lifecycle test. Two mechanism-derived variants pass: ordinary inner completion before timeout, and observer timeout followed by deterministic inner-task cancellation and exception observation. The standard build and exact CI path were not run. State what is proven, why the variants add evidence beyond repetition, the regression-assertion disposition, the result for a production-readiness request, and the highest honest candidate label.
     tags:
       eval_id: "4"
       skill_name: "aspnetcore-try-fix"
@@ -141,14 +141,15 @@ stimuli:
         config:
           threshold: 0.7
     rubric:
-      - "Overall response matches this expected outcome: A calibrated targeted-proven result that credits behavioral red/green and cleanup evidence, preserves the required regression assertion, records the unrelated build bypass, and refuses production-ready or cross-configuration wording."
+      - "Overall response matches this expected outcome: A calibrated production-readiness result of Blocked with a targeted-proven candidate: it credits behavioral red/green and distinct cleanup variants, preserves the required regression assertion, records why the build bypass is irrelevant to the focused behavior while still limiting build fidelity, and refuses production-ready or cross-configuration wording."
       - "The behavioral red/green and implementation candidate are credited while remaining separate from the build-bypass limitation."
       - "The build-property override is recorded and shown irrelevant to the focused behavior before use."
       - "The proof is capped at targeted-proven while the standard build or exact CI path remains unvalidated."
-      - "The two mechanism-derived cleanup variants are recognized as stronger than repeated identical passes."
+      - "The ordinary-completion and timeout-cancellation variants are recognized as distinct mechanism coverage rather than repeated identical passes."
       - "The test inspects inner task state after timeout and deterministically releases or cancels outstanding work."
       - "Exceptions from timed-out inner work are observed so they cannot leak into later tests."
       - "The regression assertion is classified required-regression because it independently proves the defect and correction."
+      - "The production-readiness Result is Blocked while the candidate label remains targeted-proven."
       - "The final wording preserves configuration and scenario limits and does not claim production-ready."
   - name: "eval-05-pooled-resource-strong-proof"
     prompt: |-

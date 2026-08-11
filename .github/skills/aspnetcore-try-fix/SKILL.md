@@ -135,6 +135,10 @@ Use the exact candidate labels:
 - `diagnostic-only`, `rejected`, or `blocked`: the evidence does not meet those
   bars.
 
+`Result` answers the caller's requested proof target; the candidate label
+describes evidence actually achieved. A candidate can therefore be
+`targeted-proven` while the requested production-ready result remains `Blocked`.
+
 An assertion that independently proves the accepted defect and correction is
 `required-regression`. A candidate-shaped threshold or hardening probe is
 optional or diagnostic.
