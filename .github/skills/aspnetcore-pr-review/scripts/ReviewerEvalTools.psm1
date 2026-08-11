@@ -2,10 +2,33 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
 $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
-$script:ReviewerEvals = Join-Path $script:RepoRoot '.github/skills/aspnetcore-pr-review/evals/evals.json'
-$script:TryFixEvals = Join-Path $script:RepoRoot '.github/skills/aspnetcore-try-fix/evals/evals.json'
+$script:ReviewerEvals = @(
+    (Join-Path $script:RepoRoot 'eng/skill-evals/aspnetcore-pr-review/regression.vally.yaml')
+    (Join-Path $script:RepoRoot 'eng/skill-evals/aspnetcore-pr-review/model-guardrail.vally.yaml')
+)
+$script:TryFixEvals = @(
+    (Join-Path $script:RepoRoot 'eng/skill-evals/aspnetcore-try-fix/regression.vally.yaml')
+)
 $script:VallyPackage = '@microsoft/vally-cli@0.13.0'
 $script:ModelGuardrailMechanism = 'orchestrator-model-guardrail'
+$script:EvalGovernanceTags = @(
+    'eval_id'
+    'skill_name'
+    'mechanism'
+    'executor_model'
+    'expected_runs'
+    'area'
+    'score_family'
+    'tier'
+    'provenance_kind'
+    'provenance_source'
+    'discovery_mode'
+    'controls_positive'
+    'controls_negative'
+    'forbidden_prompt_terms'
+    'fixture_hashes'
+    'frozen_hash'
+)
 $script:SanitizedSourcePaths = @(
     'eng/skill-evals/aspnetcore-pr-review'
     'eng/skill-evals/aspnetcore-try-fix'
@@ -276,6 +299,220 @@ function Get-PropertyValue
     return $property.Value
 }
 
+function ConvertFrom-VallyScalar
+{
+    param([string] $Value)
+
+    $value = $Value.Trim()
+    if ($value.StartsWith('"'))
+    {
+        return $value | ConvertFrom-Json
+    }
+    if ($value.StartsWith("'") -and $value.EndsWith("'"))
+    {
+        return $value.Substring(1, $value.Length - 2).Replace("''", "'")
+    }
+
+    return $value
+}
+
+function ConvertFrom-VallyIndexList
+{
+    param([string] $Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value))
+    {
+        return @()
+    }
+
+    return @($Value -split ',' | ForEach-Object { [int]$_ })
+}
+
+function ConvertFrom-VallyStimulus
+{
+    param($Stimulus)
+
+    $tags = $Stimulus.Tags
+    $idText = [string](Get-PropertyValue $tags 'eval_id')
+    $id = 0
+    if (-not [int]::TryParse($idText, [ref]$id))
+    {
+        $id = $idText
+    }
+
+    $rubric = @($Stimulus.Rubric)
+    $expectedOutput = if ($rubric.Count -gt 0)
+    {
+        $rubric[0] -replace '^Overall response matches this expected outcome:\s*', ''
+    }
+    else
+    {
+        ''
+    }
+    $expectations = if ($rubric.Count -gt 1) { @($rubric[1..($rubric.Count - 1)]) } else { @() }
+    $forbiddenTerms = @()
+    $forbiddenJson = Get-PropertyValue $tags 'forbidden_prompt_terms'
+    if (Test-NonEmptyString $forbiddenJson)
+    {
+        $forbiddenTerms = @($forbiddenJson | ConvertFrom-Json)
+    }
+    $fixtureHashes = [pscustomobject]@{}
+    $fixtureHashesJson = Get-PropertyValue $tags 'fixture_hashes'
+    if (Test-NonEmptyString $fixtureHashesJson)
+    {
+        $fixtureHashes = $fixtureHashesJson | ConvertFrom-Json
+    }
+
+    return [pscustomobject]@{
+        stimulus_name = $Stimulus.Name
+        id = $id
+        prompt = ($Stimulus.PromptLines -join "`n").TrimEnd()
+        expected_output = $expectedOutput
+        files = @($Stimulus.Files)
+        expectations = $expectations
+        eval_metadata = [pscustomobject]@{
+            mechanism = Get-PropertyValue $tags 'mechanism'
+            provenance = [pscustomobject]@{
+                kind = Get-PropertyValue $tags 'provenance_kind'
+                source = Get-PropertyValue $tags 'provenance_source'
+            }
+            area = Get-PropertyValue $tags 'area'
+            score_family = Get-PropertyValue $tags 'score_family'
+            tier = Get-PropertyValue $tags 'tier'
+            discovery_mode = Get-PropertyValue $tags 'discovery_mode'
+            controls = [pscustomobject]@{
+                positive = @(ConvertFrom-VallyIndexList (Get-PropertyValue $tags 'controls_positive'))
+                negative = @(ConvertFrom-VallyIndexList (Get-PropertyValue $tags 'controls_negative'))
+            }
+            forbidden_prompt_terms = $forbiddenTerms
+            fixture_hashes = $fixtureHashes
+            frozen_hash = Get-PropertyValue $tags 'frozen_hash'
+            skill_name = Get-PropertyValue $tags 'skill_name'
+            executor_model = Get-PropertyValue $tags 'executor_model'
+            expected_runs = Get-PropertyValue $tags 'expected_runs'
+        }
+    }
+}
+
+function Read-VallyEvalDocument
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string] $Path
+    )
+
+    $skillName = $null
+    $defaultModel = $null
+    $defaultRuns = $null
+    $stimuli = [Collections.Generic.List[object]]::new()
+    $current = $null
+    $section = $null
+    foreach ($line in Get-Content -LiteralPath $Path)
+    {
+        if ($null -eq $current -and $line -match '^name:\s*(.+)$')
+        {
+            $skillName = ConvertFrom-VallyScalar $Matches[1]
+            continue
+        }
+        if ($null -eq $current -and $line -match '^  runs:\s*(.+)$')
+        {
+            $defaultRuns = [string](ConvertFrom-VallyScalar $Matches[1])
+            continue
+        }
+        if ($null -eq $current -and $line -match '^  model:\s*(.+)$')
+        {
+            $defaultModel = [string](ConvertFrom-VallyScalar $Matches[1])
+            continue
+        }
+        if ($line -match '^  - name:\s*(.+)$')
+        {
+            if ($null -ne $current)
+            {
+                $stimuli.Add((ConvertFrom-VallyStimulus $current))
+            }
+            $current = @{
+                Name = ConvertFrom-VallyScalar $Matches[1]
+                PromptLines = [Collections.Generic.List[string]]::new()
+                Tags = [pscustomobject][ordered]@{}
+                Files = [Collections.Generic.List[string]]::new()
+                Rubric = [Collections.Generic.List[string]]::new()
+            }
+            $section = $null
+            continue
+        }
+        if ($null -eq $current)
+        {
+            continue
+        }
+
+        if ($section -eq 'prompt')
+        {
+            if ([string]::IsNullOrEmpty($line))
+            {
+                $current.PromptLines.Add('')
+                continue
+            }
+            if ($line.StartsWith('      '))
+            {
+                $current.PromptLines.Add($line.Substring(6))
+                continue
+            }
+            $section = $null
+        }
+
+        if ($line -eq '    prompt: |-')
+        {
+            $section = 'prompt'
+        }
+        elseif ($line -eq '    tags:')
+        {
+            $section = 'tags'
+        }
+        elseif ($line -eq '    rubric:')
+        {
+            $section = 'rubric'
+        }
+        elseif ($section -eq 'tags' -and $line -match '^      ([a-z0-9_]+):\s*(.+)$')
+        {
+            $tagName = $Matches[1]
+            if ($tagName -notin $script:EvalGovernanceTags)
+            {
+                throw "$Path`: unsupported stimulus governance tag '$tagName'"
+            }
+            $current.Tags | Add-Member -NotePropertyName $tagName -NotePropertyValue (ConvertFrom-VallyScalar $Matches[2])
+        }
+        elseif ($line -match '^        - src:\s*(.+)$')
+        {
+            $source = [string](ConvertFrom-VallyScalar $Matches[1])
+            if ($source.StartsWith('../../../'))
+            {
+                $source = $source.Substring(9)
+            }
+            $current.Files.Add($source)
+        }
+        elseif ($section -eq 'rubric' -and $line -match '^      -\s*(.+)$')
+        {
+            $current.Rubric.Add([string](ConvertFrom-VallyScalar $Matches[1]))
+        }
+        elseif ($line -match '^    [a-z]')
+        {
+            $section = $null
+        }
+    }
+    if ($null -ne $current)
+    {
+        $stimuli.Add((ConvertFrom-VallyStimulus $current))
+    }
+
+    return [pscustomobject]@{
+        skill_name = $skillName
+        default_model = $defaultModel
+        default_runs = $defaultRuns
+        evals = @($stimuli)
+    }
+}
+
 function Get-PromptExpectationOverlap
 {
     param(
@@ -322,7 +559,7 @@ function Test-EvalSuites
     {
         try
         {
-            $document = Read-JsonDocument $path
+            $document = Read-VallyEvalDocument $path
         }
         catch
         {
@@ -331,6 +568,10 @@ function Test-EvalSuites
         }
 
         $evals = @(Get-PropertyValue $document 'evals')
+        if (-not (Test-KebabCase $document.skill_name))
+        {
+            $errors.Add("$path.name must be nonempty kebab-case")
+        }
         if ($evals.Count -eq 0)
         {
             $errors.Add("$path.evals must be a nonempty array")
@@ -390,11 +631,21 @@ function Test-EvalSuites
             $provenance = Get-PropertyValue $metadata 'provenance'
             $controls = Get-PropertyValue $metadata 'controls'
             $forbiddenTerms = @(Get-PropertyValue $metadata 'forbidden_prompt_terms')
-            $sourcePaths = @((Get-PropertyValue $metadata 'source_paths') | Where-Object { $null -ne $_ })
+            $taggedSkillName = Get-PropertyValue $metadata 'skill_name'
+            $executorModel = Get-PropertyValue $metadata 'executor_model'
+            $expectedRuns = Get-PropertyValue $metadata 'expected_runs'
 
             if (-not (Test-KebabCase $mechanism))
             {
                 $errors.Add("$name.eval_metadata.mechanism must be nonempty kebab-case")
+            }
+            if (Test-Integer $id -and (Test-KebabCase $mechanism))
+            {
+                $expectedName = "eval-$(([int]$id).ToString('00'))-$mechanism"
+                if ($eval.stimulus_name -ne $expectedName)
+                {
+                    $errors.Add("$name.name must be '$expectedName'")
+                }
             }
             if (-not (Test-NonEmptyString $area))
             {
@@ -412,18 +663,26 @@ function Test-EvalSuites
             {
                 $errors.Add("$name.eval_metadata.discovery_mode must be discovery or verification")
             }
-            foreach ($sourcePath in $sourcePaths)
+            if ($taggedSkillName -ne $document.skill_name)
             {
-                if (-not (Test-NonEmptyString $sourcePath))
-                {
-                    $errors.Add("$name.eval_metadata.source_paths must contain only nonempty strings")
-                }
-                elseif (-not (Test-Path -LiteralPath (Join-Path $script:RepoRoot $sourcePath)))
-                {
-                    $errors.Add("$name.eval_metadata.source_paths entry does not exist: $sourcePath")
-                }
+                $errors.Add("$name.tags.skill_name must match the suite name")
             }
-
+            if (-not (Test-NonEmptyString $executorModel))
+            {
+                $errors.Add("$name.tags.executor_model must be a nonempty string")
+            }
+            elseif ($executorModel -ne $document.default_model)
+            {
+                $errors.Add("$name.tags.executor_model must match defaults.model")
+            }
+            if ($expectedRuns -notmatch '^\d+$' -or [int]$expectedRuns -le 0)
+            {
+                $errors.Add("$name.tags.expected_runs must be a positive integer")
+            }
+            elseif ($expectedRuns -ne $document.default_runs)
+            {
+                $errors.Add("$name.tags.expected_runs must match defaults.runs")
+            }
             $provenanceKind = Get-PropertyValue $provenance 'kind'
             $provenanceSource = Get-PropertyValue $provenance 'source'
             if ($provenanceKind -notin @('pr', 'historical', 'synthetic'))
@@ -515,6 +774,7 @@ function Test-EvalSuites
 
             $records.Add([pscustomobject]@{
                 Source = $path
+                SkillName = [string]$document.skill_name
                 Id = [string]$id
                 Tier = $tier
                 Family = $family
@@ -525,7 +785,12 @@ function Test-EvalSuites
         }
     }
 
-    foreach ($sourceGroup in $records | Group-Object Source)
+    foreach ($duplicate in $records | Group-Object SkillName, Id | Where-Object Count -gt 1)
+    {
+        $errors.Add("$($duplicate.Group[0].SkillName): duplicate eval id $($duplicate.Group[0].Id)")
+    }
+
+    foreach ($sourceGroup in $records | Group-Object SkillName)
     {
         $train = @($sourceGroup.Group | Where-Object Tier -eq 'train' | ForEach-Object Provenance | Sort-Object -Unique)
         $heldOut = @($sourceGroup.Group | Where-Object Tier -eq 'held_out' | ForEach-Object Provenance | Sort-Object -Unique)
@@ -560,7 +825,7 @@ function Test-EvalSuites
         }
     }
 
-    $weights = foreach ($sourceTier in $records | Group-Object Source, Tier)
+    $weights = foreach ($sourceTier in $records | Group-Object SkillName, Tier)
     {
         $families = @($sourceTier.Group | Group-Object Family)
         foreach ($family in $families)
@@ -588,233 +853,6 @@ function Test-EvalSuites
             family_weights = @($weights)
         }
     }
-}
-
-function ConvertTo-YamlString
-{
-    param([string] $Value)
-
-    return ConvertTo-Json -InputObject $Value -Compress
-}
-
-function Add-YamlLiteral
-{
-    param(
-        [Collections.Generic.List[string]] $Lines,
-        [string] $Key,
-        [string] $Value,
-        [int] $Indent
-    )
-
-    $prefix = ' ' * $Indent
-    $Lines.Add("$prefix$Key`: |-")
-    foreach ($line in $Value -split "`r?`n")
-    {
-        $Lines.Add($(if ($line) { "$prefix  $line" } else { '' }))
-    }
-}
-
-function Add-FileOverlay
-{
-    param(
-        [Collections.Generic.List[string]] $Lines,
-        [string] $Source,
-        [string] $Destination,
-        [int] $Indent
-    )
-
-    $prefix = ' ' * $Indent
-    $Lines.Add("$prefix- src: $(ConvertTo-YamlString "../../../$Source")")
-    $Lines.Add("$prefix  dest: $(ConvertTo-YamlString $Destination)")
-}
-
-function Get-ProjectedPrompt
-{
-    param($Eval)
-
-    $prompt = [string]$Eval.prompt
-    $files = @($Eval.files)
-    if ($files.Count -gt 0)
-    {
-        $fixtureList = for ($index = 1; $index -le $files.Count; $index++)
-        {
-            "- eval-input/fixture-$index.md"
-        }
-        $prompt += "`n`nFixture files:`n$($fixtureList -join "`n")"
-    }
-
-    foreach ($term in @($Eval.eval_metadata.forbidden_prompt_terms))
-    {
-        if ($prompt.IndexOf($term, [StringComparison]::OrdinalIgnoreCase) -ge 0)
-        {
-            throw "eval $($Eval.id) projected prompt leaks forbidden term: $term"
-        }
-    }
-
-    return $prompt
-}
-
-function ConvertTo-VallySpec
-{
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        $Document,
-
-        [Parameter(Mandatory)]
-        [string] $SourcePath,
-
-        [Parameter(Mandatory)]
-        [object[]] $Evals,
-
-        [Parameter(Mandatory)]
-        [string] $Model
-    )
-
-    $skillName = [string]$Document.skill_name
-    $lines = [Collections.Generic.List[string]]::new()
-    @(
-        '# Generated by .github/skills/aspnetcore-pr-review/scripts/Sync-VallyEvals.ps1.'
-        "# Source of truth: $SourcePath."
-        "# Validated with $script:VallyPackage."
-        '# Run the generator with -Check to detect drift.'
-        "name: $skillName"
-        "description: $(ConvertTo-YamlString "Vally evals for the $skillName skill.")"
-        'type: capability'
-        'defaults:'
-        '  runs: 5'
-        '  timeout: 1200s'
-        "  model: $Model"
-        '  judge_model: claude-opus-5'
-        'environment:'
-        '  files:'
-    ) | ForEach-Object { $lines.Add($_) }
-
-    foreach ($path in $script:CommonSourcePaths)
-    {
-        Add-FileOverlay -Lines $lines -Source $path -Destination $path -Indent 4
-    }
-
-    @(
-        '  commands:'
-        '    - git init --quiet'
-        '    - git clean -fdX'
-        "    - git clean -fd -- $($script:SanitizedSourcePaths -join ' ')"
-        '    - git remote add origin https://github.com/dotnet/aspnetcore.git'
-        '    - git remote set-url --push origin no-push://dotnet/aspnetcore'
-        '    - git add .'
-        '    - git -c user.name=Vally -c user.email=vally@example.invalid commit --quiet --allow-empty -m "Vally fixture"'
-        'scoring:'
-        '  weights:'
-        '    prompt: 1.0'
-        '  threshold: 0.7'
-        'stimuli:'
-    ) | ForEach-Object { $lines.Add($_) }
-
-    foreach ($eval in $Evals)
-    {
-        $metadata = $eval.eval_metadata
-        $mechanism = [string]$metadata.mechanism
-        $name = "eval-$(([int]$eval.id).ToString('00'))-$mechanism"
-        $prompt = Get-ProjectedPrompt $eval
-        if ($skillName -eq 'aspnetcore-try-fix')
-        {
-            $prompt = "Invoke the aspnetcore-try-fix skill for this task.`n`n$prompt"
-        }
-        $lines.Add("  - name: $(ConvertTo-YamlString $name)")
-        Add-YamlLiteral -Lines $lines -Key 'prompt' -Value $prompt -Indent 4
-        @(
-            '    tags:'
-            "      eval_id: $(ConvertTo-YamlString ([string]$eval.id))"
-            "      skill_name: $(ConvertTo-YamlString $skillName)"
-            "      executor_model: $(ConvertTo-YamlString $Model)"
-            '      expected_runs: "5"'
-            "      area: $(ConvertTo-YamlString ([string]$metadata.area))"
-            "      score_family: $(ConvertTo-YamlString ([string]$metadata.score_family))"
-            "      tier: $(ConvertTo-YamlString ([string]$metadata.tier))"
-            "      provenance_kind: $(ConvertTo-YamlString ([string]$metadata.provenance.kind))"
-            "      provenance_source: $(ConvertTo-YamlString ([string]$metadata.provenance.source))"
-            "      discovery_mode: $(ConvertTo-YamlString ([string]$metadata.discovery_mode))"
-        ) | ForEach-Object { $lines.Add($_) }
-
-        $sourcePaths = @((Get-PropertyValue $metadata 'source_paths') | Where-Object { $null -ne $_ })
-        $files = @($eval.files)
-        if ($sourcePaths.Count -gt 0 -or $files.Count -gt 0)
-        {
-            $lines.Add('    environment:')
-            $lines.Add('      files:')
-            foreach ($sourcePath in $sourcePaths)
-            {
-                Add-FileOverlay -Lines $lines -Source $sourcePath -Destination $sourcePath -Indent 8
-            }
-            for ($index = 0; $index -lt $files.Count; $index++)
-            {
-                Add-FileOverlay -Lines $lines -Source $files[$index] -Destination "eval-input/fixture-$($index + 1).md" -Indent 8
-            }
-        }
-
-        $threshold = if ($mechanism -eq $script:ModelGuardrailMechanism) { '1.0' } else { '0.7' }
-        @(
-            '    graders:'
-            '      - type: prompt'
-            '        config:'
-            "          threshold: $threshold"
-            '    rubric:'
-            "      - $(ConvertTo-YamlString "Overall response matches this expected outcome: $($eval.expected_output)")"
-        ) | ForEach-Object { $lines.Add($_) }
-        foreach ($expectation in @($eval.expectations))
-        {
-            $lines.Add("      - $(ConvertTo-YamlString ([string]$expectation))")
-        }
-    }
-
-    return ($lines -join "`n") + "`n"
-}
-
-function Get-ExpectedVallyOutputs
-{
-    [CmdletBinding()]
-    param()
-
-    $reviewer = Read-JsonDocument $script:ReviewerEvals
-    $tryFix = Read-JsonDocument $script:TryFixEvals
-    $reviewerMain = @($reviewer.evals | Where-Object { $_.eval_metadata.mechanism -ne $script:ModelGuardrailMechanism })
-    $reviewerGuardrail = @($reviewer.evals | Where-Object { $_.eval_metadata.mechanism -eq $script:ModelGuardrailMechanism })
-
-    return [ordered]@{
-        $script:VallyOutputs['aspnetcore-pr-review'] = ConvertTo-VallySpec -Document $reviewer -SourcePath '.github/skills/aspnetcore-pr-review/evals/evals.json' -Evals $reviewerMain -Model 'gpt-5.6-sol'
-        $script:VallyOutputs['aspnetcore-pr-review-model-guardrail'] = ConvertTo-VallySpec -Document $reviewer -SourcePath '.github/skills/aspnetcore-pr-review/evals/evals.json' -Evals $reviewerGuardrail -Model 'claude-sonnet-5'
-        $script:VallyOutputs['aspnetcore-try-fix'] = ConvertTo-VallySpec -Document $tryFix -SourcePath '.github/skills/aspnetcore-try-fix/evals/evals.json' -Evals @($tryFix.evals) -Model 'gpt-5.6-sol'
-    }
-}
-
-function Sync-VallyEvalSpecs
-{
-    [CmdletBinding()]
-    param(
-        [switch] $Check
-    )
-
-    $errors = [Collections.Generic.List[string]]::new()
-    foreach ($entry in (Get-ExpectedVallyOutputs).GetEnumerator())
-    {
-        $path = [string]$entry.Key
-        $expected = [string]$entry.Value
-        if ($Check)
-        {
-            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Content -LiteralPath $path -Raw) -cne $expected)
-            {
-                $errors.Add("$([IO.Path]::GetRelativePath($script:RepoRoot, $path)) is out of date; run Sync-VallyEvals.ps1")
-            }
-        }
-        else
-        {
-            New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force | Out-Null
-            [IO.File]::WriteAllText($path, $expected, [Text.UTF8Encoding]::new($false))
-        }
-    }
-
-    return @($errors)
 }
 
 function Normalize-DirectoryPath
@@ -1520,15 +1558,14 @@ Export-ModuleMember -Function @(
     'ConvertTo-CanonicalJson'
     'Copy-SanitizedSkills'
     'Get-EvalScoreAggregate'
-    'Get-ExpectedVallyOutputs'
     'Get-HeldOutHash'
     'Get-ReviewerEvalConfiguration'
     'Get-Sha256'
     'Read-JsonDocument'
+    'Read-VallyEvalDocument'
     'Read-VallyScores'
     'Resolve-EvalFixture'
     'Test-PathContainedBy'
-    'Sync-VallyEvalSpecs'
     'Test-EvalSuites'
     'Test-ReviewArtifacts'
 )

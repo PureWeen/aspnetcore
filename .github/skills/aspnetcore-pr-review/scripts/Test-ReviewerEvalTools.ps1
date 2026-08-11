@@ -157,60 +157,74 @@ None.
 }
 
 $configuration = Get-ReviewerEvalConfiguration
-$expectedOutputs = Get-ExpectedVallyOutputs
+$expectedOutputs = [ordered]@{}
+foreach ($path in $configuration.VallyOutputs.Values)
+{
+    $expectedOutputs[$path] = Get-Content -LiteralPath $path -Raw
+}
 
 if ($Suite -in @('All', 'Reviewer'))
 {
-    Invoke-Test 'Reviewer manifest validates independently' {
-        $result = Test-EvalSuites -Paths @($configuration.ReviewerEvals)
+    Invoke-Test 'Reviewer Vally specs validate independently' {
+        $result = Test-EvalSuites -Paths $configuration.ReviewerEvals
         Assert-Equal 0 $result.Errors.Count 'Reviewer validation failed.'
         Assert-True ($result.Records.Count -gt 0) 'Reviewer suite had no records.'
     }
 
     Invoke-Test 'Reviewer validator warns on prompt-answer overlap' {
         $fixture = Join-Path ([IO.Path]::GetTempPath()) "eval-overlap-$([guid]::NewGuid()).md"
-        $manifest = Join-Path ([IO.Path]::GetTempPath()) "eval-overlap-$([guid]::NewGuid()).json"
+        $spec = Join-Path ([IO.Path]::GetTempPath()) "eval-overlap-$([guid]::NewGuid()).vally.yaml"
         try
         {
             Set-Content -LiteralPath $fixture -Value 'fixture'
-            $eval = @{
-                skill_name = 'test'
-                evals = @(@{
-                    id = 1
-                    prompt = 'alpha-bravo charlie-delta echo-foxtrot'
-                    expected_output = 'bounded'
-                    files = @($fixture)
-                    expectations = @('alpha-bravo charlie-delta echo-foxtrot')
-                    eval_metadata = @{
-                        mechanism = 'overlap-check'
-                        provenance = @{ kind = 'synthetic'; source = 'overlap' }
-                        area = 'Testing'
-                        score_family = 'overlap'
-                        tier = 'train'
-                        discovery_mode = 'discovery'
-                        controls = @{ positive = @(0); negative = @(0) }
-                        forbidden_prompt_terms = @('not-present')
-                    }
-                })
-            }
-            $eval.evals[0].eval_metadata.controls.negative = @(0)
-            $eval.evals[0].expectations += 'unrelated negative'
-            $eval.evals[0].eval_metadata.controls.negative = @(1)
-            $eval | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifest
-            $result = Test-EvalSuites -Paths @($manifest)
+            @"
+name: test
+defaults:
+  runs: 5
+  model: gpt-5.6-sol
+stimuli:
+  - name: "eval-01-overlap-check"
+    prompt: |-
+      alpha-bravo charlie-delta echo-foxtrot
+    tags:
+      eval_id: "1"
+      skill_name: "test"
+      mechanism: "overlap-check"
+      executor_model: "gpt-5.6-sol"
+      expected_runs: "5"
+      area: "Testing"
+      score_family: "overlap"
+      tier: "train"
+      provenance_kind: "synthetic"
+      provenance_source: "overlap"
+      discovery_mode: "discovery"
+      controls_positive: "0"
+      controls_negative: "1"
+      forbidden_prompt_terms: "[\"not-present\"]"
+    environment:
+      files:
+        - src: "$fixture"
+          dest: "eval-input/fixture-1.md"
+    rubric:
+      - "Overall response matches this expected outcome: bounded"
+      - "alpha-bravo charlie-delta echo-foxtrot"
+      - "unrelated negative"
+"@ | Set-Content -LiteralPath $spec
+            $result = Test-EvalSuites -Paths @($spec)
+            Assert-Equal 0 $result.Errors.Count 'Synthetic overlap suite failed validation.'
             Assert-True (@($result.Warnings | Where-Object { $_ -match 'answer leakage' }).Count -eq 1) 'Prompt-answer overlap warning was not emitted.'
         }
         finally
         {
-            Remove-Item -LiteralPath $fixture, $manifest -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $fixture, $spec -Force -ErrorAction SilentlyContinue
         }
     }
 
-    Invoke-Test 'Reviewer generation covers every eval exactly once' {
-        $document = Read-JsonDocument $configuration.ReviewerEvals
+    Invoke-Test 'Reviewer specs cover every eval exactly once' {
+        $documents = @($configuration.ReviewerEvals | ForEach-Object { Read-VallyEvalDocument $_ })
         $content = $expectedOutputs[$configuration.VallyOutputs['aspnetcore-pr-review']] +
             $expectedOutputs[$configuration.VallyOutputs['aspnetcore-pr-review-model-guardrail']]
-        foreach ($eval in @($document.evals))
+        foreach ($eval in @($documents.evals))
         {
             $marker = "name: `"eval-$(([int]$eval.id).ToString('00'))-"
             Assert-Equal 1 ([regex]::Matches($content, [regex]::Escape($marker))).Count "Reviewer eval $($eval.id) wiring mismatch."
@@ -334,14 +348,14 @@ if ($Suite -in @('All', 'Reviewer'))
 
 if ($Suite -in @('All', 'TryFix'))
 {
-    Invoke-Test 'Try-fix manifest validates independently' {
-        $result = Test-EvalSuites -Paths @($configuration.TryFixEvals)
+    Invoke-Test 'Try-fix Vally spec validates independently' {
+        $result = Test-EvalSuites -Paths $configuration.TryFixEvals
         Assert-Equal 0 $result.Errors.Count 'Try-fix validation failed.'
         Assert-True ($result.Records.Count -gt 0) 'Try-fix suite had no records.'
     }
 
-    Invoke-Test 'Try-fix generation covers every eval exactly once' {
-        $document = Read-JsonDocument $configuration.TryFixEvals
+    Invoke-Test 'Try-fix spec covers every eval exactly once' {
+        $document = Read-VallyEvalDocument $configuration.TryFixEvals[0]
         $content = $expectedOutputs[$configuration.VallyOutputs['aspnetcore-try-fix']]
         foreach ($eval in @($document.evals))
         {
@@ -351,7 +365,7 @@ if ($Suite -in @('All', 'TryFix'))
     }
 
     Invoke-Test 'Try-fix stimuli explicitly route to try-fix' {
-        $document = Read-JsonDocument $configuration.TryFixEvals
+        $document = Read-VallyEvalDocument $configuration.TryFixEvals[0]
         $content = $expectedOutputs[$configuration.VallyOutputs['aspnetcore-try-fix']]
         $marker = 'Invoke the aspnetcore-try-fix skill for this task.'
         Assert-Equal @($document.evals).Count ([regex]::Matches($content, [regex]::Escape($marker))).Count 'Try-fix stimuli are not routed explicitly.'
@@ -386,7 +400,7 @@ if ($Suite -in @('All', 'TryFix'))
             {
                 Assert-True (Test-Path -LiteralPath (Join-Path $tryFixRoot $relativePath) -PathType Leaf) "Missing staged try-fix runtime file $relativePath."
             }
-            Assert-True (-not (Get-ChildItem -LiteralPath $tryFixRoot -Recurse -File | Where-Object Name -eq 'evals.json')) 'Try-fix answer manifest leaked into staged runtime.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $tryFixRoot 'evals'))) 'Try-fix eval assets leaked into staged runtime.'
         }
         finally
         {
@@ -537,23 +551,19 @@ if ($Suite -in @('All', 'TryFix'))
     }
 }
 
-Invoke-Test 'Checked-in Vally specs match PowerShell generation' {
-    Assert-Equal 0 @(Sync-VallyEvalSpecs -Check).Count 'Generated Vally specs are stale.'
-}
-
-Invoke-Test 'Every generated suite uses independent snapshot guardrails' {
+Invoke-Test 'Every canonical suite uses independent snapshot guardrails' {
     foreach ($content in $expectedOutputs.Values)
     {
         foreach ($path in $configuration.CommonSourcePaths)
         {
-            Assert-True ($content.Contains($path)) "Generated suite omitted common source path $path."
+            Assert-True ($content.Contains($path)) "Canonical suite omitted common source path $path."
         }
         foreach ($path in $configuration.SanitizedSourcePaths)
         {
-            Assert-True ($content.Contains($path)) "Generated suite omitted sanitization path $path."
+            Assert-True ($content.Contains($path)) "Canonical suite omitted sanitization path $path."
         }
-        Assert-True ($content.Contains('git remote set-url --push origin no-push://dotnet/aspnetcore')) 'Generated suite allows push.'
-        Assert-True (-not $content.Contains('type: pairwise')) 'Generated suite uses obsolete pairwise grader.'
+        Assert-True ($content.Contains('git remote set-url --push origin no-push://dotnet/aspnetcore')) 'Canonical suite allows push.'
+        Assert-True (-not $content.Contains('type: pairwise')) 'Canonical suite uses obsolete pairwise grader.'
     }
 }
 
@@ -589,38 +599,75 @@ Invoke-Test 'Score aggregation preserves family macro weighting' {
     Assert-Equal 0.5 $aggregate.Result.tiers.train.family_macro 'Duplicate family cases changed macro weight.'
 }
 
+Invoke-Test 'Score aggregation combines split canonical specs' {
+    $scoresPath = Join-Path ([IO.Path]::GetTempPath()) "review-scores-$([guid]::NewGuid()).json"
+    try
+    {
+        $allEvalPaths = @($configuration.ReviewerEvals) + @($configuration.TryFixEvals)
+        $scores = [ordered]@{}
+        foreach ($path in $allEvalPaths)
+        {
+            $document = Read-VallyEvalDocument $path
+            if (-not $scores.Contains($document.skill_name))
+            {
+                $scores[$document.skill_name] = [ordered]@{}
+            }
+            foreach ($eval in @($document.evals))
+            {
+                $scores[$document.skill_name][[string]$eval.id] = 1.0
+            }
+        }
+        $scores | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $scoresPath
+
+        $aggregateScript = Join-Path $PSScriptRoot 'Aggregate-EvalScores.ps1'
+        $output = @(& pwsh -NoProfile -File $aggregateScript `
+            -EvalPath ($allEvalPaths -join ',') `
+            -Scores $scoresPath 2>&1)
+        Assert-Equal 0 $LASTEXITCODE "Split-spec aggregation failed: $($output -join [Environment]::NewLine)"
+        $aggregate = ($output -join [Environment]::NewLine) | ConvertFrom-Json
+        Assert-Equal 17 ($aggregate.'aspnetcore-pr-review'.tiers.train.eval_count + $aggregate.'aspnetcore-pr-review'.tiers.held_out.eval_count) 'Reviewer guardrail spec was not merged with the main suite.'
+        Assert-Equal 12 ($aggregate.'aspnetcore-try-fix'.tiers.train.eval_count + $aggregate.'aspnetcore-try-fix'.tiers.held_out.eval_count) 'Try-fix suite aggregation changed its eval count.'
+    }
+    finally
+    {
+        Remove-Item -LiteralPath $scoresPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Invoke-Test 'Documented multi-input commands bind every argument' {
     $root = Join-Path ([IO.Path]::GetTempPath()) "review-cli-$([guid]::NewGuid())"
     try
     {
         New-Item -ItemType Directory -Path $root -Force | Out-Null
         $validateScript = Join-Path $PSScriptRoot 'Validate-Evals.ps1'
-        $validationOutput = @(& pwsh -NoProfile -File $validateScript -Path "$($configuration.ReviewerEvals),$($configuration.TryFixEvals)" 2>&1)
+        $allEvalPaths = @($configuration.ReviewerEvals) + @($configuration.TryFixEvals)
+        $validationOutput = @(& pwsh -NoProfile -File $validateScript -Path ($allEvalPaths -join ',') 2>&1)
         Assert-Equal 0 $LASTEXITCODE "Documented validation command failed: $($validationOutput -join [Environment]::NewLine)"
         $validation = ($validationOutput -join [Environment]::NewLine) | ConvertFrom-Json
-        $expectedCount = @((Read-JsonDocument $configuration.ReviewerEvals).evals).Count +
-            @((Read-JsonDocument $configuration.TryFixEvals).evals).Count
-        Assert-Equal $expectedCount $validation.raw_count 'Documented validation command did not process both manifests.'
+        $expectedCount = @($allEvalPaths | ForEach-Object { (Read-VallyEvalDocument $_).evals }).Count
+        Assert-Equal $expectedCount $validation.raw_count 'Documented validation command did not process every Vally spec.'
 
-        $manifests = [Collections.Generic.List[string]]::new()
+        $specs = [Collections.Generic.List[string]]::new()
         $results = [Collections.Generic.List[string]]::new()
         foreach ($skill in @('cli-reviewer', 'cli-try-fix'))
         {
-            $manifestPath = Join-Path $root "$skill.json"
+            $specPath = Join-Path $root "$skill.vally.yaml"
             $resultPath = Join-Path $root "$skill.jsonl"
-            @{
-                skill_name = $skill
-                evals = @(
-                    @{
-                        id = 1
-                        eval_metadata = @{
-                            tier = 'train'
-                            score_family = 'cli'
-                            provenance = @{ kind = 'synthetic'; source = $skill }
-                        }
-                    }
-                )
-            } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath
+            @"
+name: $skill
+stimuli:
+  - name: "eval-01-cli"
+    prompt: |-
+      Exercise the CLI aggregation path.
+    tags:
+      eval_id: "1"
+      tier: "train"
+      score_family: "cli"
+      provenance_kind: "synthetic"
+      provenance_source: "$skill"
+    rubric:
+      - "Overall response matches this expected outcome: success"
+"@ | Set-Content -LiteralPath $specPath
 
             $records = for ($run = 1; $run -le 5; $run++)
             {
@@ -646,13 +693,13 @@ Invoke-Test 'Documented multi-input commands bind every argument' {
                 } | ConvertTo-Json -Depth 10 -Compress
             }
             Set-Content -LiteralPath $resultPath -Value $records
-            $manifests.Add($manifestPath)
+            $specs.Add($specPath)
             $results.Add("$skill=$resultPath")
         }
 
         $aggregateScript = Join-Path $PSScriptRoot 'Aggregate-EvalScores.ps1'
         $aggregateOutput = @(& pwsh -NoProfile -File $aggregateScript `
-            -EvalPath ($manifests -join ',') `
+            -EvalPath ($specs -join ',') `
             -VallyResults ($results -join ',') 2>&1)
         Assert-Equal 0 $LASTEXITCODE "Documented aggregation command failed: $($aggregateOutput -join [Environment]::NewLine)"
         $aggregate = ($aggregateOutput -join [Environment]::NewLine) | ConvertFrom-Json

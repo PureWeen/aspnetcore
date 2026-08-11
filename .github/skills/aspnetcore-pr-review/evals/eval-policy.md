@@ -41,31 +41,36 @@ generalization.
 
 ## Metadata and controls
 
-Every eval has `eval_metadata`. `mechanism` and `score_family` are lower
-kebab-case labels; provenance identifies a PR, historical case, or synthetic
-source. `controls.positive` and `controls.negative` are disjoint, nonempty,
-zero-based indexes into `expectations`. Positive controls identify evidence that
-must be present; negative controls identify an overclaim, unrelated scaffold,
-mutation, or side effect the evaluator must reject or avoid. These are
-expectation-level grading controls, not substitutes for matched scenario
-controls.
+Every Vally stimulus has governance tags. `mechanism` and `score_family` are
+lower kebab-case labels; `provenance_kind` and `provenance_source` identify a PR,
+historical case, or synthetic source. `controls_positive` and
+`controls_negative` are disjoint, nonempty, comma-separated zero-based indexes
+into the rubric entries after the overall expected-outcome entry. Positive
+controls identify evidence that must be present; negative controls identify an
+overclaim, unrelated scaffold, mutation, or side effect the evaluator must
+reject or avoid. These are expectation-level grading controls, not substitutes
+for matched scenario controls.
 
 Every new defect regression also needs a matched no-defect, alternate-cause, or
 scope-control scenario in the same score family before its lesson becomes a
 global instruction. The held-out no-defect and bounded-stateless cases are
 permanent complexity-inflation canaries.
 
-Discovery prompts must list nonempty `forbidden_prompt_terms`. Those terms must
-not occur in the prompt, case-insensitively. Verification prompts may use an
-empty list, but every term listed is still forbidden. Keep issue numbers,
+Discovery prompts must list a nonempty JSON array in the
+`forbidden_prompt_terms` tag. Those terms must not occur in the prompt,
+case-insensitively. Verification prompts may use an empty array, but every term
+listed is still forbidden. Keep issue numbers,
 implementation names, answer phrases, and other answer-revealing vocabulary out
-of discovery prompts. Discovery evals receive frozen evidence through `files`;
+of discovery prompts. Discovery evals receive frozen evidence through
+stimulus-level `environment.files`;
 removing facts from a prompt without supplying a fixture makes the eval
 ungradeable rather than de-leaked.
 
-Held-out evals carry a `frozen_hash`. The validator recomputes it from the full
-eval, excluding the hash field itself, so changes to a held-out fixture contract
-are explicit. Train and held-out provenance must remain disjoint within a suite.
+Held-out stimuli carry `fixture_hashes` and `frozen_hash` tags. The validator
+checks every fixture SHA-256 and recomputes the semantic stimulus hash from the
+parsed prompt, rubric, fixture references, and governance tags, excluding the
+hash field itself. Train and held-out provenance must remain disjoint within a
+skill.
 
 ## Maintenance
 
@@ -93,23 +98,22 @@ Before accepting eval changes, run:
 
 ```powershell
 pwsh .github/skills/aspnetcore-pr-review/scripts/Validate-Evals.ps1 `
-  -Path '.github/skills/aspnetcore-pr-review/evals/evals.json,.github/skills/aspnetcore-try-fix/evals/evals.json'
-pwsh .github/skills/aspnetcore-pr-review/scripts/Sync-VallyEvals.ps1 -Check
-pwsh .github/skills/aspnetcore-pr-review/scripts/Sync-VallyEvals.ps1 `
-  -StageSkills /tmp/aspnetcore-review-skills
+  -Path 'eng/skill-evals/aspnetcore-pr-review/regression.vally.yaml,eng/skill-evals/aspnetcore-pr-review/model-guardrail.vally.yaml,eng/skill-evals/aspnetcore-try-fix/regression.vally.yaml'
+pwsh .github/skills/aspnetcore-pr-review/scripts/Stage-ReviewerSkills.ps1 `
+  /tmp/aspnetcore-review-skills
 ```
 
-The JSON manifests remain the source of truth for provenance, controls, frozen
-hashes, and train/held-out governance. `Sync-VallyEvals.ps1` projects every case
-into the repository-standard Vally schema under `eng/skill-evals/` without
-duplicating hand-maintained rubrics.
+The three specs under `eng/skill-evals/` are the only source of truth for
+prompts, rubrics, fixtures, models, and governance metadata. There is no
+generated manifest or synchronization step. `Validate-Evals.ps1` performs the
+cross-stimulus anti-overfit checks that Vally's schema lint does not cover.
 
 Official and comparison runs use `@microsoft/vally-cli@0.13.0`. Invoke that
 exact package rather than an unversioned global `vally`; otherwise local results
 can silently depend on an older schema or grading implementation. Record the
 resolved version with the retained results. The repository-wide eval directory
 does not currently pin a Vally package version, so update this pin deliberately
-only after regenerating and strict-linting all three generated specs. ASP.NET
+only after strict-linting all three canonical specs. ASP.NET
 Core's `.npmrc` points at an authenticated Azure DevOps feed, while Vally 0.13
 is not available from public npm. Authenticate that feed or select an approved
 Microsoft mirror before running `npx`; the following mirror was used for the
@@ -154,23 +158,23 @@ npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
 
 The non-GPT orchestrator guardrail is intentionally in
 `model-guardrail.vally.yaml` so it can run under `claude-sonnet-5` without
-invalidating the GPT-orchestrated cases in the main manifest. These deep-review
+invalidating the GPT-orchestrated cases in the main suite. These deep-review
 specs are standalone Vally capability suites rather than inputs to the generic
 `skills-vs-baseline` experiment. They need a sibling skill and repository
 identity, so treating a live checkout as the baseline would auto-discover the
 skills under test and invalidate the A/B comparison. Direct local runs can
-select a case by its `eval_id` tag. Their generated environments copy repository
+select a case by its `eval_id` tag. Their declared environments copy repository
 instructions, root build metadata, neutral fixture aliases, and only explicit
-`eval_metadata.source_paths` into a new independent Git repository.
+stimulus-level source overlays into a new independent Git repository.
 Fixture-driven discovery cases do not receive an unrelated production source
 tree. Source-backed cases must declare the narrow paths they need rather than
 inheriting a whole product area. The reviewer skill directories are never
-copied, generated reviewer specs are deleted before the initial commit, ignored
+copied, canonical eval specs are deleted before the initial commit, and ignored
 outputs are removed using the copied root `.gitignore`, and the origin has a
 disabled push URL. This keeps snapshots small, prevents answer-key discovery,
 and avoids sharing host Git metadata.
-`-StageSkills` copies only the runtime files required by the reviewer and its
-sibling try-fix into a directory outside the checkout.
+`Stage-ReviewerSkills.ps1` copies only the runtime files required by the
+reviewer and its sibling try-fix into a directory outside the checkout.
 
 Run official suites from a committed revision with no unrelated changes in the
 declared source paths. The snapshot copies working-tree files, so an uncommitted
@@ -194,7 +198,7 @@ suites use prompt grading only. Run the pinned CLI's `compare` command over an
 experiment output directory when a comparative judgment is needed.
 
 A one-trial local run is diagnostic feedback only. Official score aggregation
-requires the five trials and executor model pinned in each generated stimulus.
+requires the five trials and executor model pinned in each canonical stimulus.
 Use one worker and a dedicated retained workspace root. The source snapshot is
 large enough that concurrent local environment setup can collide during Git
 initialization; five sequential trials preserve isolation and reproducibility.
@@ -234,15 +238,15 @@ npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
 ```
 
 Vally supplies the score-producing prompt grader, repeated trials, and
-pass@k/pass^k reporting. Run `scripts/Aggregate-EvalScores.ps1` with both JSON
-governance manifests and one or more
+pass@k/pass^k reporting. Run `scripts/Aggregate-EvalScores.ps1` with the three
+canonical Vally specs and one or more
 `-VallyResults <skill-name>=<results.jsonl>` arguments to additionally report
 raw, family-macro, provenance-macro, and train-to-held-out transfer results.
 The reviewer aggregation needs both its GPT and Claude result files:
 
 ```powershell
 pwsh .github/skills/aspnetcore-pr-review/scripts/Aggregate-EvalScores.ps1 `
-  -EvalPath '.github/skills/aspnetcore-pr-review/evals/evals.json,.github/skills/aspnetcore-try-fix/evals/evals.json' `
+  -EvalPath 'eng/skill-evals/aspnetcore-pr-review/regression.vally.yaml,eng/skill-evals/aspnetcore-pr-review/model-guardrail.vally.yaml,eng/skill-evals/aspnetcore-try-fix/regression.vally.yaml' `
   -VallyResults 'aspnetcore-pr-review=/tmp/pr-review-main/results.jsonl,aspnetcore-pr-review=/tmp/pr-review-guardrail/results.jsonl,aspnetcore-try-fix=/tmp/try-fix/results.jsonl'
 ```
 

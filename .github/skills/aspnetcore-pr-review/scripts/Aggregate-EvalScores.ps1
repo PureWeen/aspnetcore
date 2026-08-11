@@ -64,11 +64,26 @@ else
 }
 
 $output = [ordered]@{}
+$documents = [ordered]@{}
 foreach ($path in $EvalPath)
 {
-    $document = Read-JsonDocument $path
+    $document = Read-VallyEvalDocument $path
     $skill = [string]$document.skill_name
+    if ([string]::IsNullOrWhiteSpace($skill)) { throw "$path`: Vally spec must declare a name" }
+    if (-not $documents.Contains($skill))
+    {
+        $documents[$skill] = [Collections.Generic.List[object]]::new()
+    }
+    foreach ($eval in @($document.evals))
+    {
+        $documents[$skill].Add($eval)
+    }
+}
+
+foreach ($skill in $documents.Keys)
+{
     if (-not $scoreData.ContainsKey($skill)) { throw "$skill`: scores must be provided" }
+    $document = [pscustomobject]@{ skill_name = $skill; evals = @($documents[$skill]) }
     $aggregate = Get-EvalScoreAggregate -Document $document -Scores $scoreData[$skill]
     if ($aggregate.Errors.Count -gt 0) { throw ("$skill`: " + ($aggregate.Errors -join '; ')) }
     $output[$skill] = $aggregate.Result
