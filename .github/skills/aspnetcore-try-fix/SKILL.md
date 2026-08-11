@@ -35,9 +35,14 @@ safe to run concurrently. It returns `Proposed`, never `Pass`.
 
 ### `empirical`
 
-Read `references/empirical-protocol.md` and the sibling reviewer's
-`references/proof-calibration.md`. Use only an isolated child session/worktree
-or a caller-provided safe restoration mechanism. Run attempts sequentially.
+When the caller supplies complete retained evidence and explicitly requests
+classification without edits or reruns, calibrate it inline using the core proof
+labels below. Do not search the repository or block on optional reference access.
+
+For active empirical work, read `references/empirical-protocol.md` and the
+sibling reviewer's `references/proof-calibration.md`. Use only an isolated child
+session/worktree or a caller-provided safe restoration mechanism. Run attempts
+sequentially.
 
 If the parent contains user changes and isolation is unavailable, return
 `Blocked` instead of editing it.
