@@ -127,11 +127,12 @@ contract contradictions may remain structural findings.
 ### 5. Adjudicate only a surviving material claim
 
 If no material correctness claim survives, or bounded-path targeted red/green
-already resolves the only claim, write specific not-applicable reasons for the
-full empirical campaign and continue to live-head refresh. Empirical busywork is
-not a quality signal. An assertion that proves an authoritative defect and its
-correction is `required-regression`; candidate-shaped hardening remains optional
-or diagnostic.
+already resolves the only claim, record the skipped full cross-examination and
+empirical/stress campaign once in `evidence/skipped-phases.md`, then continue to
+live-head refresh. Do not create empty full-path artifact trees. Empirical
+busywork is not a quality signal. An assertion that proves an authoritative
+defect and its correction is `required-regression`; candidate-shaped hardening
+remains optional or diagnostic.
 
 Otherwise read `references/empirical-proof.md` and
 `references/proof-calibration.md`, then adjudicate in isolation. Freeze the
@@ -162,8 +163,9 @@ pwsh <skill-root>/scripts/Validate-ReviewArtifacts.ps1 `
   <artifact-root>/aspnetcore-pr-review
 ```
 
-Fix missing or inconsistent artifacts before synthesis. Represent skipped work
-with explicit not-applicable artifacts, not missing files.
+Fix missing or inconsistent artifacts before synthesis. The validator applies
+the declared bounded/full schema; preserve actual work and the bounded
+`skipped-phases.md` record instead of manufacturing unused artifacts.
 
 ### 8. Separate durable repository knowledge from review machinery
 

@@ -60,23 +60,44 @@ function Assert-Equal
 
 function New-ValidReviewArtifacts
 {
-    param([string] $Root)
+    param(
+        [string] $Root,
+
+        [ValidateSet('bounded', 'full')]
+        [string] $ReviewPath = 'bounded',
+
+        [switch] $TargetedProven
+    )
 
     $nonEmpty = @(
         'evidence/manifest.md', 'evidence/product-oracle.md', 'evidence/head-drift.md',
         'evidence/impact-map.md', 'candidates/candidate-a.md', 'candidates/candidate-b.md',
-        'candidates/candidate-c.md', 'candidates/candidate-d.md',
-        'cross-examination/candidate-a.md', 'cross-examination/candidate-b.md',
-        'cross-examination/candidate-c.md', 'cross-examination/candidate-d.md',
-        'empirical/manifest.md', 'empirical/head.log', 'empirical/claim-matrix.md',
-        'empirical/stress-matrix.md', 'empirical/result.md',
         'final/repository-oracle.md', 'final/review.md'
     )
-    $existing = @(
-        'evidence/tracked.diff', 'empirical/before.diff', 'empirical/diagnostic.diff',
-        'empirical/implementation.diff', 'empirical/red.log', 'empirical/candidate.diff',
-        'empirical/green.log'
-    )
+    $existing = @('evidence/tracked.diff')
+    if ($ReviewPath -eq 'bounded')
+    {
+        $nonEmpty += 'evidence/skipped-phases.md'
+        if ($TargetedProven)
+        {
+            $nonEmpty += @('empirical/head.log', 'empirical/green.log', 'empirical/result.md')
+        }
+    }
+    else
+    {
+        $nonEmpty += @(
+            'candidates/candidate-c.md', 'candidates/candidate-d.md',
+            'cross-examination/candidate-a.md', 'cross-examination/candidate-b.md',
+            'cross-examination/candidate-c.md', 'cross-examination/candidate-d.md',
+            'empirical/manifest.md', 'empirical/head.log', 'empirical/claim-matrix.md',
+            'empirical/stress-matrix.md', 'empirical/result.md'
+        )
+        $existing += @(
+            'empirical/before.diff', 'empirical/diagnostic.diff',
+            'empirical/implementation.diff', 'empirical/red.log',
+            'empirical/candidate.diff', 'empirical/green.log'
+        )
+    }
     foreach ($relativePath in $nonEmpty)
     {
         $path = Join-Path $Root $relativePath
@@ -90,10 +111,17 @@ function New-ValidReviewArtifacts
         New-Item -ItemType File -Path $path -Force | Out-Null
     }
 
-    @'
+    $frozenHead = if ($TargetedProven) { 'behavioral-fail' } else { 'pass' }
+    $findingProof = if ($TargetedProven) { 'empirical' } else { 'missing' }
+    $scenarioProof = if ($TargetedProven) { 'empirical' } else { 'missing' }
+    $candidateProof = if ($TargetedProven) { 'targeted-proven' } else { 'none' }
+    $regression = if ($TargetedProven) { 'required-regression' } else { 'rejected' }
+    $behavioralEvidence = if ($TargetedProven) { 'empirical' } else { 'missing' }
+
+    @"
 # Multi-Model Review
 **Orchestrator:** gpt-test
-**Path:** bounded
+**Path:** $ReviewPath
 ## Current fix
 Current.
 ## Independent candidates
@@ -103,19 +131,19 @@ Consensus.
 ## Test assessment
 Assessment.
 ## Proof status
-**Frozen-head result:** pass
-**Finding proof:** missing
-**Scenario proof:** missing
-**Candidate proof:** none
+**Frozen-head result:** $frozenHead
+**Finding proof:** $findingProof
+**Scenario proof:** $scenarioProof
+**Candidate proof:** $candidateProof
 **Product oracle:** documented
 **Oracle fidelity:** authoritative
 **Mechanism fidelity:** structural
 **Scenario fidelity:** exact
-**Regression assertion disposition:** rejected
+**Regression assertion disposition:** $regression
 **Diagnostic mutation disposition:** not-applicable
 ## Final recommendation
 **Implementation verdict:** KEEP CURRENT FIX
-**Behavioral evidence:** missing
+**Behavioral evidence:** $behavioralEvidence
 **Merge readiness:** recommendation only
 **Implementation confidence:** medium
 **Reason:** No material claim survived.
@@ -125,7 +153,7 @@ None.
 None.
 ## Suggested review comments
 None.
-'@ | Set-Content -LiteralPath (Join-Path $Root 'final/review.md')
+"@ | Set-Content -LiteralPath (Join-Path $Root 'final/review.md')
 }
 
 $configuration = Get-ReviewerEvalConfiguration
@@ -197,14 +225,105 @@ if ($Suite -in @('All', 'Reviewer'))
         Assert-True (-not $main.Contains('orchestrator-model-guardrail')) 'Guardrail leaked into the GPT suite.'
     }
 
-    Invoke-Test 'Artifact validator accepts bounded not-applicable artifacts' {
+    Invoke-Test 'Bounded artifact schema accepts a minimal bundle' {
         $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
         try
         {
-            New-ValidReviewArtifacts $root
+            New-ValidReviewArtifacts -Root $root -ReviewPath bounded
             Assert-Equal 0 @(Test-ReviewArtifacts -Root $root).Count 'Valid artifact bundle was rejected.'
-            Remove-Item -LiteralPath (Join-Path $root 'evidence/impact-map.md')
-            Assert-True (@(Test-ReviewArtifacts -Root $root) -contains 'missing required artifact: evidence/impact-map.md') 'Missing impact map was not rejected.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $root 'candidates/candidate-c.md'))) 'Bounded bundle created candidate C boilerplate.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $root 'cross-examination'))) 'Bounded bundle created cross-examination boilerplate.'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $root 'empirical'))) 'Bounded bundle created empirical boilerplate.'
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
+    Invoke-Test 'Bounded artifact schema requires candidates A and B' {
+        foreach ($candidate in @('candidate-a.md', 'candidate-b.md'))
+        {
+            $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+            try
+            {
+                New-ValidReviewArtifacts -Root $root -ReviewPath bounded
+                Remove-Item -LiteralPath (Join-Path $root "candidates/$candidate")
+                $errors = @(Test-ReviewArtifacts -Root $root)
+                Assert-True ($errors -contains "missing required artifact: candidates/$candidate") "Missing $candidate was not rejected."
+            }
+            finally
+            {
+                if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            }
+        }
+    }
+
+    Invoke-Test 'Bounded targeted proof requires red and green evidence' {
+        foreach ($artifact in @('empirical/head.log', 'empirical/green.log'))
+        {
+            $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+            try
+            {
+                New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+                Assert-Equal 0 @(Test-ReviewArtifacts -Root $root).Count 'Valid bounded targeted proof was rejected.'
+                Remove-Item -LiteralPath (Join-Path $root $artifact)
+                $errors = @(Test-ReviewArtifacts -Root $root)
+                Assert-True ($errors -contains "bounded targeted-proven missing required artifact: $artifact") "Missing $artifact was not rejected."
+            }
+            finally
+            {
+                if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            }
+        }
+    }
+
+    Invoke-Test 'Full artifact schema retains the complete contract' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+        try
+        {
+            New-ValidReviewArtifacts -Root $root -ReviewPath full
+            Assert-Equal 0 @(Test-ReviewArtifacts -Root $root).Count 'Valid full artifact bundle was rejected.'
+            foreach ($artifact in @('candidates/candidate-c.md', 'cross-examination/candidate-d.md', 'empirical/manifest.md'))
+            {
+                Remove-Item -LiteralPath (Join-Path $root $artifact)
+            }
+            $errors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($errors -contains 'missing required artifact: candidates/candidate-c.md') 'Full path accepted missing candidate C.'
+            Assert-True ($errors -contains 'missing required artifact: cross-examination/candidate-d.md') 'Full path accepted missing cross-examination.'
+            Assert-True ($errors -contains 'missing required artifact: empirical/manifest.md') 'Full path accepted missing empirical contract.'
+
+            $reviewPath = Join-Path $root 'final/review.md'
+            $review = Get-Content -LiteralPath $reviewPath -Raw
+            $review = $review.Replace('**Frozen-head result:** pass', '**Frozen-head result:** behavioral-fail')
+            $review = $review.Replace('**Finding proof:** missing', '**Finding proof:** empirical')
+            $review = $review.Replace('**Scenario proof:** missing', '**Scenario proof:** empirical')
+            $review = $review.Replace('**Candidate proof:** none', '**Candidate proof:** production-proven')
+            $review = $review.Replace('**Regression assertion disposition:** rejected', '**Regression assertion disposition:** required-regression')
+            $review = $review.Replace('**Behavioral evidence:** missing', '**Behavioral evidence:** empirical')
+            Set-Content -LiteralPath $reviewPath -Value $review
+            Remove-Item -LiteralPath (Join-Path $root 'empirical/stress-matrix.md')
+            $productionErrors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($productionErrors -contains 'missing required artifact: empirical/stress-matrix.md') 'Full production proof did not report a missing stress matrix.'
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
+    Invoke-Test 'Artifact path and proof labels must be consistent' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+        try
+        {
+            New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+            $reviewPath = Join-Path $root 'final/review.md'
+            (Get-Content -LiteralPath $reviewPath -Raw).Replace(
+                '**Candidate proof:** targeted-proven',
+                '**Candidate proof:** production-proven'
+            ) | Set-Content -LiteralPath $reviewPath
+            $errors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($errors -contains 'production-proven candidate proof requires the full review path') 'Bounded path accepted production-proven.'
         }
         finally
         {

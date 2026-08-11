@@ -1123,22 +1123,75 @@ function Test-ReviewArtifacts
         [string] $Root
     )
 
-    $requiredNonEmpty = @(
+    $errors = [Collections.Generic.List[string]]::new()
+    $reviewPath = Join-Path $Root 'final/review.md'
+    $declaredPath = $null
+    if (-not (Test-Path -LiteralPath $reviewPath -PathType Leaf))
+    {
+        $errors.Add('missing required artifact: final/review.md')
+    }
+    else
+    {
+        $reviewContent = Get-Content -LiteralPath $reviewPath -Raw
+        if ([string]::IsNullOrWhiteSpace($reviewContent))
+        {
+            $errors.Add('required artifact is empty: final/review.md')
+        }
+        else
+        {
+            $pathMatches = [regex]::Matches($reviewContent, '(?m)^\*\*Path:\*\*\s*(.+?)\s*$')
+            if ($pathMatches.Count -eq 0)
+            {
+                $errors.Add('final review missing marker: **Path:**')
+            }
+            elseif ($pathMatches.Count -gt 1)
+            {
+                $errors.Add('final review contains duplicate marker: **Path:**')
+            }
+            else
+            {
+                $candidatePath = $pathMatches[0].Groups[1].Value.Trim().ToLowerInvariant()
+                if ($candidatePath -notin @('bounded', 'full'))
+                {
+                    $errors.Add("invalid calibrated value for Path: $candidatePath")
+                }
+                else
+                {
+                    $declaredPath = $candidatePath
+                }
+            }
+        }
+    }
+
+    $requiredNonEmpty = [Collections.Generic.List[string]]::new()
+    @(
         'evidence/manifest.md', 'evidence/product-oracle.md', 'evidence/head-drift.md',
         'evidence/impact-map.md', 'candidates/candidate-a.md', 'candidates/candidate-b.md',
-        'candidates/candidate-c.md', 'candidates/candidate-d.md',
-        'cross-examination/candidate-a.md', 'cross-examination/candidate-b.md',
-        'cross-examination/candidate-c.md', 'cross-examination/candidate-d.md',
-        'empirical/manifest.md', 'empirical/head.log', 'empirical/claim-matrix.md',
-        'empirical/stress-matrix.md', 'empirical/result.md',
         'final/repository-oracle.md', 'final/review.md'
-    )
-    $requiredExisting = @(
-        'evidence/tracked.diff', 'empirical/before.diff', 'empirical/diagnostic.diff',
-        'empirical/implementation.diff', 'empirical/red.log', 'empirical/candidate.diff',
-        'empirical/green.log'
-    )
-    $errors = [Collections.Generic.List[string]]::new()
+    ) | ForEach-Object { $requiredNonEmpty.Add($_) }
+    $requiredExisting = [Collections.Generic.List[string]]::new()
+    $requiredExisting.Add('evidence/tracked.diff')
+
+    if ($declaredPath -eq 'bounded')
+    {
+        $requiredNonEmpty.Add('evidence/skipped-phases.md')
+    }
+    elseif ($declaredPath -eq 'full')
+    {
+        @(
+            'candidates/candidate-c.md', 'candidates/candidate-d.md',
+            'cross-examination/candidate-a.md', 'cross-examination/candidate-b.md',
+            'cross-examination/candidate-c.md', 'cross-examination/candidate-d.md',
+            'empirical/manifest.md', 'empirical/head.log', 'empirical/claim-matrix.md',
+            'empirical/stress-matrix.md', 'empirical/result.md'
+        ) | ForEach-Object { $requiredNonEmpty.Add($_) }
+        @(
+            'empirical/before.diff', 'empirical/diagnostic.diff',
+            'empirical/implementation.diff', 'empirical/red.log',
+            'empirical/candidate.diff', 'empirical/green.log'
+        ) | ForEach-Object { $requiredExisting.Add($_) }
+    }
+
     foreach ($relativePath in $requiredNonEmpty)
     {
         $path = Join-Path $Root $relativePath
@@ -1150,7 +1203,6 @@ function Test-ReviewArtifacts
         if (-not (Test-Path -LiteralPath (Join-Path $Root $relativePath) -PathType Leaf)) { $errors.Add("missing required artifact: $relativePath") }
     }
 
-    $reviewPath = Join-Path $Root 'final/review.md'
     if (-not (Test-Path -LiteralPath $reviewPath -PathType Leaf)) { return @($errors) }
     $content = Get-Content -LiteralPath $reviewPath -Raw
     foreach ($heading in @(
@@ -1190,7 +1242,6 @@ function Test-ReviewArtifacts
     }
 
     $labels = [ordered]@{
-        'Path' = @('bounded', 'full')
         'Frozen-head result' = @('behavioral-fail', 'structural-defect', 'pass', 'blocked', 'not-applicable')
         'Finding proof' = @('empirical', 'structural', 'missing')
         'Scenario proof' = @('empirical', 'structural', 'missing')
@@ -1232,29 +1283,62 @@ function Test-ReviewArtifacts
         if ($values['Implementation confidence'] -eq 'high' -and $weak) { $errors.Add('high confidence is incompatible with weak oracle, mechanism, or scenario fidelity') }
         if ($values['Candidate proof'] -eq 'diagnostic-only' -and $values['Implementation confidence'] -eq 'high') { $errors.Add('diagnostic-only candidate proof is incompatible with high confidence') }
         if ($values['Candidate proof'] -eq 'diagnostic-only' -and $values['Merge readiness'] -eq 'ready') { $errors.Add('diagnostic-only candidate proof is incompatible with ready') }
-        if ($values['Candidate proof'] -eq 'production-proven')
+        if ($declaredPath -eq 'bounded' -and $values['Candidate proof'] -eq 'production-proven')
+        {
+            $errors.Add('production-proven candidate proof requires the full review path')
+        }
+        if ($declaredPath -eq 'bounded' -and $values['Candidate proof'] -eq 'targeted-proven')
+        {
+            if (
+                $values['Frozen-head result'] -ne 'behavioral-fail' -or
+                $values['Finding proof'] -ne 'empirical' -or
+                $values['Scenario proof'] -ne 'empirical' -or
+                $values['Behavioral evidence'] -ne 'empirical' -or
+                $values['Regression assertion disposition'] -ne 'required-regression'
+            )
+            {
+                $errors.Add('bounded targeted-proven requires empirical behavioral red/green and a required-regression assertion')
+            }
+            foreach ($relativePath in @('empirical/head.log', 'empirical/green.log', 'empirical/result.md'))
+            {
+                $path = Join-Path $Root $relativePath
+                if (-not (Test-Path -LiteralPath $path -PathType Leaf))
+                {
+                    $errors.Add("bounded targeted-proven missing required artifact: $relativePath")
+                }
+                elseif ([string]::IsNullOrWhiteSpace((Get-Content -LiteralPath $path -Raw)))
+                {
+                    $errors.Add("bounded targeted-proven artifact is empty: $relativePath")
+                }
+            }
+        }
+        if ($values['Candidate proof'] -eq 'production-proven' -and $declaredPath -eq 'full')
         {
             if (-not $provenHead) { $errors.Add('production-proven requires a proven frozen-head defect') }
             if ($weak) { $errors.Add('production-proven is incompatible with weak oracle, mechanism, or scenario fidelity') }
             if ($values['Finding proof'] -ne 'empirical' -or $values['Scenario proof'] -ne 'empirical') { $errors.Add('production-proven requires empirical finding and scenario proof') }
             if ($values['Regression assertion disposition'] -ne 'required-regression') { $errors.Add('production-proven requires a required-regression assertion disposition') }
-            $stress = Get-Content -LiteralPath (Join-Path $Root 'empirical/stress-matrix.md') -Raw
-            foreach ($dimension in @('Real producer/runtime boundary', 'Varied falsification dimensions', 'Applicable configurations/platforms', 'Neighboring suite', 'Cleanup/interruption paths'))
+            $stressPath = Join-Path $Root 'empirical/stress-matrix.md'
+            if (Test-Path -LiteralPath $stressPath -PathType Leaf)
             {
-                if ($stress -notmatch "(?im)^\*\*$([regex]::Escape($dimension)):\*\*\s*(?:passed|not applicable\s*[-:]\s*\S)")
+                $stress = Get-Content -LiteralPath $stressPath -Raw
+                foreach ($dimension in @('Real producer/runtime boundary', 'Varied falsification dimensions', 'Applicable configurations/platforms', 'Neighboring suite', 'Cleanup/interruption paths'))
                 {
-                    $errors.Add("production-proven requires an explicit passed or justified not-applicable status for: $dimension")
+                    if ($stress -notmatch "(?im)^\*\*$([regex]::Escape($dimension)):\*\*\s*(?:passed|not applicable\s*[-:]\s*\S)")
+                    {
+                        $errors.Add("production-proven requires an explicit passed or justified not-applicable status for: $dimension")
+                    }
                 }
-            }
-            $sections = [regex]::Matches($stress, '(?ms)^## Executed cases\s*(.*?)(?=^## |\z)')
-            if ($sections.Count -ne 1)
-            {
-                $errors.Add('production-proven requires exactly one Executed cases section')
-            }
-            $rows = if ($sections.Count -eq 1) { @($sections[0].Groups[1].Value -split "`r?`n" | Where-Object { $_.Trim().StartsWith('|') -and $_ -notmatch '---' }) } else { @() }
-            if ($rows.Count -lt 3 -or @($rows[1..($rows.Count - 1)] | Sort-Object -Unique).Count -lt 2)
-            {
-                $errors.Add('production-proven requires multiple distinct executed cases')
+                $sections = [regex]::Matches($stress, '(?ms)^## Executed cases\s*(.*?)(?=^## |\z)')
+                if ($sections.Count -ne 1)
+                {
+                    $errors.Add('production-proven requires exactly one Executed cases section')
+                }
+                $rows = if ($sections.Count -eq 1) { @($sections[0].Groups[1].Value -split "`r?`n" | Where-Object { $_.Trim().StartsWith('|') -and $_ -notmatch '---' }) } else { @() }
+                if ($rows.Count -lt 3 -or @($rows[1..($rows.Count - 1)] | Sort-Object -Unique).Count -lt 2)
+                {
+                    $errors.Add('production-proven requires multiple distinct executed cases')
+                }
             }
         }
     }

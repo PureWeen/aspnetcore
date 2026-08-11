@@ -12,17 +12,34 @@ aspnetcore-pr-review/
   evidence/{manifest,product-oracle,impact-map,head-drift}.md
   evidence/tracked.diff
   evidence/files/
-  candidates/candidate-{a,b,c,d}.md
+  candidates/candidate-{a,b}.md
+  final/{repository-oracle,review}.md
+```
+
+Add only the path-specific artifacts:
+
+```text
+bounded:
+  evidence/skipped-phases.md
+  empirical/{head,green}.log       # only when targeted red/green ran
+  empirical/result.md              # only when targeted red/green ran
+
+full:
+  candidates/candidate-{c,d}.md
   cross-examination/candidate-{a,b,c,d}.md
   empirical/{manifest,claim-matrix,stress-matrix,result}.md
   empirical/{head,red,green}.log
   empirical/{before,diagnostic,implementation,candidate}.diff
-  final/{repository-oracle,review}.md
 ```
 
-Bounded reviews still create every path expected by the artifact validator.
-Write a specific `Not applicable` reason into unused candidate and empirical
-artifacts; empty diff/log files are valid when their phase did not run.
+For bounded reviews, `evidence/skipped-phases.md` is the one concise record for
+why full cross-examination and the full empirical/stress campaign did not run.
+Do not create empty C/D, cross-examination, stress, log, or diff boilerplate.
+When bounded targeted red/green does run, preserve its actual head, green, and
+result artifacts.
+
+Full reviews retain the complete contract. A legitimately skipped full-path
+step records its reason in the corresponding required artifact.
 
 The manifest records:
 

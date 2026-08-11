@@ -13,6 +13,23 @@ Fetch the live PR head and compare it with the frozen SHA. Save the comparison:
 
 Never describe frozen-head evidence as current-head validation.
 
+## Artifact schema
+
+The `**Path:**` field selects the validator contract:
+
+- `bounded` requires shared evidence, candidates A/B, live-head drift,
+  `evidence/skipped-phases.md`, repository oracle, and final review. If the
+  candidate is `targeted-proven`, also retain the actual frozen-head log,
+  candidate-green log, and empirical result. Do not create unused full-path
+  boilerplate.
+- `full` requires all four candidates, all four cross-examinations, and the
+  complete empirical proof tree defined in `evidence-and-orchestration.md`.
+
+The final proof labels must agree with the path. In particular,
+`production-proven` requires `full`; bounded `targeted-proven` requires
+candidate-independent behavioral red, identical candidate green, empirical
+finding/scenario evidence, and a required regression assertion.
+
 ## Claim synthesis
 
 The GPT orchestrator, not a candidate, assigns:
@@ -66,6 +83,8 @@ Write `final/review.md`:
 |---|---|---|---|---|
 
 ## Adversarial consensus
+<for bounded, synthesize the orchestrator comparison of A/B; for full, synthesize
+the saved cross-examination round>
 ### Agree
 - <verified claim>
 ### Dispute
