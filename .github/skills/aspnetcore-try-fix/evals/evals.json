@@ -96,8 +96,8 @@
     },
     {
       "id": 4,
-      "prompt": "In an isolated worktree, empirically assess a test harness that waits on two inner tasks with an observer-only timeout. A focused test runs only with an unrelated frontend build disabled. Preserve a diagnostic assertion, apply one implementation candidate, and determine whether the result is production-ready.",
-      "expected_output": "A scoped empirical result with separate diagnostic and implementation diffs, build-bypass proof limits, a varied stress matrix, and deterministic cleanup of inner tasks after observer timeout.",
+      "prompt": "Calibrate this retained empirical result without editing or rerunning it: untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while an unrelated frontend target is disabled; two mechanism-derived cleanup variants pass; timed-out inner tasks are deterministically canceled and their exceptions observed; the standard build and exact CI path were not run. State exactly what is proven, the regression-assertion disposition, and the highest honest candidate label.",
+      "expected_output": "A calibrated targeted-proven result that credits behavioral red/green and cleanup evidence, preserves the required regression assertion, records the unrelated build bypass, and refuses production-ready or cross-configuration wording.",
       "files": [],
       "eval_metadata": {
         "mechanism": "timeout-cleanup-build-bypass",
@@ -110,19 +110,20 @@
         "tier": "train",
         "discovery_mode": "verification",
         "controls": {
-          "positive": [0, 1, 3, 4, 5, 6],
-          "negative": [2]
+          "positive": [0, 1, 2, 3, 4, 5, 6],
+          "negative": [7]
         },
         "forbidden_prompt_terms": []
       },
       "expectations": [
-        "The diagnostic assertion and implementation candidate are captured separately and given an assertion disposition.",
+        "The behavioral red/green and implementation candidate are credited while remaining separate from the build-bypass limitation.",
         "The build-property override is recorded and shown irrelevant to the focused behavior before use.",
         "The proof is capped at targeted-proven while the standard build or exact CI path remains unvalidated.",
-        "Repeated identical passes are not substituted for a varied stress matrix.",
+        "The two mechanism-derived cleanup variants are recognized as stronger than repeated identical passes.",
         "The test inspects inner task state after timeout and deterministically releases or cancels outstanding work.",
         "Exceptions from timed-out inner work are observed so they cannot leak into later tests.",
-        "The final fidelity fields preserve configuration and scenario limits."
+        "The regression assertion is classified required-regression because it independently proves the defect and correction.",
+        "The final wording preserves configuration and scenario limits and does not claim production-ready."
       ]
     },
     {
@@ -237,78 +238,41 @@
     },
     {
       "id": 8,
-      "prompt": "Use aspnetcore-try-fix in candidate-review mode for the supplied fixture. Inputs: problem and product oracle are the fixture's accepted behavior; current_fix is the described callback-handling change; target_files are Components virtualization; validation is planning only because no concrete candidate patch is supplied; oracle_authority is the synthetic accepted-behavior contract; evidence_manifest is the fixture; derive the impact_map; return the artifact inline for this eval. Determine which adjacent recovery behavior and impacted existing tests are needed before empirical validation. Do not edit, build, launch a browser, or inspect history. Limit source inspection to targeted confirmation and keep the assessment bounded and local.",
-      "expected_output": "A structured candidate-review plan that models measurement provenance across suppression, selects impacted existing tests, requires the first resumed real-browser callback with one fixed-size control and one variable-height perturbation, and keeps the candidate blocked until that empirical matrix passes.",
+      "prompt": "Use aspnetcore-try-fix in candidate-review mode for the supplied portable viewport fixture. Treat its accepted behavior as the product oracle, its described candidate as current_fix, and its existing tests as the impact-map starting point. Return one bounded read-only candidate inline. Do not edit, build, launch a browser, inspect history, or claim empirical proof.",
+      "expected_output": "A structured candidate-review plan that tracks recovery measurement epochs, selects the unchanged pan test, requires a real-browser control and bounded variable-width perturbation, and honestly remains Proposed/blocked on empirical proof.",
       "files": [
-        ".github/skills/aspnetcore-pr-review/evals/fixtures/virtualization-recovery.md"
+        ".github/skills/aspnetcore-pr-review/evals/fixtures/viewport-measurement-epoch-recovery.md"
       ],
       "eval_metadata": {
-        "mechanism": "measurement-generation-recovery",
+        "mechanism": "viewport-measurement-epoch-recovery",
         "provenance": {
-          "kind": "historical",
-          "source": "dotnet/aspnetcore#68114"
+          "kind": "synthetic",
+          "source": "portable viewport measurement epoch scenario"
         },
-        "area": "Components/Virtualization",
+        "area": "Components/Browser",
         "score_family": "recovery-measurement-generation",
         "tier": "train",
         "discovery_mode": "discovery",
         "controls": {
           "positive": [0, 1, 2, 3, 4, 6],
-          "negative": [5]
+          "negative": [5, 7]
         },
         "forbidden_prompt_terms": [
-          "first resumed",
-          "bottom spacer",
-          "old spacer pixels",
-          "measured item-size average"
+          "epoch E0",
+          "epoch E1",
+          "PanForward_KeepsEarliestTimestampMonotonic",
+          "atomic snapshot"
         ]
       },
       "expectations": [
-        "The assertion plan records the suppressed interval, resume trigger, pre/post measurement generations, and impacted existing tests.",
-        "The candidate explains which geometry remains stale and which measurement becomes current before redistribution.",
-        "The plan requires the real observer and DOM measurement producer rather than only directly invoking a C# consumer callback.",
-        "The proposed bounded matrix contains a fixed-size control and one realistic variable-height perturbation.",
-        "The trigger scrolls to expose the opposite or bottom spacer after initial positioning and asserts no backward visible-range jump.",
-        "Existing initial-placement and boundary-key tests are selected but are not treated as substitutes for the recovery scenario.",
-        "The candidate cannot become production-proven until mapped unchanged tests and the recovery matrix pass."
-      ]
-    },
-    {
-      "id": 9,
-      "prompt": "In candidate-review mode, assess a browser virtualization change that filters entries from a shared IntersectionObserver callback batch. The edited startup test expects duplicate suppression. Determine all directly impacted producer branches and unchanged consumers before recommending the change. Do not edit the checkout.",
-      "expected_output": "A read-only candidate that uses the impact map to preserve both consumers, analyzes before-only, after-only, and both-in-one-batch behavior, and predicts the unchanged bottom-scroll regression without proposing an unbounded test matrix.",
-      "files": [
-        ".github/skills/aspnetcore-pr-review/evals/fixtures/virtualization-producer-drift.md"
-      ],
-      "eval_metadata": {
-        "mechanism": "shared-producer-impact",
-        "provenance": {
-          "kind": "historical",
-          "source": "dotnet/aspnetcore#68114"
-        },
-        "area": "Components/Virtualization",
-        "score_family": "producer-impact",
-        "tier": "train",
-        "discovery_mode": "discovery",
-        "controls": {
-          "positive": [0, 1, 2, 3, 5],
-          "negative": [4, 6]
-        },
-        "forbidden_prompt_terms": [
-          "before-only",
-          "after-only",
-          "ProgrammaticScrollToBottom_ReachesLastItems",
-          "loading the tail"
-        ]
-      },
-      "expectations": [
-        "The candidate maps the changed filter to both startup alignment and bottom-scroll consumers.",
-        "The self-review covers before-only, after-only, and both-in-one-batch cases.",
-        "The candidate identifies that unconditional after-entry removal can prevent loading the tail.",
-        "ProgrammaticScrollToBottom_ReachesLastItems is selected as an impacted unchanged test.",
-        "The edited narrow startup test is not treated as complete coverage of the shared observer producer.",
-        "The recommendation preserves the callback required by bottom scrolling while addressing duplicate startup handling.",
-        "The proposed validation remains bounded to producer branches and directly impacted consumers."
+        "The candidate records the callback-suppressed interval, the first real wheel or ResizeObserver recovery event, and pre/post measurement epochs.",
+        "The impact map includes PanForward_KeepsEarliestTimestampMonotonic as an unchanged consumer of the shared viewport producer.",
+        "The candidate identifies that leading extent from E0 combined with widths and viewport geometry from E1 can move the earliest timestamp backward.",
+        "The proposed candidate makes the leading extent, widths, and viewport one atomic measurement epoch before recovery processing.",
+        "The bounded matrix uses a fixed/no-drift control and one realistic variable-width perturbation with transient and settled assertions.",
+        "The candidate does not claim Pass, targeted-proven, or production-proven without executing the faithful real-browser scenario.",
+        "The result remains Proposed or Blocked on evidence until mapped tests and the recovery matrix pass.",
+        "The response does not fabricate logs, browser execution, or red/green evidence."
       ]
     },
     {

@@ -384,80 +384,41 @@
     },
     {
       "id": 12,
-      "prompt": "Review a dotnet/aspnetcore pull request that changes how a browser-backed variable-height list handles InitialItemIndex. The patch changes when IntersectionObserver callbacks are ignored during initial positioning. The edited tests cover initial placement and keyboard ownership transfer. Maintainer-confirmed behavior requires the target to remain stable through unrelated layout activity, and ordinary scrolling must preserve a monotonic visible range. Inspect adjacent states and impacted existing behavior; keep the review local and bounded.",
-      "expected_output": "A lifecycle-aware review that looks beyond the edited tests, models the suppressed interval and first resumed observer callback, identifies mixed measurement generations as a concrete risk, and selects a bounded real-browser scenario with a fixed-size control and variable-height perturbation.",
+      "prompt": "Use only evidence freezing, path selection, impact mapping, and proof planning for the supplied portable ASP.NET Core browser viewport fixture. Treat the fixture as the complete frozen evidence for this planning exercise. Return the complete planning decision inline; do not create artifacts or inspect unrelated source. Determine whether the bounded or full path applies and what evidence a material correctness recommendation would require. Stop before launching candidates or empirical work. Keep the work local and the falsification scope proportional.",
+      "expected_output": "A full-path lifecycle review that derives the first real recovery event and measurement epochs, maps the unchanged pan consumer, and proposes a bounded real-browser control and variable-width perturbation without a Cartesian stress matrix.",
       "files": [
-        ".github/skills/aspnetcore-pr-review/evals/fixtures/virtualization-recovery.md"
+        ".github/skills/aspnetcore-pr-review/evals/fixtures/viewport-measurement-epoch-recovery.md"
       ],
       "eval_metadata": {
-        "mechanism": "observer-recovery-measurement-generation",
+        "mechanism": "viewport-measurement-epoch-recovery",
         "provenance": {
-          "kind": "historical",
-          "source": "dotnet/aspnetcore#68114"
+          "kind": "synthetic",
+          "source": "portable viewport measurement epoch scenario"
         },
-        "area": "Components/Virtualization",
+        "area": "Components/Browser",
         "score_family": "recovery-measurement-generation",
         "tier": "train",
         "discovery_mode": "discovery",
         "controls": {
-          "positive": [0, 1, 2, 3, 4, 6],
-          "negative": [5, 7]
+          "positive": [0, 1, 2, 3, 4, 5, 6],
+          "negative": [7]
         },
         "forbidden_prompt_terms": [
-          "first resumed",
-          "opposite spacer",
-          "mixed measurement generations",
-          "item 500"
+          "epoch E0",
+          "epoch E1",
+          "PanForward_KeepsEarliestTimestampMonotonic",
+          "atomic snapshot"
         ]
       },
       "expectations": [
-        "The transition analysis records what measurements stop updating while callbacks are suppressed.",
-        "The review analyzes the first observer callback after suppression rather than stopping at callback re-enablement.",
-        "The review tracks the generation or provenance of spacer pixels, rendered-row separation, item count, and the item-size divisor consumed by redistribution.",
-        "The review identifies that combining stale spacer geometry with a newly measured variable-row average can move the logical window backward.",
-        "The bounded adjacent scenario opens near item 500, verifies initial placement, scrolls ordinarily until the opposite or bottom spacer is exposed, and asserts that the visible range does not jump backward.",
-        "The empirical plan uses one fixed-size control and one realistic variable-height perturbation instead of an unrelated global stress matrix.",
-        "The scenario exercises the real browser observer and DOM measurement producer rather than injecting only a downstream C# callback.",
-        "The existing Home/End ownership assertion remains a separate oracle and is not rewritten to stand in for stale-measurement recovery."
-      ]
-    },
-    {
-      "id": 13,
-      "prompt": "An earlier local review of a dotnet/aspnetcore browser virtualization pull request completed at frozen head A. A later commit modifies filtering in the shared IntersectionObserver callback producer, and the edited tests pass. Reassess the live head locally, including unchanged behavior that shares the producer, without posting.",
-      "expected_output": "A head-drift reassessment that regenerates a changed-producer impact map, discovers and runs the unchanged bottom-scroll test, and scopes the newly observed regression to the later commit instead of attributing it to the earlier frozen review.",
-      "files": [
-        ".github/skills/aspnetcore-pr-review/evals/fixtures/virtualization-producer-drift.md"
-      ],
-      "eval_metadata": {
-        "mechanism": "producer-impact-head-drift",
-        "provenance": {
-          "kind": "historical",
-          "source": "dotnet/aspnetcore#68114"
-        },
-        "area": "Components/Virtualization",
-        "score_family": "head-drift-impact",
-        "tier": "train",
-        "discovery_mode": "discovery",
-        "controls": {
-          "positive": [1, 2, 3, 4, 5, 6],
-          "negative": [0, 7]
-        },
-        "forbidden_prompt_terms": [
-          "ProgrammaticScrollToBottom_ReachesLastItems",
-          "drops the after-spacer",
-          "both spacers",
-          "tail distribution"
-        ]
-      },
-      "expectations": [
-        "The review states that evidence from frozen head A cannot predict or validate a later producer change.",
-        "Relevant head drift causes the evidence bundle and impact map to be regenerated.",
-        "The impact map connects the changed both-spacers filter to before-only, after-only, and both-in-one-batch consumers.",
-        "The review discovers ProgrammaticScrollToBottom_ReachesLastItems even though the test file was unchanged.",
-        "The unchanged impacted E2E test is run before inventing a candidate-specific assertion.",
-        "The causal explanation states that dropping the after-spacer entry prevents the tail distribution or fetch required by programmatic bottom scrolling.",
-        "A prior-head pass and current-head behavioral failure are preserved separately from infrastructure or aggregate CI status.",
-        "The final report attributes the regression to the post-review commit and does not misrepresent earlier reviewed-head evidence as current."
+        "The change is routed to the full path because callback suppression, recovery ownership, and mixed measurement epochs can produce a material viewport regression.",
+        "The impact map includes the unchanged PanForward_KeepsEarliestTimestampMonotonic test because it consumes the shared viewport producer.",
+        "The transition analysis derives the first real wheel or ResizeObserver event after callback restoration.",
+        "The review identifies the risk of combining a leading extent from epoch E0 with item widths and viewport geometry from epoch E1.",
+        "The control atomically remeasures the leading extent, widths, and viewport into one epoch before processing recovery.",
+        "The empirical plan uses one fixed/no-drift control and one bounded variable-width perturbation that changes geometry during suppression.",
+        "The assertion checks monotonic earliest timestamp through both transient and settled states on the real browser producer path.",
+        "The plan does not require an unrelated Cartesian matrix once the mechanism-derived control and perturbation cover the falsifiable boundary."
       ]
     },
     {

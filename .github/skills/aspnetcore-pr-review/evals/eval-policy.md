@@ -91,17 +91,17 @@ families hide poor transfer to other provenance.
 
 Before accepting eval changes, run:
 
-```bash
-python3 .github/skills/aspnetcore-pr-review/scripts/validate_evals.py \
-  .github/skills/aspnetcore-pr-review/evals/evals.json \
-  .github/skills/aspnetcore-try-fix/evals/evals.json
-python3 .github/skills/aspnetcore-pr-review/scripts/sync_vally_evals.py --check
-python3 .github/skills/aspnetcore-pr-review/scripts/sync_vally_evals.py \
-  --stage-skills /tmp/aspnetcore-review-skills
+```powershell
+pwsh .github/skills/aspnetcore-pr-review/scripts/Validate-Evals.ps1 `
+  -Path .github/skills/aspnetcore-pr-review/evals/evals.json,`
+        .github/skills/aspnetcore-try-fix/evals/evals.json
+pwsh .github/skills/aspnetcore-pr-review/scripts/Sync-VallyEvals.ps1 -Check
+pwsh .github/skills/aspnetcore-pr-review/scripts/Sync-VallyEvals.ps1 `
+  -StageSkills /tmp/aspnetcore-review-skills
 ```
 
 The JSON manifests remain the source of truth for provenance, controls, frozen
-hashes, and train/held-out governance. `sync_vally_evals.py` projects every case
+hashes, and train/held-out governance. `Sync-VallyEvals.ps1` projects every case
 into the repository-standard Vally schema under `eng/skill-evals/` without
 duplicating hand-maintained rubrics.
 
@@ -133,7 +133,7 @@ npx --yes --package @microsoft/vally-cli@0.13.0 vally lint \
 Vally 0.13 emits `--output jsonl` records on standard output. Official runs
 must retain that stream as `results.jsonl` and retain diagnostics separately;
 `--output-dir` stores the Markdown report and telemetry, not the JSONL consumed
-by `aggregate_eval_scores.py`.
+by `Aggregate-EvalScores.ps1`.
 
 Use Vally for both repository and local execution. For example, this runs the
 documentation-placement case locally with the reviewer skill and Vally's prompt
@@ -145,9 +145,11 @@ npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   --skill-dir /tmp/aspnetcore-review-skills \
   --tag eval_id=17 \
   --runs 1 \
+  --workers 1 \
   --timeout 1200s \
   --model gpt-5.6-sol \
   --judge-model claude-opus-5 \
+  --workspace /tmp/pr-review-diagnostic/workspaces \
   --output jsonl
 ```
 
@@ -158,19 +160,21 @@ specs are standalone Vally capability suites rather than inputs to the generic
 `skills-vs-baseline` experiment. They need a sibling skill and repository
 identity, so treating a live checkout as the baseline would auto-discover the
 skills under test and invalidate the A/B comparison. Direct local runs can
-select a case by its `eval_id` tag. Their generated environments copy the
-repository's build infrastructure, shared code, and only the source area named
-by the stimulus into a new independent Git repository. The reviewer skill
-directories are never copied, generated reviewer specs are deleted before the
-initial commit, ignored build outputs are removed using the copied root
-`.gitignore`, fixture names are neutral, and the origin has a disabled push URL.
-This gives trials real source and test infrastructure without sharing the host
-checkout's Git metadata or making answer keys reachable through local history.
-`--stage-skills` copies only the runtime files required by the reviewer and its
+select a case by its `eval_id` tag. Their generated environments copy repository
+instructions, root build metadata, neutral fixture aliases, and only explicit
+`eval_metadata.source_paths` into a new independent Git repository.
+Fixture-driven discovery cases do not receive an unrelated production source
+tree. Source-backed cases must declare the narrow paths they need rather than
+inheriting a whole product area. The reviewer skill directories are never
+copied, generated reviewer specs are deleted before the initial commit, ignored
+outputs are removed using the copied root `.gitignore`, and the origin has a
+disabled push URL. This keeps snapshots small, prevents answer-key discovery,
+and avoids sharing host Git metadata.
+`-StageSkills` copies only the runtime files required by the reviewer and its
 sibling try-fix into a directory outside the checkout.
 
 Run official suites from a committed revision with no unrelated changes in the
-copied source areas. The snapshot copies working-tree files, so an uncommitted
+declared source paths. The snapshot copies working-tree files, so an uncommitted
 production change would otherwise alter the eval environment. This isolation is
 not a security sandbox: the executor still has the host process environment,
 network, and model credentials. Injection cases measure instruction adherence,
@@ -192,6 +196,9 @@ experiment output directory when a comparative judgment is needed.
 
 A one-trial local run is diagnostic feedback only. Official score aggregation
 requires the five trials and executor model pinned in each generated stimulus.
+Use one worker and a dedicated retained workspace root. The source snapshot is
+large enough that concurrent local environment setup can collide during Git
+initialization; five sequential trials preserve isolation and reproducibility.
 Run the GPT suites and the Claude guardrail separately when using direct Vally:
 
 ```bash
@@ -201,46 +208,49 @@ mkdir -p /tmp/pr-review-main /tmp/pr-review-guardrail /tmp/try-fix
 npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   -e eng/skill-evals/aspnetcore-pr-review/regression.vally.yaml \
   --skill-dir /tmp/aspnetcore-review-skills \
-  --runs 5 --timeout 1200s \
+  --runs 5 --workers 1 --timeout 1200s \
   --model gpt-5.6-sol --judge-model claude-opus-5 \
+  --workspace /tmp/pr-review-main/workspaces \
   --output jsonl --output-dir /tmp/pr-review-main/artifacts \
   2>/tmp/pr-review-main/run.log |
   tee /tmp/pr-review-main/results.jsonl
 npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   -e eng/skill-evals/aspnetcore-pr-review/model-guardrail.vally.yaml \
   --skill-dir /tmp/aspnetcore-review-skills \
-  --runs 5 --timeout 1200s \
+  --runs 5 --workers 1 --timeout 1200s \
   --model claude-sonnet-5 --judge-model claude-opus-5 \
+  --workspace /tmp/pr-review-guardrail/workspaces \
   --output jsonl --output-dir /tmp/pr-review-guardrail/artifacts \
   2>/tmp/pr-review-guardrail/run.log |
   tee /tmp/pr-review-guardrail/results.jsonl
 npx --yes --package @microsoft/vally-cli@0.13.0 vally eval \
   -e eng/skill-evals/aspnetcore-try-fix/regression.vally.yaml \
   --skill-dir /tmp/aspnetcore-review-skills \
-  --runs 5 --timeout 1200s \
+  --runs 5 --workers 1 --timeout 1200s \
   --model gpt-5.6-sol --judge-model claude-opus-5 \
+  --workspace /tmp/try-fix/workspaces \
   --output jsonl --output-dir /tmp/try-fix/artifacts \
   2>/tmp/try-fix/run.log |
   tee /tmp/try-fix/results.jsonl
 ```
 
 Vally supplies the score-producing prompt grader, repeated trials, and
-pass@k/pass^k reporting. Run `scripts/aggregate_eval_scores.py` with both JSON
+pass@k/pass^k reporting. Run `scripts/Aggregate-EvalScores.ps1` with both JSON
 governance manifests and one or more
-`--vally-results <skill-name>=<results.jsonl>` arguments to additionally report
+`-VallyResults <skill-name>=<results.jsonl>` arguments to additionally report
 raw, family-macro, provenance-macro, and train-to-held-out transfer results.
 The reviewer aggregation needs both its GPT and Claude result files:
 
-```bash
-python3 .github/skills/aspnetcore-pr-review/scripts/aggregate_eval_scores.py \
-  .github/skills/aspnetcore-pr-review/evals/evals.json \
-  .github/skills/aspnetcore-try-fix/evals/evals.json \
-  --vally-results aspnetcore-pr-review=/tmp/pr-review-main/results.jsonl \
-  --vally-results aspnetcore-pr-review=/tmp/pr-review-guardrail/results.jsonl \
-  --vally-results aspnetcore-try-fix=/tmp/try-fix/results.jsonl
+```powershell
+pwsh .github/skills/aspnetcore-pr-review/scripts/Aggregate-EvalScores.ps1 `
+  -EvalPath .github/skills/aspnetcore-pr-review/evals/evals.json,`
+            .github/skills/aspnetcore-try-fix/evals/evals.json `
+  -VallyResults aspnetcore-pr-review=/tmp/pr-review-main/results.jsonl,`
+                aspnetcore-pr-review=/tmp/pr-review-guardrail/results.jsonl,`
+                aspnetcore-try-fix=/tmp/try-fix/results.jsonl
 ```
 
-The legacy `--scores <path>` input remains available for importing results from
+The `-Scores <path>` input remains available for importing results from
 another evaluator.
 
 ### Grader infrastructure failures
@@ -260,7 +270,12 @@ jq -c \
 ```
 
 Pass the original result before the regraded result to
-`aggregate_eval_scores.py`. A later successful grade may supersede only an
+`Aggregate-EvalScores.ps1`. A later successful grade may supersede only an
 earlier grader-error record with the same trajectory ID. Duplicate successful
 records, unresolved grader errors, agent failures, and missing trials remain
 fatal. Retain both files so the repair is auditable.
+
+Retained JSONL, reports, timing, and model-authored logs are provenance-bearing
+artifacts, not authenticated records. Preserve their command line, resolved CLI
+version, source commit, skill hashes, model IDs, and timestamps. Do not describe
+agent-authored transcripts or logs as tamper-proof or independently attested.
