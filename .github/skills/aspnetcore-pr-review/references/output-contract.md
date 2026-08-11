@@ -57,9 +57,15 @@ coverage, established repository patterns, and then conceptual/file count.
 Write `final/repository-oracle.md` only for durable knowledge that was missing or
 hard to find:
 
-- public behavior belongs in API documentation;
-- lifecycle/ownership invariants belong near the state machine;
-- retention/takeover behavior belongs in paired tests;
+- express local mechanics through precise names, named methods or variables, and
+  smaller responsibilities; name the concrete structural replacement instead of
+  vaguely asking for clearer code;
+- reserve concise comments for durable nonlocal reasons that structure cannot
+  express, not narration of the call graph or implementation;
+- keep public API documentation consumer-observable and exclude internal
+  implementation details, including control flow or lifecycle state;
+- keep lifecycle/ownership invariants near the state machine and executable
+  retention/takeover behavior in paired tests;
 - cross-cutting review rules belong in repository instructions.
 
 Do not leak model identities, local paths, private conversation, or review-session
