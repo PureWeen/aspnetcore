@@ -127,7 +127,11 @@ is read-only:
 | C | Repository-pattern alternative |
 | D | Test falsification and unnecessary surface |
 
-Record substitutions and tool failures. Every prompt requires:
+Record substitutions and tool failures. The model selected by the candidate task
+or agent definition is its configured identity. Do not infer a substitution from
+`COPILOT_MODEL` or another environment variable inherited from the orchestrator;
+only an explicit task/engine failure or retained request telemetry establishes a
+different runtime model. Every prompt requires:
 
 - one mechanism-level hypothesis and one materially different candidate, or
   `NO VIABLE ALTERNATIVE` after rejecting one real alternative;

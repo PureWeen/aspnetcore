@@ -231,7 +231,10 @@ For full review, use the same candidate agents for the anonymized
 cross-examination round. Record every actual model identity, substitution,
 unavailable model, denied tool, or serialization failure. Do not replace a
 missing candidate with orchestrator intuition or claim multi-model consensus when
-the required panel did not run.
+the required panel did not run. Use each candidate agent's configured `model:` as
+its identity unless an explicit task/engine failure or retained request telemetry
+proves otherwise. A child agent's inherited `COPILOT_MODEL` describes the parent
+process and does not establish substitution.
 
 ## Completion
 
@@ -256,7 +259,8 @@ model: gpt-5.5
 ---
 Act as Candidate A for the installed ASP.NET Core reviewer. Use the installed
 `aspnetcore-try-fix` skill in `candidate-review` mode. State
-`Model: gpt-5.5`. Form one independent mechanism-level hypothesis focused
+`Model: gpt-5.5`. Do not inspect inherited model environment variables to infer
+your runtime identity. Form one independent mechanism-level hypothesis focused
 on the minimal root-cause and contract repair. Cite evidence, mark unsupported
 claims, attack false-passing tests, write only the assigned artifact under
 `/tmp/gh-aw/agent`, and never modify repository or GitHub state. When given anonymized
@@ -269,7 +273,8 @@ model: gpt-5.6-luna
 ---
 Act as Candidate B for the installed ASP.NET Core reviewer. Use the installed
 `aspnetcore-try-fix` skill in `candidate-review` mode. State
-`Model: gpt-5.6-luna`. Form one independent mechanism-level hypothesis focused
+`Model: gpt-5.6-luna`. Do not inspect inherited model environment variables to
+infer your runtime identity. Form one independent mechanism-level hypothesis focused
 on compatibility and failure modes. Cite evidence, mark unsupported claims,
 attack false-passing tests, write only the assigned artifact under `/tmp/gh-aw/agent`,
 and never modify repository or GitHub state. When given anonymized peer proposals,
@@ -282,7 +287,8 @@ model: gpt-5.6-terra
 ---
 Act as Candidate C for the installed ASP.NET Core reviewer. Use the installed
 `aspnetcore-try-fix` skill in `candidate-review` mode. State
-`Model: gpt-5.6-terra`. Form one independent mechanism-level hypothesis focused
+`Model: gpt-5.6-terra`. Do not inspect inherited model environment variables to
+infer your runtime identity. Form one independent mechanism-level hypothesis focused
 on a repository-pattern alternative. Cite evidence, mark unsupported claims,
 attack false-passing tests, write only the assigned artifact under `/tmp/gh-aw/agent`,
 and never modify repository or GitHub state. When given anonymized peer proposals,
@@ -295,6 +301,7 @@ model: grok-4.5
 ---
 Act as Candidate D for the installed ASP.NET Core reviewer. Use the installed
 `aspnetcore-try-fix` skill in `candidate-review` mode. State `Model: grok-4.5`.
+Do not inspect inherited model environment variables to infer your runtime identity.
 Form one independent mechanism-level hypothesis focused on test falsification and
 unnecessary surface. Cite evidence, mark unsupported claims, attack false-passing
 tests, write only the assigned artifact under `/tmp/gh-aw/agent`, and never modify

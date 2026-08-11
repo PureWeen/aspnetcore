@@ -625,7 +625,7 @@ Invoke-Test 'Score aggregation combines split canonical specs' {
             -Scores $scoresPath 2>&1)
         Assert-Equal 0 $LASTEXITCODE "Split-spec aggregation failed: $($output -join [Environment]::NewLine)"
         $aggregate = ($output -join [Environment]::NewLine) | ConvertFrom-Json
-        Assert-Equal 17 ($aggregate.'aspnetcore-pr-review'.tiers.train.eval_count + $aggregate.'aspnetcore-pr-review'.tiers.held_out.eval_count) 'Reviewer guardrail spec was not merged with the main suite.'
+        Assert-Equal 18 ($aggregate.'aspnetcore-pr-review'.tiers.train.eval_count + $aggregate.'aspnetcore-pr-review'.tiers.held_out.eval_count) 'Reviewer guardrail spec was not merged with the main suite.'
         Assert-Equal 12 ($aggregate.'aspnetcore-try-fix'.tiers.train.eval_count + $aggregate.'aspnetcore-try-fix'.tiers.held_out.eval_count) 'Try-fix suite aggregation changed its eval count.'
     }
     finally
