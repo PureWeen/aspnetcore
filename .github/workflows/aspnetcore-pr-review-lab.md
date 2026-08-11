@@ -237,13 +237,13 @@ the required panel did not run.
 
 Run the reviewer validator exactly as required by the installed skill. Then:
 
-1. Invoke the native safe-output MCP tool `upload_artifact` once with only
-   `path: /tmp/gh-aw/agent/aspnetcore-pr-review`. Do not use the shell
-   `safeoutputs` helper to discover or invoke this tool, and do not pass a `name`
-   argument because its schema does not accept one.
-2. After the upload tool accepts the request, call `noop` with a compact result
-   for the lab run. If the native upload tool is genuinely unavailable or rejects
-   the request, call `report_incomplete` instead of `noop`.
+1. Run exactly
+   `safeoutputs upload_artifact --path /tmp/gh-aw/agent/aspnetcore-pr-review`.
+   gh-aw mounts safe-output MCP tools through this CLI in the Copilot runtime.
+   Do not pass a `name` argument because the tool schema does not accept one.
+2. After the upload command accepts the request, run `safeoutputs noop` with a
+   compact result for the lab run. If the upload command rejects the request, run
+   `safeoutputs report_incomplete` instead of `safeoutputs noop`.
 3. In the final agent output, report the target PR, frozen and live head SHAs,
    bounded/full path, actual candidate model identities and failures, verdict,
    confidence, proof limits, artifact-validator result, artifact name, and an

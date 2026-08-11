@@ -716,6 +716,34 @@ stimuli:
     }
 }
 
+Invoke-Test 'Artifact validator repairs hosted PowerShell filesystem commands' {
+    $root = Join-Path ([IO.Path]::GetTempPath()) "review-portable-pwsh-$([guid]::NewGuid())"
+    try
+    {
+        New-ValidReviewArtifacts -Root $root
+        $env:REVIEW_VALIDATOR_PATH = Join-Path $PSScriptRoot 'Validate-ReviewArtifacts.ps1'
+        $env:REVIEW_ARTIFACT_ROOT = $root
+        $command = @'
+$env:PSModulePath = ''
+function global:Resolve-Path
+{
+    param([string] $Path, [string] $LiteralPath)
+    return [pscustomobject]@{ Path = '/:/ome/broken' }
+}
+& $env:REVIEW_VALIDATOR_PATH $env:REVIEW_ARTIFACT_ROOT
+'@
+        $output = @(& pwsh -NoLogo -NoProfile -NonInteractive -Command $command 2>&1)
+        Assert-Equal 0 $LASTEXITCODE "Portable artifact validation failed: $($output -join [Environment]::NewLine)"
+        Assert-True (($output -join [Environment]::NewLine) -match 'artifacts are complete and calibrated') 'Portable artifact validation did not report success.'
+    }
+    finally
+    {
+        Remove-Item Env:REVIEW_VALIDATOR_PATH -ErrorAction SilentlyContinue
+        Remove-Item Env:REVIEW_ARTIFACT_ROOT -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+    }
+}
+
 if ($script:Failed.Count -gt 0)
 {
     $script:Failed | ForEach-Object { Write-Error $_ }
