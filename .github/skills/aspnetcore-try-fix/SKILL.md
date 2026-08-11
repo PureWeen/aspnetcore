@@ -38,6 +38,18 @@ safe to run concurrently. It returns `Proposed`, never `Pass`.
 When the caller supplies complete retained evidence and explicitly requests
 classification without edits or reruns, calibrate it inline using the core proof
 labels below. Do not search the repository or block on optional reference access.
+Use a compact evidence-to-label matrix so the conclusion stays auditable:
+
+| Evidence dimension | Record |
+|---|---|
+| Causality | Candidate-independent head result and identical candidate result |
+| Mechanism coverage | What distinct failure path each varied case can falsify |
+| Harness fidelity | Why any bypass preserves behavior and what fidelity it loses |
+| Cleanup | Outstanding work, cancellation/release, and exception observation |
+| Remaining boundary | Unrun producer, tests, build, CI, configuration, or platform |
+
+Derive the result, assertion disposition, and candidate label from those rows
+rather than merely repeating the caller's evidence summary.
 
 For active empirical work, read `references/empirical-protocol.md` and the
 sibling reviewer's `references/proof-calibration.md`. Use only an isolated child
