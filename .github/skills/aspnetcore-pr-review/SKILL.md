@@ -86,6 +86,17 @@ failure, and faithful test boundary.
 Escalate bounded to full if candidate review produces such a claim. Never
 downgrade full merely because CI is green or models initially agree.
 
+Proof labels remain evidence-based on both paths. A bounded candidate validated
+on one local configuration is at most `targeted-proven`, even when the mechanism
+looks configuration-independent. `production-proven` requires explicit coverage
+or source-backed not-applicable dispositions for every relevant producer,
+consumer, configuration, and platform dimension.
+
+Every bounded classification states the frozen-head result, candidate result,
+assertion disposition, and untested limits. Without candidate-independent red on
+head and the identical green on the candidate, do not assign a proven candidate
+label.
+
 ### 3. Run independent candidates
 
 Follow the candidate protocol in `evidence-and-orchestration.md`.

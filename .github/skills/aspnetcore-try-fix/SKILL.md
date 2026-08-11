@@ -123,6 +123,22 @@ the trigger is not behavioral proof.
 The first green is provisional. Preserve scenario, oracle, configuration,
 platform, and impact-map limits. Never select only the passing timing run.
 
+Use the exact candidate labels:
+
+- `targeted-proven`: independently justified behavioral red/green passed at the
+  required producer boundary, but standard build, CI, configuration, platform,
+  mapped-test, or falsification coverage remains incomplete.
+- `production-proven`: authoritative-enough oracle, empirical finding and
+  scenario proof, required regression, mapped unchanged tests, real producer,
+  and all relevant falsification dimensions passed or are source-backed
+  not-applicable.
+- `diagnostic-only`, `rejected`, or `blocked`: the evidence does not meet those
+  bars.
+
+An assertion that independently proves the accepted defect and correction is
+`required-regression`. A candidate-shaped threshold or hardening probe is
+optional or diagnostic.
+
 ### 6. Return the candidate
 
 Read `references/output-contract.md` only now. Write the complete structured

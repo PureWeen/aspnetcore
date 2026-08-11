@@ -96,7 +96,7 @@
     },
     {
       "id": 4,
-      "prompt": "Calibrate this retained empirical result without editing or rerunning it: untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while an unrelated frontend target is disabled; two mechanism-derived cleanup variants pass; timed-out inner tasks are deterministically canceled and their exceptions observed; the standard build and exact CI path were not run. State exactly what is proven, the regression-assertion disposition, and the highest honest candidate label.",
+      "prompt": "Use aspnetcore-try-fix in empirical mode to calibrate this retained result without editing or rerunning it: untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while an unrelated frontend target is disabled; two mechanism-derived cleanup variants pass; timed-out inner tasks are deterministically canceled and their exceptions observed; the standard build and exact CI path were not run. State exactly what is proven, the regression-assertion disposition, and the highest honest candidate label.",
       "expected_output": "A calibrated targeted-proven result that credits behavioral red/green and cleanup evidence, preserves the required regression assertion, records the unrelated build bypass, and refuses production-ready or cross-configuration wording.",
       "files": [],
       "eval_metadata": {

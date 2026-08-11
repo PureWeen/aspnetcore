@@ -124,7 +124,7 @@ stimuli:
       - "The recommendation is calibrated as a compatibility question or defensive option rather than a proven required change."
   - name: "eval-04-timeout-cleanup-build-bypass"
     prompt: |-
-      Calibrate this retained empirical result without editing or rerunning it: untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while an unrelated frontend target is disabled; two mechanism-derived cleanup variants pass; timed-out inner tasks are deterministically canceled and their exceptions observed; the standard build and exact CI path were not run. State exactly what is proven, the regression-assertion disposition, and the highest honest candidate label.
+      Use aspnetcore-try-fix in empirical mode to calibrate this retained result without editing or rerunning it: untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while an unrelated frontend target is disabled; two mechanism-derived cleanup variants pass; timed-out inner tasks are deterministically canceled and their exceptions observed; the standard build and exact CI path were not run. State exactly what is proven, the regression-assertion disposition, and the highest honest candidate label.
     tags:
       eval_id: "4"
       skill_name: "aspnetcore-try-fix"
