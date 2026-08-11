@@ -237,9 +237,13 @@ the required panel did not run.
 
 Run the reviewer validator exactly as required by the installed skill. Then:
 
-1. Call `upload_artifact` once with name `aspnetcore-pr-review-${{ inputs.pr_number }}`
-   and path `/tmp/gh-aw/agent/aspnetcore-pr-review`.
-2. Call `noop` with a compact result for the lab run.
+1. Invoke the native safe-output MCP tool `upload_artifact` once with only
+   `path: /tmp/gh-aw/agent/aspnetcore-pr-review`. Do not use the shell
+   `safeoutputs` helper to discover or invoke this tool, and do not pass a `name`
+   argument because its schema does not accept one.
+2. After the upload tool accepts the request, call `noop` with a compact result
+   for the lab run. If the native upload tool is genuinely unavailable or rejects
+   the request, call `report_incomplete` instead of `noop`.
 3. In the final agent output, report the target PR, frozen and live head SHAs,
    bounded/full path, actual candidate model identities and failures, verdict,
    confidence, proof limits, artifact-validator result, artifact name, and an
@@ -248,11 +252,11 @@ Run the reviewer validator exactly as required by the installed skill. Then:
 ## agent: `candidate-a`
 ---
 description: Candidate A - minimal root-cause and contract repair
-model: claude-opus-5
+model: gpt-5.5
 ---
 Act as Candidate A for the installed ASP.NET Core reviewer. Use the installed
 `aspnetcore-try-fix` skill in `candidate-review` mode. State
-`Model: claude-opus-5`. Form one independent mechanism-level hypothesis focused
+`Model: gpt-5.5`. Form one independent mechanism-level hypothesis focused
 on the minimal root-cause and contract repair. Cite evidence, mark unsupported
 claims, attack false-passing tests, write only the assigned artifact under
 `/tmp/gh-aw/agent`, and never modify repository or GitHub state. When given anonymized
@@ -261,11 +265,11 @@ peer proposals, perform the reviewer's required cross-examination instead.
 ## agent: `candidate-b`
 ---
 description: Candidate B - compatibility and failure modes
-model: claude-sonnet-5
+model: gpt-5.6-luna
 ---
 Act as Candidate B for the installed ASP.NET Core reviewer. Use the installed
 `aspnetcore-try-fix` skill in `candidate-review` mode. State
-`Model: claude-sonnet-5`. Form one independent mechanism-level hypothesis focused
+`Model: gpt-5.6-luna`. Form one independent mechanism-level hypothesis focused
 on compatibility and failure modes. Cite evidence, mark unsupported claims,
 attack false-passing tests, write only the assigned artifact under `/tmp/gh-aw/agent`,
 and never modify repository or GitHub state. When given anonymized peer proposals,
