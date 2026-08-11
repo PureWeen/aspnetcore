@@ -245,7 +245,6 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
     intersectionObserver.observe(spacerAfter);
   }
 
-  // Called by C# at the start of a programmatic ScrollToItem, before the align scroll itself.
   function beginProgrammaticScroll(): void {
     stopConvergenceObserving();
     clearBottomFollow();
@@ -457,7 +456,6 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
     }
     const delta = newOffset - snapshot.anchorOffset;
 
-    // Save anchor for drift correction.
     scrollActivity.source = ScrollSource.RestoreSnapshot;
     scrollActivity.ignoreNextScroll();
     if (Math.abs(delta) > 1) {
@@ -515,6 +513,7 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
   let pendingJumpToStart = false;
 
   const keydownTarget: EventTarget = scrollContainer || document;
+  // Convergence suppresses the resulting scroll event, so classify and re-observe Home/End here.
   function handleJumpKeys(e: Event): void {
     const ke = e as KeyboardEvent;
     if (ke.key === 'End') {
@@ -551,13 +550,11 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
     const selfScrollInProgress = scrollActivity.source === ScrollSource.AlignToItem
       || scrollActivity.source === ScrollSource.RestoreSnapshot;
     if (selfScrollInProgress) {
-    // IntersectionObserver only fires on change, so spacers suppressed during a self-scroll would stay silent
-    // once the user takes over. Re-observe to force them to re-fire and be processed under the user scroll.
+      // IntersectionObserver does not refire unchanged intersections, so re-observe when user ownership resumes.
       reobserveSpacers();
     }
     scrollActivity.source = ScrollSource.UserScroll;
 
-    // A user scroll is the only thing that (re)sets follow state (self-scrolls early-return above).
     if (anchorModeIs.end || bottomTracking.following) {
       const atBottom = isViewportAtBottom();
       bottomTracking.following = atBottom;
@@ -613,7 +610,6 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
     flushPendingStyleMutations();
     const delta = measureLocalChildOffset(localIndex);
     if (Number.isNaN(delta)) {
-      // Target item isn't in DOM yet. Retry after the next render.
       pendingAlignLocalIndex = localIndex;
       beginAlign();
       return;
@@ -772,13 +768,11 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
 
     const source = scrollActivity.source;
     if (source === ScrollSource.UserScroll) {
-      // An ongoing scroll re-arms UserScroll every tick (handleUserScroll). Consuming prevents stale activity status.
       scrollActivity.consumeScroll();
     }
 
-    // Keep the anchor snapshot fresh on every IO callback so it reflects the current scroll position,
-    // not just the last render. Skip while a self-scroll is settling — those callbacks have stale data.
     const isSelfScroll = source === ScrollSource.AlignToItem || source === ScrollSource.RestoreSnapshot;
+    // Self-scroll callbacks can report pre-settlement geometry, so do not replace the anchor snapshot.
     if (!isSelfScroll) {
       updateAnchorSnapshot();
     }
@@ -788,13 +782,11 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
 
     const intersectingEntries = entries.filter(entry => {
       if (bothSpacersIntersect && entry.target === spacerAfter) {
-        // When both spacers are visible, report only the before spacer to avoid conflicting callbacks.
         return false;
       }
 
       if (entry.isIntersecting) {
         if (!isSelfScroll) {
-          // Convergence to the top/bottom edge should not fight with self scroll.
           if (entry.target === spacerAfter) {
             updateBottomConvergence(source === ScrollSource.UserScroll);
           } else if (entry.target === spacerBefore) {
@@ -832,12 +824,11 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
       const isBefore = entry.target === spacerBefore;
       const spacer = isBefore ? spacerBefore : spacerAfter;
 
-      // Skip an empty after spacer because it provides no useful measurement.
       if (!isBefore && spacer.offsetHeight === 0) {
         return;
       }
 
-      // ProgrammaticScroll callbacks are ignored by C#, so no item redistribution and no re-render happens.
+      // C# ignores programmatic callbacks, so only other reasons can mark a scroll-triggered render.
       if (reason !== SpacerVisibilityReason.ProgrammaticScroll) {
         // So that RefreshObservedElements can skip item observation (avoids layout interference drift).
         scrollTriggeredRender = true;

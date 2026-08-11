@@ -668,8 +668,6 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
                 CancelInFlightScrollForUserInteraction();
                 break;
             case SpacerVisibilityReason.ViewportFill:
-                // A fill callback while our own scroll is in flight, or while the initial target is pinned,
-                // is a side effect of that scroll — acting on it would move the target.
                 if (_currentScrollCts is not null || _initialIndex.Phase == InitialIndexPhase.Pending)
                 {
                     return;
@@ -705,8 +703,6 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
         }
         else if (reason == SpacerVisibilityReason.ViewportFill && _currentScrollCts is not null)
         {
-            // Bottom-spacer fill while our own scroll is in flight: the window moved but scrollTop hasn't
-            // landed, so acting on it would undo the target. The real fill runs once the scroll completes.
             return;
         }
 
