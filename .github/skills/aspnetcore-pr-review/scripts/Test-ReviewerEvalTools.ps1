@@ -231,6 +231,13 @@ if ($Suite -in @('All', 'TryFix'))
         }
     }
 
+    Invoke-Test 'Try-fix stimuli explicitly route to try-fix' {
+        $document = Read-JsonDocument $configuration.TryFixEvals
+        $content = $expectedOutputs[$configuration.VallyOutputs['aspnetcore-try-fix']]
+        $marker = 'Invoke the aspnetcore-try-fix skill for this task.'
+        Assert-Equal @($document.evals).Count ([regex]::Matches($content, [regex]::Escape($marker))).Count 'Try-fix stimuli are not routed explicitly.'
+    }
+
     Invoke-Test 'Try-fix suite pins model runs and objective grading' {
         $content = $expectedOutputs[$configuration.VallyOutputs['aspnetcore-try-fix']]
         Assert-True ($content.Contains("# Validated with $($configuration.VallyPackage).")) 'Try-fix CLI pin is missing.'

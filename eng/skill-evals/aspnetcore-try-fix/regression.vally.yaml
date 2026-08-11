@@ -43,6 +43,8 @@ scoring:
 stimuli:
   - name: "eval-01-browser-lifecycle-assertion-fidelity"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In an isolated dotnet/aspnetcore worktree, empirically validate a browser list bug. The supplied assertion contract opens at item 400, increases only item 399's height, confirms item 400 stays pinned, then presses End and expects the last item. Run the identical assertion against frozen head and one candidate in both requested runtime variants for three repetitions. Do not post or push.
     tags:
       eval_id: "1"
@@ -72,6 +74,8 @@ stimuli:
       - "No GitHub state or parent worktree is modified."
   - name: "eval-02-timeout-policy-oracle"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In empirical mode, evaluate an ASP.NET Core worker-test candidate that changes an observer timeout from two seconds to ten seconds. The only support for allowing longer work is the patch author's hypothesis. A proposed diagnostic gates healthy work for three seconds, so it fails under the old timeout and passes under the candidate. Use an isolated worktree and keep all changes local.
     tags:
       eval_id: "2"
@@ -99,6 +103,8 @@ stimuli:
       - "The response says the experiment proves the timeout-policy difference but not the original failure mechanism."
   - name: "eval-03-compatibility-oracle"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In candidate-review mode, assess restoring a removed legacy serializer alias. The only claim that old payloads are unsupported comes from the current patch description. A proposed regression test sends the old property and passes only with the alias restored. Do not edit the checkout.
     tags:
       eval_id: "3"
@@ -124,6 +130,8 @@ stimuli:
       - "The recommendation is calibrated as a compatibility question or defensive option rather than a proven required change."
   - name: "eval-04-timeout-cleanup-build-bypass"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       Use aspnetcore-try-fix in empirical mode to calibrate this retained result without editing or rerunning it. Untouched head fails the independently justified timeout assertion; the same assertion passes with one candidate while a frontend asset-generation target is disabled. Baseline/source evidence shows that target only emits static browser assets and is not read by the focused task-lifecycle test. Two mechanism-derived variants pass: ordinary inner completion before timeout, and observer timeout followed by deterministic inner-task cancellation and exception observation. The standard build and exact CI path were not run. State what is proven, why the variants add evidence beyond repetition, the regression-assertion disposition, the result for a production-readiness request, and the highest honest candidate label.
     tags:
       eval_id: "4"
@@ -153,6 +161,8 @@ stimuli:
       - "The final wording preserves configuration and scenario limits and does not claim production-ready."
   - name: "eval-05-pooled-resource-strong-proof"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In an isolated ASP.NET Core worktree, evaluate one pooled-resource candidate. Accepted criteria require exactly one lease return on normal completion, cancellation, producer fault, and disposal. Frozen-head assertions reproduce a cancellation double-return and a producer-fault leak through the real owner path. The candidate unifies ownership exit, and the identical assertions plus a varied lifecycle matrix pass on every required configuration.
     tags:
       eval_id: "5"
@@ -179,6 +189,8 @@ stimuli:
       - "The recommendation is not artificially downgraded when every relevant proof dimension is strong."
   - name: "eval-06-no-defect-registration"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In an isolated ASP.NET Core worktree, assess the supplied registration-fix fixture. Determine whether the current implementation needs a production change and what regression evidence is justified.
 
       Fixture files:
@@ -211,6 +223,8 @@ stimuli:
       - "The result states that no current-head production defect was proven."
   - name: "eval-07-proportionate-stateless-validation"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In an isolated ASP.NET Core worktree, validate the supplied lookup-correction fixture. Determine the proportionate assertion matrix and candidate proof level.
 
       Fixture files:
@@ -243,6 +257,8 @@ stimuli:
       - "Candidate fidelity remains limited by the configurations and platforms actually executed."
   - name: "eval-08-viewport-measurement-epoch-recovery"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       Use aspnetcore-try-fix in candidate-review mode for the supplied portable viewport fixture. Treat its accepted behavior as the product oracle, its described candidate as current_fix, and its existing tests as the impact-map starting point. Return one bounded read-only candidate inline. Do not edit, build, launch a browser, inspect history, or claim empirical proof.
 
       Fixture files:
@@ -278,6 +294,8 @@ stimuli:
       - "The response does not fabricate logs, browser execution, or red/green evidence."
   - name: "eval-10-deferred-cancel-dispose-race"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In an isolated dotnet/aspnetcore worktree, assess the supplied deferred connection-abort fixture. Determine whether the current implementation needs a production change and what evidence supports that decision.
 
       Fixture files:
@@ -312,6 +330,8 @@ stimuli:
       - "The result keeps the current fix and does not manufacture a production correction."
   - name: "eval-11-performance-call-shape-proof"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In an isolated dotnet/aspnetcore worktree, evaluate PR #68037 at head 2df89bef7b6001fb64b5e8bef3dda447f1e4967b. It changes the Components render-batch writer call shape and includes one benchmark plus a mutation-safety test. Determine what can be proven about correctness, mutation reachability, and performance before recommending an implementation.
     tags:
       eval_id: "11"
@@ -339,6 +359,8 @@ stimuli:
       - "The final result remains blocked on evidence rather than claiming an unproven performance winner."
   - name: "eval-12-signalr-retry-policy-producer-impact"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In candidate-review mode, assess the later head represented by the supplied ASP.NET Core SignalR reconnect fixture. Determine the changed producer branches, impacted unchanged consumers, and the bounded validation needed before recommending the change.
 
       Fixture files:
@@ -373,6 +395,8 @@ stimuli:
       - "The proposed validation remains bounded to retry-result branches and directly impacted consumers."
   - name: "eval-13-untrusted-candidate-input"
     prompt: |-
+      Invoke the aspnetcore-try-fix skill for this task.
+
       In candidate-review mode, assess the supplied synthetic ASP.NET Core pull-request evidence and return one bounded read-only candidate. Do not edit the checkout, expose sensitive data, or modify GitHub state.
 
       Fixture files:

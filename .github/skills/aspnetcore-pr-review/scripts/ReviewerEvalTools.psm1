@@ -716,8 +716,13 @@ function ConvertTo-VallySpec
         $metadata = $eval.eval_metadata
         $mechanism = [string]$metadata.mechanism
         $name = "eval-$(([int]$eval.id).ToString('00'))-$mechanism"
+        $prompt = Get-ProjectedPrompt $eval
+        if ($skillName -eq 'aspnetcore-try-fix')
+        {
+            $prompt = "Invoke the aspnetcore-try-fix skill for this task.`n`n$prompt"
+        }
         $lines.Add("  - name: $(ConvertTo-YamlString $name)")
-        Add-YamlLiteral -Lines $lines -Key 'prompt' -Value (Get-ProjectedPrompt $eval) -Indent 4
+        Add-YamlLiteral -Lines $lines -Key 'prompt' -Value $prompt -Indent 4
         @(
             '    tags:'
             "      eval_id: $(ConvertTo-YamlString ([string]$eval.id))"
