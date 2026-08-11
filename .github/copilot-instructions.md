@@ -6,6 +6,15 @@
 * Never change package.json or package-lock.json files unless explicitly asked to.
 * Never change NuGet.config files unless explicitly asked to.
 
+## Public API Changes
+
+* Treat any new or changed `public` or `protected` API as a potential public API change. Before finalizing it or describing it as merge-ready, verify that the linked issue is `api-approved` and follow the [API review process](../docs/APIReviewProcess.md): `api-suggestion` → `api-ready-for-review` → `api-approved`.
+* `PublicAPI.Unshipped.txt` tracks compatibility; it does not grant API approval. If the implementation changes the approved API shape, return it to API review.
+
+## Bug-Fix Verification
+
+* Before claiming a bug fix is verified, show the same behavior assertion failing on pre-fix code and passing with the fix. If exact red/green verification is impractical, state that limitation; a green test or source review alone is not regression proof.
+
 ## Formatting
 
 * Apply code-formatting style defined in `.editorconfig`.
