@@ -817,6 +817,141 @@ function Sync-VallyEvalSpecs
     return @($errors)
 }
 
+function Normalize-DirectoryPath
+{
+    param(
+        [Parameter(Mandatory)]
+        [string] $Path
+    )
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $root = [IO.Path]::GetPathRoot($fullPath)
+    if ($fullPath.Length -eq $root.Length)
+    {
+        return $root
+    }
+
+    return $fullPath.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+}
+
+function Resolve-CanonicalDirectoryPath
+{
+    param(
+        [Parameter(Mandatory)]
+        [string] $Path,
+
+        [Collections.Generic.HashSet[string]] $Visited
+    )
+
+    $fullPath = Normalize-DirectoryPath $Path
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Container))
+    {
+        throw "directory does not exist: $fullPath"
+    }
+
+    if ($null -eq $Visited)
+    {
+        $comparer = if ([OperatingSystem]::IsWindows() -or [OperatingSystem]::IsMacOS())
+        {
+            [StringComparer]::OrdinalIgnoreCase
+        }
+        else
+        {
+            [StringComparer]::Ordinal
+        }
+        $Visited = [Collections.Generic.HashSet[string]]::new($comparer)
+    }
+
+    if (-not $Visited.Add($fullPath))
+    {
+        throw "symbolic-link cycle detected while resolving: $fullPath"
+    }
+
+    try
+    {
+        $root = [IO.Path]::GetPathRoot($fullPath)
+        $current = Get-Item -LiteralPath $root -Force
+        $relativePath = [IO.Path]::GetRelativePath($root, $fullPath)
+        if ($relativePath -eq '.')
+        {
+            return Normalize-DirectoryPath $current.FullName
+        }
+
+        foreach ($segment in $relativePath.Split(
+            [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar),
+            [StringSplitOptions]::RemoveEmptyEntries))
+        {
+            $item = Get-Item -LiteralPath (Join-Path $current.FullName $segment) -Force
+            if ($item.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) -or $null -ne $item.LinkType)
+            {
+                $target = $item.ResolveLinkTarget($true)
+                if ($null -eq $target)
+                {
+                    throw "unable to resolve symbolic-link path component: $($item.FullName)"
+                }
+
+                $canonicalTarget = Resolve-CanonicalDirectoryPath -Path $target.FullName -Visited $Visited
+                $item = Get-Item -LiteralPath $canonicalTarget -Force
+            }
+
+            if (-not $item.Attributes.HasFlag([IO.FileAttributes]::Directory))
+            {
+                throw "path component is not a directory: $($item.FullName)"
+            }
+
+            $current = $item
+        }
+
+        return Normalize-DirectoryPath $current.FullName
+    }
+    finally
+    {
+        $Visited.Remove($fullPath) | Out-Null
+    }
+}
+
+function Get-PathComparison
+{
+    if ([OperatingSystem]::IsWindows() -or [OperatingSystem]::IsMacOS())
+    {
+        return [StringComparison]::OrdinalIgnoreCase
+    }
+
+    return [StringComparison]::Ordinal
+}
+
+function Test-PathContainedBy
+{
+    param(
+        [Parameter(Mandatory)]
+        [string] $Path,
+
+        [Parameter(Mandatory)]
+        [string] $Root,
+
+        [switch] $AllowEqual
+    )
+
+    $candidate = Normalize-DirectoryPath $Path
+    $container = Normalize-DirectoryPath $Root
+    $comparison = Get-PathComparison
+    if ([string]::Equals($candidate, $container, $comparison))
+    {
+        return $AllowEqual.IsPresent
+    }
+
+    $boundary = if ($container.EndsWith([IO.Path]::DirectorySeparatorChar))
+    {
+        $container
+    }
+    else
+    {
+        "$container$([IO.Path]::DirectorySeparatorChar)"
+    }
+
+    return $candidate.StartsWith($boundary, $comparison)
+}
+
 function Copy-SanitizedSkills
 {
     [CmdletBinding()]
@@ -825,8 +960,9 @@ function Copy-SanitizedSkills
         [string] $Destination
     )
 
-    $resolvedParent = (Resolve-Path -LiteralPath (Split-Path -Parent $Destination)).Path
-    $resolvedDestination = Join-Path $resolvedParent (Split-Path -Leaf $Destination)
+    $destinationPath = [IO.Path]::GetFullPath($Destination)
+    $resolvedParent = Resolve-CanonicalDirectoryPath (Split-Path -Parent $destinationPath)
+    $resolvedDestination = Normalize-DirectoryPath (Join-Path $resolvedParent (Split-Path -Leaf $destinationPath))
     if (Test-Path -LiteralPath $resolvedDestination)
     {
         $destinationItem = Get-Item -LiteralPath $resolvedDestination -Force
@@ -834,27 +970,61 @@ function Copy-SanitizedSkills
         {
             throw "refusing symbolic-link staging root: $resolvedDestination"
         }
-        $resolvedDestination = (Resolve-Path -LiteralPath $resolvedDestination).Path
+        $resolvedDestination = Resolve-CanonicalDirectoryPath $resolvedDestination
     }
+
+    $canonicalRepoRoot = Resolve-CanonicalDirectoryPath $script:RepoRoot
+    $homePath = [Environment]::GetFolderPath('UserProfile')
     $forbidden = @(
-        [IO.Path]::GetPathRoot($script:RepoRoot)
-        [Environment]::GetFolderPath('UserProfile')
-        $script:RepoRoot
-    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd([IO.Path]::DirectorySeparatorChar) }
-    $candidate = [IO.Path]::GetFullPath($resolvedDestination).TrimEnd([IO.Path]::DirectorySeparatorChar)
-    if ($candidate -in $forbidden -or $candidate.StartsWith("$script:RepoRoot$([IO.Path]::DirectorySeparatorChar)", [StringComparison]::Ordinal))
+        Normalize-DirectoryPath ([IO.Path]::GetPathRoot($canonicalRepoRoot))
+        Resolve-CanonicalDirectoryPath $homePath
+        $canonicalRepoRoot
+    )
+    $candidate = Normalize-DirectoryPath $resolvedDestination
+    $comparison = Get-PathComparison
+    if (@($forbidden | Where-Object { [string]::Equals($candidate, $_, $comparison) }).Count -gt 0 -or
+        (Test-PathContainedBy -Path $candidate -Root $canonicalRepoRoot))
     {
         throw "refusing unsafe staging root: $candidate"
     }
 
     New-Item -ItemType Directory -Path $candidate -Force | Out-Null
+    $destinations = [ordered]@{}
     foreach ($skill in $script:StagedSkillFiles.Keys)
     {
-        $skillDestination = Join-Path $candidate $skill
+        $skillDestination = Normalize-DirectoryPath (Join-Path $candidate $skill)
+        if (-not (Test-PathContainedBy -Path $skillDestination -Root $candidate))
+        {
+            throw "refusing staging path outside root: $skillDestination"
+        }
+        if (Test-Path -LiteralPath $skillDestination)
+        {
+            $destinationItem = Get-Item -LiteralPath $skillDestination -Force
+            if ($destinationItem.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) -or $null -ne $destinationItem.LinkType)
+            {
+                throw "refusing symbolic-link skill destination: $skillDestination"
+            }
+
+            if ($destinationItem.Attributes.HasFlag([IO.FileAttributes]::Directory))
+            {
+                $skillDestination = Resolve-CanonicalDirectoryPath $skillDestination
+                if (-not (Test-PathContainedBy -Path $skillDestination -Root $candidate))
+                {
+                    throw "refusing staging path outside root: $skillDestination"
+                }
+            }
+        }
+        $destinations[$skill] = $skillDestination
+    }
+
+    foreach ($skill in $script:StagedSkillFiles.Keys)
+    {
+        $skillDestination = $destinations[$skill]
         if (Test-Path -LiteralPath $skillDestination)
         {
             Remove-Item -LiteralPath $skillDestination -Recurse -Force
         }
+
         foreach ($relativePath in $script:StagedSkillFiles[$skill])
         {
             $source = Join-Path $script:RepoRoot ".github/skills/$skill/$relativePath"
@@ -1357,6 +1527,7 @@ Export-ModuleMember -Function @(
     'Read-JsonDocument'
     'Read-VallyScores'
     'Resolve-EvalFixture'
+    'Test-PathContainedBy'
     'Sync-VallyEvalSpecs'
     'Test-EvalSuites'
     'Test-ReviewArtifacts'

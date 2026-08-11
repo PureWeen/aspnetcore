@@ -412,6 +412,129 @@ if ($Suite -in @('All', 'TryFix'))
             if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
         }
     }
+
+    Invoke-Test 'Skill staging rejects repository-contained roots' {
+        $destination = Join-Path $configuration.RepoRoot ".github/skills/reviewer-stage-test-$([guid]::NewGuid())"
+        try
+        {
+            $rejected = $false
+            try { Copy-SanitizedSkills -Destination $destination | Out-Null }
+            catch { $rejected = $_.Exception.Message -match 'unsafe staging root' }
+            Assert-True $rejected "Repository-contained staging root was accepted: $destination"
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $destination) { Remove-Item -LiteralPath $destination -Recurse -Force }
+        }
+    }
+
+    Invoke-Test 'Skill staging rejects case-variant repository paths' {
+        if ([OperatingSystem]::IsWindows() -or [OperatingSystem]::IsMacOS())
+        {
+            $variantRoot = if ([OperatingSystem]::IsWindows())
+            {
+                $configuration.RepoRoot.ToUpperInvariant()
+            }
+            else
+            {
+                $configuration.RepoRoot -replace '^/Users/', '/users/'
+            }
+            Assert-True ($variantRoot -cne $configuration.RepoRoot) 'Test did not create a case-variant repository path.'
+            $relativeDestination = ".github/skills/reviewer-stage-test-$([guid]::NewGuid())"
+            $destination = Join-Path $variantRoot $relativeDestination
+            try
+            {
+                $rejected = $false
+                try { Copy-SanitizedSkills -Destination $destination | Out-Null }
+                catch { $rejected = $_.Exception.Message -match 'unsafe staging root' }
+                Assert-True $rejected 'Case-variant repository staging root was accepted.'
+            }
+            finally
+            {
+                $canonicalDestination = Join-Path $configuration.RepoRoot $relativeDestination
+                if (Test-Path -LiteralPath $canonicalDestination) { Remove-Item -LiteralPath $canonicalDestination -Recurse -Force }
+            }
+        }
+    }
+
+    Invoke-Test 'Skill staging resolves symbolic-link ancestors' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) "review-stage-ancestor-$([guid]::NewGuid())"
+        try
+        {
+            New-Item -ItemType Directory -Path $root -Force | Out-Null
+            $repoAlias = Join-Path $root 'repo-alias'
+            New-Item -ItemType SymbolicLink -Path $repoAlias -Target $configuration.RepoRoot | Out-Null
+            $link = Join-Path $root 'skills-link'
+            New-Item -ItemType SymbolicLink -Path $link -Target (Join-Path $repoAlias '.github/skills') | Out-Null
+            $relativeDestination = ".github/skills/reviewer-stage-test-$([guid]::NewGuid())"
+            $destination = Join-Path $link (Split-Path -Leaf $relativeDestination)
+            try
+            {
+                $rejected = $false
+                try { Copy-SanitizedSkills -Destination $destination | Out-Null }
+                catch { $rejected = $_.Exception.Message -match 'unsafe staging root' }
+                Assert-True $rejected 'Repository staging through a symbolic-link ancestor was accepted.'
+            }
+            finally
+            {
+                $canonicalDestination = Join-Path $configuration.RepoRoot $relativeDestination
+                if (Test-Path -LiteralPath $canonicalDestination) { Remove-Item -LiteralPath $canonicalDestination -Recurse -Force }
+            }
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
+    Invoke-Test 'Skill staging preflights every replacement before deletion' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) "review-stage-preflight-$([guid]::NewGuid())"
+        try
+        {
+            $stage = Join-Path $root 'stage'
+            $reviewer = Join-Path $stage 'aspnetcore-pr-review'
+            $target = Join-Path $root 'target'
+            New-Item -ItemType Directory -Path $reviewer -Force | Out-Null
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $reviewer 'sentinel.txt') -Value 'preserve'
+            New-Item -ItemType SymbolicLink -Path (Join-Path $stage 'aspnetcore-try-fix') -Target $target | Out-Null
+
+            $rejected = $false
+            try { Copy-SanitizedSkills -Destination $stage | Out-Null }
+            catch { $rejected = $_.Exception.Message -match 'symbolic-link skill destination' }
+            Assert-True $rejected 'Symbolic-link skill destination was accepted.'
+            Assert-True (Test-Path -LiteralPath (Join-Path $reviewer 'sentinel.txt') -PathType Leaf) 'A prior skill was deleted before staging preflight completed.'
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
+    Invoke-Test 'Skill staging safely replaces regular-file occupants' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) "review-stage-file-$([guid]::NewGuid())"
+        try
+        {
+            $stage = Join-Path $root 'stage'
+            New-Item -ItemType Directory -Path $stage -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $stage 'aspnetcore-pr-review') -Value 'stale'
+            $staged = Copy-SanitizedSkills -Destination $stage
+            Assert-True (Test-Path -LiteralPath (Join-Path $staged 'aspnetcore-pr-review/SKILL.md') -PathType Leaf) 'Regular-file occupant was not safely replaced.'
+            Assert-True (Test-Path -LiteralPath (Join-Path $staged 'aspnetcore-try-fix/SKILL.md') -PathType Leaf) 'Staging did not complete after replacing a regular file.'
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
+    Invoke-Test 'Path containment honors directory boundaries' {
+        $pathRoot = [IO.Path]::GetPathRoot($configuration.RepoRoot)
+        Assert-True (Test-PathContainedBy -Path $configuration.RepoRoot -Root $pathRoot) 'Filesystem-root containment was not recognized.'
+        Assert-True (Test-PathContainedBy -Path $configuration.RepoRoot -Root $configuration.RepoRoot -AllowEqual) 'Repository root equality was not recognized.'
+        Assert-True (Test-PathContainedBy -Path (Join-Path $configuration.RepoRoot 'child') -Root $configuration.RepoRoot) 'Repository child was not recognized.'
+        Assert-True (-not (Test-PathContainedBy -Path "$($configuration.RepoRoot)-sibling" -Root $configuration.RepoRoot)) 'Sibling prefix was treated as a repository child.'
+    }
 }
 
 Invoke-Test 'Checked-in Vally specs match PowerShell generation' {
@@ -464,6 +587,86 @@ Invoke-Test 'Score aggregation preserves family macro weighting' {
     $aggregate = Get-EvalScoreAggregate -Document $document -Scores @{ '1' = 1.0; '2' = 1.0; '3' = 0.0; '4' = 0.5 }
     Assert-Equal 0 $aggregate.Errors.Count 'Aggregation failed.'
     Assert-Equal 0.5 $aggregate.Result.tiers.train.family_macro 'Duplicate family cases changed macro weight.'
+}
+
+Invoke-Test 'Documented multi-input commands bind every argument' {
+    $root = Join-Path ([IO.Path]::GetTempPath()) "review-cli-$([guid]::NewGuid())"
+    try
+    {
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $validateScript = Join-Path $PSScriptRoot 'Validate-Evals.ps1'
+        $validationOutput = @(& pwsh -NoProfile -File $validateScript -Path "$($configuration.ReviewerEvals),$($configuration.TryFixEvals)" 2>&1)
+        Assert-Equal 0 $LASTEXITCODE "Documented validation command failed: $($validationOutput -join [Environment]::NewLine)"
+        $validation = ($validationOutput -join [Environment]::NewLine) | ConvertFrom-Json
+        $expectedCount = @((Read-JsonDocument $configuration.ReviewerEvals).evals).Count +
+            @((Read-JsonDocument $configuration.TryFixEvals).evals).Count
+        Assert-Equal $expectedCount $validation.raw_count 'Documented validation command did not process both manifests.'
+
+        $manifests = [Collections.Generic.List[string]]::new()
+        $results = [Collections.Generic.List[string]]::new()
+        foreach ($skill in @('cli-reviewer', 'cli-try-fix'))
+        {
+            $manifestPath = Join-Path $root "$skill.json"
+            $resultPath = Join-Path $root "$skill.jsonl"
+            @{
+                skill_name = $skill
+                evals = @(
+                    @{
+                        id = 1
+                        eval_metadata = @{
+                            tier = 'train'
+                            score_family = 'cli'
+                            provenance = @{ kind = 'synthetic'; source = $skill }
+                        }
+                    }
+                )
+            } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $manifestPath
+
+            $records = for ($run = 1; $run -le 5; $run++)
+            {
+                @{
+                    type = 'trial'
+                    status = 'success'
+                    gradeResult = @{ stimulusName = 'eval-01-cli'; score = 1.0 }
+                    trajectory = @{
+                        id = "$skill-$run"
+                        stimulus = @{
+                            name = 'eval-01-cli'
+                            tags = @{
+                                skill_name = $skill
+                                expected_runs = '5'
+                                executor_model = 'gpt-5.6-sol'
+                            }
+                        }
+                        metadata = @{
+                            model = 'gpt-5.6-sol'
+                            skillsLoaded = @($skill)
+                        }
+                    }
+                } | ConvertTo-Json -Depth 10 -Compress
+            }
+            Set-Content -LiteralPath $resultPath -Value $records
+            $manifests.Add($manifestPath)
+            $results.Add("$skill=$resultPath")
+        }
+
+        $aggregateScript = Join-Path $PSScriptRoot 'Aggregate-EvalScores.ps1'
+        $aggregateOutput = @(& pwsh -NoProfile -File $aggregateScript `
+            -EvalPath ($manifests -join ',') `
+            -VallyResults ($results -join ',') 2>&1)
+        Assert-Equal 0 $LASTEXITCODE "Documented aggregation command failed: $($aggregateOutput -join [Environment]::NewLine)"
+        $aggregate = ($aggregateOutput -join [Environment]::NewLine) | ConvertFrom-Json
+        Assert-Equal 1.0 $aggregate.'cli-reviewer'.raw_mean 'Reviewer Vally result mapping was not processed.'
+        Assert-Equal 1.0 $aggregate.'cli-try-fix'.raw_mean 'Try-fix Vally result mapping was not processed.'
+
+        $invalidOutput = @(& pwsh -NoProfile -File $aggregateScript -EvalPath ',,' -VallyResults ',,' 2>&1)
+        Assert-True ($LASTEXITCODE -ne 0) 'Degenerate aggregation inputs returned success.'
+        Assert-True (($invalidOutput -join [Environment]::NewLine) -match 'at least one eval path is required') 'Degenerate aggregation failure was not explicit.'
+    }
+    finally
+    {
+        if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+    }
 }
 
 if ($script:Failed.Count -gt 0)

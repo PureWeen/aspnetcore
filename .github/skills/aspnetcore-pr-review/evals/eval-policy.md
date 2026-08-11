@@ -93,8 +93,7 @@ Before accepting eval changes, run:
 
 ```powershell
 pwsh .github/skills/aspnetcore-pr-review/scripts/Validate-Evals.ps1 `
-  -Path .github/skills/aspnetcore-pr-review/evals/evals.json,`
-        .github/skills/aspnetcore-try-fix/evals/evals.json
+  -Path '.github/skills/aspnetcore-pr-review/evals/evals.json,.github/skills/aspnetcore-try-fix/evals/evals.json'
 pwsh .github/skills/aspnetcore-pr-review/scripts/Sync-VallyEvals.ps1 -Check
 pwsh .github/skills/aspnetcore-pr-review/scripts/Sync-VallyEvals.ps1 `
   -StageSkills /tmp/aspnetcore-review-skills
@@ -243,11 +242,8 @@ The reviewer aggregation needs both its GPT and Claude result files:
 
 ```powershell
 pwsh .github/skills/aspnetcore-pr-review/scripts/Aggregate-EvalScores.ps1 `
-  -EvalPath .github/skills/aspnetcore-pr-review/evals/evals.json,`
-            .github/skills/aspnetcore-try-fix/evals/evals.json `
-  -VallyResults aspnetcore-pr-review=/tmp/pr-review-main/results.jsonl,`
-                aspnetcore-pr-review=/tmp/pr-review-guardrail/results.jsonl,`
-                aspnetcore-try-fix=/tmp/try-fix/results.jsonl
+  -EvalPath '.github/skills/aspnetcore-pr-review/evals/evals.json,.github/skills/aspnetcore-try-fix/evals/evals.json' `
+  -VallyResults 'aspnetcore-pr-review=/tmp/pr-review-main/results.jsonl,aspnetcore-pr-review=/tmp/pr-review-guardrail/results.jsonl,aspnetcore-try-fix=/tmp/try-fix/results.jsonl'
 ```
 
 The `-Scores <path>` input remains available for importing results from

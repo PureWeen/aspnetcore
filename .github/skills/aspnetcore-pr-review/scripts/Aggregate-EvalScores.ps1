@@ -14,6 +14,21 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'ReviewerEvalTools.psm1') -Force
 
+$EvalPath = @($EvalPath | ForEach-Object { $_ -split ',' } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+if ($EvalPath.Count -eq 0)
+{
+    throw 'at least one eval path is required'
+}
+
+if ($PSCmdlet.ParameterSetName -eq 'Vally')
+{
+    $VallyResults = @($VallyResults | ForEach-Object { $_ -split ',' } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($VallyResults.Count -eq 0)
+    {
+        throw 'at least one Vally result mapping is required'
+    }
+}
+
 $scoreData = @{}
 if ($PSCmdlet.ParameterSetName -eq 'Scores')
 {
