@@ -111,6 +111,29 @@ steps:
 safe-outputs:
   report-failure-as-issue: false
   report-failed-jobs: false
+  # Work around github/gh-aw#50906 in v0.85.4. Threat detection runs on a
+  # fresh runner and its custom steps precede the generated Copilot installer.
+  # Remove these steps after upgrading to a compiler containing gh-aw#50908.
+  threat-detection:
+    steps:
+      - name: Install GitHub Copilot CLI for threat detection staging
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
+        env:
+          GH_HOST: github.com
+          GH_AW_COMPILED_VERSION: v0.85.4
+      - name: Stage GitHub Copilot CLI for threat detection
+        run: |
+          COPILOT_BIN="$(command -v copilot || true)"
+          if [[ -z "${COPILOT_BIN}" || ! -x "${COPILOT_BIN}" ]]; then
+            echo "::error::The GitHub Copilot CLI installer did not provide an executable."
+            exit 1
+          fi
+
+          if [[ "${COPILOT_BIN}" != "/usr/local/bin/copilot" ]]; then
+            sudo cp "${COPILOT_BIN}" /usr/local/bin/copilot
+            sudo chmod 755 /usr/local/bin/copilot
+          fi
+          /usr/local/bin/copilot --version
   noop:
     report-as-issue: false
   missing-tool:
@@ -136,6 +159,23 @@ imports:
       environment: copilot-pat-pool
 
 environment: copilot-pat-pool
+
+pre-agent-steps:
+  # gh-aw v0.85.4 can activate a cached Copilot CLI while its AWF command still
+  # invokes /usr/local/bin/copilot. Remove after upgrading past gh-aw#50908.
+  - name: Stage GitHub Copilot CLI for agent execution
+    run: |
+      COPILOT_BIN="$(command -v copilot || true)"
+      if [[ -z "${COPILOT_BIN}" || ! -x "${COPILOT_BIN}" ]]; then
+        echo "::error::The GitHub Copilot CLI installer did not provide an executable."
+        exit 1
+      fi
+
+      if [[ "${COPILOT_BIN}" != "/usr/local/bin/copilot" ]]; then
+        sudo cp "${COPILOT_BIN}" /usr/local/bin/copilot
+        sudo chmod 755 /usr/local/bin/copilot
+      fi
+      /usr/local/bin/copilot --version
 
 engine:
   id: copilot
