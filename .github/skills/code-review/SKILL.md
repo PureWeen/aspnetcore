@@ -4,10 +4,10 @@ description: >-
   Repository-specific review checks for dotnet/aspnetcore pull requests. USE FOR
   reviewing a diff or pull request in this repository, to catch conventions that
   CI does not enforce and that a general-purpose reviewer cannot infer:
-  Arcade-owned paths under eng/common, Components and Components.Testing test and
-  packaging conventions, and obsoletion diagnostic IDs. Also lists what CI already
-  checks so reviews do not repeat it, and when to stay quiet on dependency-flow
-  and generated pull requests. Read-only: analysis and review comments only.
+  Arcade-owned paths under eng/common, and Components and Components.Testing test
+  and packaging conventions. Also lists what CI already checks so reviews do not
+  repeat it, and when to stay quiet on dependency-flow and generated pull requests.
+  Read-only: analysis and review comments only.
   DO NOT USE FOR building or testing the repository, restating build or CI output,
   or designing the shape of a new public API (use review-public-api).
 ---
@@ -53,9 +53,11 @@ the churn itself — version and hash bumps, generated files, localization `.res
 updates, submodule pointer moves under `src/submodules/**`, or `eng/common/`
 updates (see section 2).
 
-**This is not blanket silence.** A mirror pull request can carry a hundred real
-`.cs` files, and those deserve normal review. Judge the *content* of a change, not
-the identity of its author.
+**Scope this to files, never to the pull request.** A mirror pull request can carry
+a hundred real `.cs` files, and those get normal review. Decide per file: silence is
+for the churn listed above, so a hand-written source change is reviewed the same way
+whatever the pull request is titled or whoever opened it. A real regression can ride
+along in an automated pull request, and it is the one nobody else is reading.
 
 The same restraint applies to genuinely generated output anywhere (`*.g.cs`,
 minified JavaScript). It does **not** apply to snapshot baselines such as
@@ -96,20 +98,6 @@ analyzer encodes:
   provides — `$(RepoRoot)`, `$(ArtifactsDir)`, or targets and properties defined
   in root `eng/` files. That can build and test green in-repo
   and still fail for the customer.
-
-## 4. Obsoletion diagnostic IDs
-
-Two registries exist and are easy to confuse:
-
-- Analyzer diagnostics (`ASP`, `BL`, `MVC`, `RDG`, `SSG`, ... prefixes) belong in
-  `docs/list-of-diagnostics.md`. Check a new ID is registered there, follows the
-  numbering its family already uses, and is not already taken.
-- **Obsoletion IDs (`ASPDEPR` + three digits) are not in that doc** — they are
-  tracked in `src/Shared/Obsoletions.cs`. A new
-  `[Obsolete(..., DiagnosticId = "ASPDEPR###")]` should take the next number above
-  the current maximum there, and the newest entries also declare the ID as a
-  constant. The sequence already has gaps (001 and 007 are absent); those are
-  pre-existing, so do not raise them. Nothing validates any of this.
 
 ## Scope
 
