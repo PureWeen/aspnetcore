@@ -73,6 +73,7 @@ public sealed class HeaderPropagationEntryCollection : Collection<HeaderPropagat
     /// A filter delegate that can be used to transform the header value.
     /// See <see cref="HeaderPropagationEntry.ValueFilter"/>.
     /// </param>
+    [Obsolete("This HeaderPropagationEntryCollection.Add overload is obsolete and will be removed in a future version. Use one of the other Add overloads instead.", DiagnosticId = "ASPDEPR015")]
     public void Add(
         string inboundHeaderName,
         string outboundHeaderName,
