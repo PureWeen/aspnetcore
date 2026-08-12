@@ -2,7 +2,7 @@
 
 # Initialize variables if they aren't already defined.
 
-# CI mode - set to true on CI server for PR validation build or official build.
+# CI mode - set to true on a CI server for pull-request validation or official builds.
 ci=${ci:-false}
 
 # Build mode
