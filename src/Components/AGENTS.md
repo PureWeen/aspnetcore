@@ -221,6 +221,10 @@ E2E tests are located in `src/Components/test/E2ETest`.
 1. First, check if there are already E2E tests for the component/feature area you're working on
 2. Try to add an additional test to existing test files when possible
 3. When adding test coverage, prefer extending existing test components and assets over creating a set of new ones if it doesn't complicate the existing ones excessively. This reduces test infrastructure complexity and keeps related scenarios together.
+4. Use Selenium to exercise the actual interaction under test. Do not inject or navigate directly to the expected state when that bypasses the behavior being tested.
+5. Wait for an observable DOM, viewport, or callback condition, using nearby helpers such as `Browser.True` or `Browser.Equal` where appropriate, rather than relying only on fixed delays or `requestAnimationFrame`.
+6. Fixed delays can be appropriate for negative guarantees where the assertion is that no UI change occurs.
+7. Check console errors and transient UI when relevant.
 
 ### Running E2E Tests
 
