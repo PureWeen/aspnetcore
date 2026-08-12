@@ -40,7 +40,7 @@ prepare_machine=${prepare_machine:-false}
 restore=${restore:-true}
 
 # Adjusts msbuild verbosity level.
-verbosity=${verbosity:-'minimal'}
+verbosity=${verbosity:-'normal'}
 
 # Set to true to reuse msbuild nodes. Recommended to not reuse on CI.
 if [[ "$ci" == true ]]; then
