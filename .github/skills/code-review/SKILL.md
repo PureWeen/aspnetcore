@@ -93,8 +93,8 @@ analyzer encodes:
   "independent of the ASP.NET Core repository layout, build graph, source-build
   conventions, CI providers, and repository-only projects or properties." The
   concrete signal is a shipped asset reaching for something only the repository
-  provides — `$(RepoRoot)`, `$(RepositoryRoot)`, artifacts paths, or targets and
-  properties defined in root `eng/` files. That can build and test green in-repo
+  provides — `$(RepoRoot)`, `$(ArtifactsDir)`, or targets and properties defined
+  in root `eng/` files. That can build and test green in-repo
   and still fail for the customer.
 
 ## 4. Obsoletion diagnostic IDs
