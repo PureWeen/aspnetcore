@@ -15,7 +15,7 @@ internal static class BufferingHelper
         ArgumentNullException.ThrowIfNull(request);
 
         var body = request.Body;
-        if (!body.CanSeek)
+        if (body.CanSeek)
         {
             var fileStream = new FileBufferingReadStream(body, bufferThreshold, bufferLimit, AspNetCoreTempDirectory.TempDirectoryFactory);
             request.Body = fileStream;
