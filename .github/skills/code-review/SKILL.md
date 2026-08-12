@@ -36,8 +36,3 @@ that the edit was authored directly here; abstain when provenance is unclear.
 
 Keep the finding about ownership and durability. Do not invent a defect in the
 changed code merely because the file is under `eng/common/**`.
-
-## Scope
-
-This skill performs static, read-only review. It does not build, run tests, or
-modify files.
