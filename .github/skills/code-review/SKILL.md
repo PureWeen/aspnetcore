@@ -114,7 +114,6 @@ Two registries exist and are easy to confuse:
 ## Scope
 
 Static review of the diff and repository. This skill does not build, run tests, or
-produce empirical evidence. Build and CI findings belong to CI; deep empirical
-review belongs to the developer-initiated `aspnetcore-pr-review` workflow; new
-public API *shape* belongs to `review-public-api` and the `api-approved` process
+produce empirical evidence — build and CI findings belong to CI. New public API
+*shape* belongs to `review-public-api` and the `api-approved` process
 (`docs/APIReviewProcess.md`).
