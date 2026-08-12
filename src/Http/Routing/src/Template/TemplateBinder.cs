@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.ObjectPool;
 
@@ -131,6 +132,7 @@ public class TemplateBinder
     {
         List<(string parameterName, IRouteConstraint constraint)>? constraintList = null;
         List<(string parameterName, IOutboundParameterTransformer transformer)>? parameterTransformerList = null;
+        HashSet<string>? parametersWithTransformer = null;
 
         if (parameterPolicies is not null)
         {
@@ -140,7 +142,19 @@ public class TemplateBinder
                 {
                     (constraintList ??= new()).Add((p.parameterName, routeConstraint));
                 }
-                if (p.policy is IOutboundParameterTransformer transformer)
+
+                // An optional parameter's constraint is wrapped in an OptionalRouteConstraint, which hides an
+                // IOutboundParameterTransformer implemented by the inner constraint. Unwrap it so URL generation
+                // still transforms the value. Only the first transformer per parameter is used either way.
+                var transformer = p.policy switch
+                {
+                    IOutboundParameterTransformer outboundTransformer => outboundTransformer,
+                    OptionalRouteConstraint { InnerConstraint: IOutboundParameterTransformer innerTransformer } => innerTransformer,
+                    _ => null,
+                };
+
+                if (transformer is not null &&
+                    (parametersWithTransformer ??= new(StringComparer.OrdinalIgnoreCase)).Add(p.parameterName))
                 {
                     (parameterTransformerList ??= new()).Add((p.parameterName, transformer));
                 }

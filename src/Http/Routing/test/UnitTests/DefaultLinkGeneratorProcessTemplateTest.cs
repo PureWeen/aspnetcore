@@ -333,6 +333,72 @@ public class DefaultLinkGeneratorProcessTemplateTest : LinkGeneratorTestBase
         Assert.Equal(string.Empty, result.query.ToUriComponent());
     }
 
+    [Fact]
+    public void TryProcessTemplate_OptionalDualRoleParameterPolicy_InvokesConstraintAndTransformerOnce()
+    {
+        var policy = new CountingTransformingRouteConstraint();
+        var endpoint = EndpointFactory.CreateRouteEndpoint("Foo/{param?}", policies: new { param = policy, });
+        var linkGenerator = CreateLinkGenerator(endpoint);
+
+        var success = linkGenerator.TryProcessTemplate(
+            httpContext: null,
+            endpoint: endpoint,
+            values: new RouteValueDictionary(new { param = "value", }),
+            ambientValues: null,
+            options: null,
+            result: out var result);
+
+        Assert.Equal(
+            (true, "/Foo/value-t1", string.Empty, 1, 1),
+            (success, result.path.ToUriComponent(), result.query.ToUriComponent(), policy.MatchCount, policy.TransformOutboundCount));
+    }
+
+    [Fact]
+    public void TryProcessTemplate_MultipleOptionalDualRolePolicies_UsesFirstTransformerAndAllConstraints()
+    {
+        var first = new CountingTransformingRouteConstraint();
+        var second = new CountingTransformingRouteConstraint();
+        var endpoint = EndpointFactory.CreateRouteEndpoint(
+            "Foo/{param?}",
+            policies: new { param = new IParameterPolicy[] { first, second }, });
+        var linkGenerator = CreateLinkGenerator(endpoint);
+
+        var success = linkGenerator.TryProcessTemplate(
+            httpContext: null,
+            endpoint: endpoint,
+            values: new RouteValueDictionary(new { param = "value", }),
+            ambientValues: null,
+            options: null,
+            result: out var result);
+
+        Assert.Equal(
+            (true, "/Foo/value-t1", 1, 1, 1, 0),
+            (success, result.path.ToUriComponent(), first.MatchCount, first.TransformOutboundCount, second.MatchCount, second.TransformOutboundCount));
+    }
+
+    [Fact]
+    public void TryProcessTemplate_TransformerBeforeOptionalDualRolePolicy_UsesFirstTransformerAndDualRoleConstraint()
+    {
+        var transformer = new CountingParameterTransformer();
+        var constraint = new CountingTransformingRouteConstraint();
+        var endpoint = EndpointFactory.CreateRouteEndpoint(
+            "Foo/{param?}",
+            policies: new { param = new IParameterPolicy[] { transformer, constraint }, });
+        var linkGenerator = CreateLinkGenerator(endpoint);
+
+        var success = linkGenerator.TryProcessTemplate(
+            httpContext: null,
+            endpoint: endpoint,
+            values: new RouteValueDictionary(new { param = "value", }),
+            ambientValues: null,
+            options: null,
+            result: out var result);
+
+        Assert.Equal(
+            (true, "/Foo/value-p1", 1, 1, 0),
+            (success, result.path.ToUriComponent(), transformer.TransformOutboundCount, constraint.MatchCount, constraint.TransformOutboundCount));
+    }
+
     // Regression test for aspnet/Routing#435
     //
     // In this issue we used to lowercase URLs after parameters were encoded, meaning that if a character needed
@@ -1645,5 +1711,43 @@ public class DefaultLinkGeneratorProcessTemplateTest : LinkGeneratorTestBase
 
         // Assert
         Assert.False(success);
+    }
+
+    private sealed class CountingTransformingRouteConstraint : IRouteConstraint, IOutboundParameterTransformer
+    {
+        public int MatchCount { get; private set; }
+
+        public int TransformOutboundCount { get; private set; }
+
+        public bool Match(
+            HttpContext httpContext,
+            IRouter route,
+            string routeKey,
+            RouteValueDictionary values,
+            RouteDirection routeDirection)
+        {
+            MatchCount++;
+
+            return true;
+        }
+
+        public string TransformOutbound(object value)
+        {
+            TransformOutboundCount++;
+
+            return $"{value}-t{TransformOutboundCount}";
+        }
+    }
+
+    private sealed class CountingParameterTransformer : IOutboundParameterTransformer
+    {
+        public int TransformOutboundCount { get; private set; }
+
+        public string TransformOutbound(object value)
+        {
+            TransformOutboundCount++;
+
+            return $"{value}-p{TransformOutboundCount}";
+        }
     }
 }
