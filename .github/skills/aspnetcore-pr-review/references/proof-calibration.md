@@ -40,6 +40,10 @@ Trigger:
 Expected assertion:
 Independent authority for the expected result:
 Allowed perturbations:
+Path-execution witness:
+Final observable:
+Opposite-side control:
+Adjacent preserved behavior:
 Runtime variants:
 Repetitions:
 ```
@@ -107,6 +111,10 @@ One green establishes a causal relationship for the scoped assertion. A
 candidate becomes `production-proven` only after:
 
 - the real producer/runtime boundary passes;
+- retained evidence shows the trigger reached the changed producer or handoff;
+- the final consumer-visible value, state, artifact, UI, or payload is inspected;
+- the defect case, an opposite-side control, and the nearest affected adjacent
+  behavior pass or have source-backed not-applicable dispositions;
 - a matrix varies the dimensions that could falsify the mechanism;
 - applicable configurations and platforms are covered;
 - the neighboring suite passes; and

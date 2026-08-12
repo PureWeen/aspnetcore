@@ -15,6 +15,10 @@ Expected assertion:
 Independent authority:
 Allowed perturbations:
 Impacted existing tests:
+Path-execution witness:
+Final observable:
+Opposite-side control:
+Adjacent preserved behavior:
 Suppressed interval:
 Resume trigger:
 Pre/post value generation:
@@ -39,7 +43,10 @@ behavioral red.
 If head fails at the predicted assertion, apply one candidate and run the
 identical assertion. Allow at most three implementation iterations for the same
 hypothesis. Verify each execution matched setup, control, trigger, assertion,
-runtime variants, and repetitions.
+runtime variants, and repetitions. Retain evidence that the trigger reached the
+changed producer or handoff. Define and inspect the final consumer-visible value,
+state, artifact, UI, or payload. A failure before that path executes is not
+behavioral red for the candidate.
 
 | Evidence | Result |
 |---|---|
@@ -51,6 +58,9 @@ runtime variants, and repetitions.
 
 The first green proves only scoped causality. Vary dimensions that can falsify
 the mechanism, not a generic matrix. Repeated identical passes are repeatability.
+Run the defect case, one opposite-side positive control, and the nearest adjacent
+producer or consumer behavior the mechanism can affect. Use a source-backed
+not-applicable disposition rather than inventing an unrelated control.
 For recovery, exercise the first real producer event and opposite boundary. For
 geometry/provenance, use a fixed control and bounded realistic variable
 perturbation. For shared filters, cover mapped branches/consumers. For timeouts,

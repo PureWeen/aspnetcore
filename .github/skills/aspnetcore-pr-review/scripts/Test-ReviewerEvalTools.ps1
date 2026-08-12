@@ -80,7 +80,12 @@ function New-ValidReviewArtifacts
         $nonEmpty += 'evidence/skipped-phases.md'
         if ($TargetedProven)
         {
-            $nonEmpty += @('empirical/head.log', 'empirical/green.log', 'empirical/result.md')
+            $nonEmpty += @(
+                'empirical/head.log',
+                'empirical/green.log',
+                'empirical/boundary-matrix.md',
+                'empirical/result.md'
+            )
         }
     }
     else
@@ -90,7 +95,8 @@ function New-ValidReviewArtifacts
             'cross-examination/candidate-a.md', 'cross-examination/candidate-b.md',
             'cross-examination/candidate-c.md', 'cross-examination/candidate-d.md',
             'empirical/manifest.md', 'empirical/head.log', 'empirical/claim-matrix.md',
-            'empirical/stress-matrix.md', 'empirical/result.md'
+            'empirical/boundary-matrix.md', 'empirical/stress-matrix.md',
+            'empirical/result.md'
         )
         $existing += @(
             'empirical/before.diff', 'empirical/diagnostic.diff',
@@ -111,10 +117,43 @@ function New-ValidReviewArtifacts
         New-Item -ItemType File -Path $path -Force | Out-Null
     }
 
+    @"
+# Impact map
+**Authority-handoff mapping:** not applicable - the fixture has one producer stage; source: fixture/producer
+"@ | Set-Content -LiteralPath (Join-Path $Root 'evidence/impact-map.md')
+
+    $empiricalResultPath = Join-Path $Root 'empirical/result.md'
+    if (Test-Path -LiteralPath $empiricalResultPath -PathType Leaf)
+    {
+        @"
+# Empirical result
+**Frozen path witness:** empirical/head.log
+**Candidate path witness:** empirical/green.log
+**Frozen final observable:** empirical/head.log
+**Candidate final observable:** empirical/green.log
+"@ | Set-Content -LiteralPath $empiricalResultPath
+    }
+
+    $boundaryMatrixPath = Join-Path $Root 'empirical/boundary-matrix.md'
+    if (Test-Path -LiteralPath $boundaryMatrixPath -PathType Leaf)
+    {
+        @"
+# Boundary matrix
+| Case ID | Role | Trigger/path | Final observable | Result | Evidence artifact |
+|---|---|---|---|---|---|
+| defect-1 | defect | changed producer | generated output | passed | empirical/head.log |
+| opposite-1 | opposite | public path | generated output | passed | empirical/green.log |
+| adjacent-1 | adjacent | neighboring consumer | generated output | passed | empirical/green.log |
+"@ | Set-Content -LiteralPath $boundaryMatrixPath
+    }
+
     $frozenHead = if ($TargetedProven) { 'behavioral-fail' } else { 'pass' }
     $findingProof = if ($TargetedProven) { 'empirical' } else { 'missing' }
     $scenarioProof = if ($TargetedProven) { 'empirical' } else { 'missing' }
     $candidateProof = if ($TargetedProven) { 'targeted-proven' } else { 'none' }
+    $pathExecution = if ($TargetedProven) { 'demonstrated' } else { 'not-applicable' }
+    $finalObservable = if ($TargetedProven) { 'inspected' } else { 'not-applicable' }
+    $boundaryControls = if ($TargetedProven) { 'passed' } else { 'not-applicable' }
     $regression = if ($TargetedProven) { 'required-regression' } else { 'rejected' }
     $behavioralEvidence = if ($TargetedProven) { 'empirical' } else { 'missing' }
 
@@ -135,6 +174,9 @@ Assessment.
 **Finding proof:** $findingProof
 **Scenario proof:** $scenarioProof
 **Candidate proof:** $candidateProof
+**Changed path execution:** $pathExecution
+**Final observable:** $finalObservable
+**Boundary controls:** $boundaryControls
 **Product oracle:** documented
 **Oracle fidelity:** authoritative
 **Mechanism fidelity:** structural
@@ -273,6 +315,62 @@ stimuli:
         }
     }
 
+    Invoke-Test 'Artifact schema requires an authority-handoff disposition' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+        try
+        {
+            New-ValidReviewArtifacts -Root $root -ReviewPath bounded
+            $impactPath = Join-Path $root 'evidence/impact-map.md'
+            Set-Content -LiteralPath $impactPath -Value '# Impact map'
+            $errors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($errors -contains 'impact map missing marker: **Authority-handoff mapping:**') 'Missing authority disposition was not rejected.'
+
+            @"
+# Impact map
+**Authority-handoff mapping:** required
+"@ | Set-Content -LiteralPath $impactPath
+            $errors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($errors -contains 'required authority mapping needs exactly one Authority handoffs section') 'Missing authority table was not rejected.'
+
+            @"
+# Impact map
+**Authority-handoff mapping:** required
+## Authority handoffs
+| Stage/handoff | Input authority | Effective authority | Transformation | Downstream observable | Governing contract | Disagreement risk |
+|---|---|---|---|---|---|---|
+| shared contract | declaration | runtime descriptor | projection | document | runtime contract | nullable drift |
+"@ | Set-Content -LiteralPath $impactPath
+            Assert-Equal 0 @(Test-ReviewArtifacts -Root $root).Count 'Complete authority table was rejected.'
+
+            @"
+# Impact map
+**Authority-handoff mapping:** required
+## Authority handoffs
+| Stage/handoff | Input authority | Effective authority | Transformation | Downstream observable | Governing contract | Disagreement risk |
+| bogus separator |
+| shared contract | declaration | runtime descriptor | projection | document | runtime contract | nullable drift |
+"@ | Set-Content -LiteralPath $impactPath
+            $errors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($errors -contains 'required authority mapping needs the canonical seven-column table') 'Malformed authority separator was accepted.'
+
+            @"
+# Impact map
+**Authority-handoff mapping:** required
+## Authority handoffs
+| Stage/handoff | Input authority | Effective authority | Transformation | Downstream observable | Governing contract | Disagreement risk |
+|---|---|---|---|---|---|---|
+| shared contract | declaration | runtime descriptor | projection | document | runtime contract | nullable drift |
+| Stage/handoff | Input authority | Effective authority | Transformation | Downstream observable | Governing contract | Disagreement risk |
+"@ | Set-Content -LiteralPath $impactPath
+            $errors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($errors -contains 'required authority mapping needs only complete, nonduplicate handoff rows') 'Duplicate authority header was accepted.'
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
     Invoke-Test 'Bounded targeted proof requires red and green evidence' {
         foreach ($artifact in @('empirical/head.log', 'empirical/green.log'))
         {
@@ -288,6 +386,156 @@ stimuli:
             finally
             {
                 if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            }
+        }
+    }
+
+    Invoke-Test 'Proven candidate requires retained path evidence references' {
+        foreach ($label in @(
+            'Frozen path witness',
+            'Candidate path witness',
+            'Frozen final observable',
+            'Candidate final observable'
+        ))
+        {
+            $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+            try
+            {
+                New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+                $resultPath = Join-Path $root 'empirical/result.md'
+                $result = Get-Content -LiteralPath $resultPath -Raw
+                $result = [regex]::Replace($result, "(?m)^\*\*$([regex]::Escape($label)):\*\*.*(?:\r?\n|\z)", '')
+                Set-Content -LiteralPath $resultPath -Value $result
+                $errors = @(Test-ReviewArtifacts -Root $root)
+                Assert-True ($errors -contains "proven candidate empirical result missing evidence reference: $label") "Missing $label was not rejected."
+            }
+            finally
+            {
+                if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            }
+        }
+    }
+
+    Invoke-Test 'Proven candidate requires distinct boundary roles' {
+        foreach ($role in @('defect', 'opposite', 'adjacent'))
+        {
+            $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+            try
+            {
+                New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+                $boundaryPath = Join-Path $root 'empirical/boundary-matrix.md'
+                $boundary = Get-Content -LiteralPath $boundaryPath -Raw
+                $boundary = [regex]::Replace($boundary, "(?m)^\| [^|]+ \| $role \|.*(?:\r?\n|\z)", '')
+                Set-Content -LiteralPath $boundaryPath -Value $boundary
+                $errors = @(Test-ReviewArtifacts -Root $root)
+                Assert-True ($errors -contains "proven candidate boundary matrix requires exactly one $role row") "Missing $role boundary was not rejected."
+            }
+            finally
+            {
+                if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            }
+        }
+
+        $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+        try
+        {
+            New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+            $boundaryPath = Join-Path $root 'empirical/boundary-matrix.md'
+            (Get-Content -LiteralPath $boundaryPath -Raw).Replace(
+                '| opposite-1 | opposite |',
+                '| defect-1 | opposite |'
+            ) | Set-Content -LiteralPath $boundaryPath
+            $errors = @(Test-ReviewArtifacts -Root $root)
+            Assert-True ($errors -contains 'proven candidate boundary matrix requires distinct case IDs') 'Duplicate boundary case IDs were not rejected.'
+        }
+        finally
+        {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
+    Invoke-Test 'Malformed boundary matrices report validation errors' {
+        foreach ($content in @(
+            @"
+# Boundary matrix
+| Case ID | Role | Trigger/path | Final observable | Result | Evidence artifact |
+|---|---|---|---|---|---|
+"@,
+            @"
+# Boundary matrix
+| Case ID | Role | Trigger/path | Final observable | Result | Evidence artifact |
+|---|---|---|---|---|---|
+| malformed |
+"@
+        ))
+        {
+            $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+            try
+            {
+                New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+                Set-Content -LiteralPath (Join-Path $root 'empirical/boundary-matrix.md') -Value $content
+                $errors = @(Test-ReviewArtifacts -Root $root)
+                Assert-True ($errors.Count -gt 0) 'Malformed boundary matrix returned no validation errors.'
+            }
+            finally
+            {
+                if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            }
+        }
+
+        Invoke-Test 'Boundary matrix rejects malformed separators and extra roles' {
+            foreach ($content in @(
+                @"
+# Boundary matrix
+| Case ID | Role | Trigger/path | Final observable | Result | Evidence artifact |
+| bogus separator |
+| defect-1 | defect | changed producer | generated output | passed | empirical/head.log |
+| opposite-1 | opposite | public path | generated output | passed | empirical/green.log |
+| adjacent-1 | adjacent | neighboring consumer | generated output | passed | empirical/green.log |
+"@,
+                @"
+# Boundary matrix
+| Case ID | Role | Trigger/path | Final observable | Result | Evidence artifact |
+|---|---|---|---|---|---|
+| defect-1 | defect | changed producer | generated output | passed | empirical/head.log |
+| opposite-1 | opposite | public path | generated output | passed | empirical/green.log |
+| adjacent-1 | adjacent | neighboring consumer | generated output | passed | empirical/green.log |
+| extra-1 | unrelated | other path | output | passed | empirical/green.log |
+"@
+            ))
+            {
+                $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+                try
+                {
+                    New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+                    Set-Content -LiteralPath (Join-Path $root 'empirical/boundary-matrix.md') -Value $content
+                    $errors = @(Test-ReviewArtifacts -Root $root)
+                    Assert-True ($errors.Count -gt 0) 'Malformed or extra boundary role returned no validation errors.'
+                }
+                finally
+                {
+                    if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+                }
+            }
+        }
+
+        Invoke-Test 'Proof evidence references cannot escape through symbolic links' {
+            $root = Join-Path ([IO.Path]::GetTempPath()) "review-artifacts-$([guid]::NewGuid())"
+            $outside = Join-Path ([IO.Path]::GetTempPath()) "review-outside-$([guid]::NewGuid()).log"
+            try
+            {
+                New-ValidReviewArtifacts -Root $root -ReviewPath bounded -TargetedProven
+                Set-Content -LiteralPath $outside -Value 'outside evidence'
+                $headPath = Join-Path $root 'empirical/head.log'
+                Remove-Item -LiteralPath $headPath -Force
+                New-Item -ItemType SymbolicLink -Path $headPath -Target $outside | Out-Null
+                $errors = @(Test-ReviewArtifacts -Root $root)
+                Assert-True (@($errors | Where-Object { $_ -match 'outside the artifact root|invalid evidence' }).Count -gt 0) 'Symbolic-link evidence escape was accepted.'
+            }
+            finally
+            {
+                if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+                if (Test-Path -LiteralPath $outside) { Remove-Item -LiteralPath $outside -Force }
             }
         }
     }
@@ -313,6 +561,9 @@ stimuli:
             $review = $review.Replace('**Finding proof:** missing', '**Finding proof:** empirical')
             $review = $review.Replace('**Scenario proof:** missing', '**Scenario proof:** empirical')
             $review = $review.Replace('**Candidate proof:** none', '**Candidate proof:** production-proven')
+            $review = $review.Replace('**Changed path execution:** not-applicable', '**Changed path execution:** demonstrated')
+            $review = $review.Replace('**Final observable:** not-applicable', '**Final observable:** inspected')
+            $review = $review.Replace('**Boundary controls:** not-applicable', '**Boundary controls:** passed')
             $review = $review.Replace('**Regression assertion disposition:** rejected', '**Regression assertion disposition:** required-regression')
             $review = $review.Replace('**Behavioral evidence:** missing', '**Behavioral evidence:** empirical')
             Set-Content -LiteralPath $reviewPath -Value $review
@@ -625,7 +876,7 @@ Invoke-Test 'Score aggregation combines split canonical specs' {
             -Scores $scoresPath 2>&1)
         Assert-Equal 0 $LASTEXITCODE "Split-spec aggregation failed: $($output -join [Environment]::NewLine)"
         $aggregate = ($output -join [Environment]::NewLine) | ConvertFrom-Json
-        Assert-Equal 18 ($aggregate.'aspnetcore-pr-review'.tiers.train.eval_count + $aggregate.'aspnetcore-pr-review'.tiers.held_out.eval_count) 'Reviewer guardrail spec was not merged with the main suite.'
+        Assert-Equal 20 ($aggregate.'aspnetcore-pr-review'.tiers.train.eval_count + $aggregate.'aspnetcore-pr-review'.tiers.held_out.eval_count) 'Reviewer guardrail spec was not merged with the main suite.'
         Assert-Equal 12 ($aggregate.'aspnetcore-try-fix'.tiers.train.eval_count + $aggregate.'aspnetcore-try-fix'.tiers.held_out.eval_count) 'Try-fix suite aggregation changed its eval count.'
     }
     finally

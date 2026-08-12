@@ -20,15 +20,26 @@ The `**Path:**` field selects the validator contract:
 - `bounded` requires shared evidence, candidates A/B, live-head drift,
   `evidence/skipped-phases.md`, repository oracle, and final review. If the
   candidate is `targeted-proven`, also retain the actual frozen-head log,
-  candidate-green log, and empirical result. Do not create unused full-path
-  boilerplate.
+  candidate-green log, and empirical result. The result records path execution,
+  final observable inspection, the defect case, an opposite-side control, and
+  adjacent preserved behavior through retained artifact references and
+  `empirical/boundary-matrix.md`. Do not create unused full-path boilerplate.
 - `full` requires all four candidates, all four cross-examinations, and the
   complete empirical proof tree defined in `evidence-and-orchestration.md`.
 
 The final proof labels must agree with the path. In particular,
 `production-proven` requires `full`; bounded `targeted-proven` requires
 candidate-independent behavioral red, identical candidate green, empirical
-finding/scenario evidence, and a required regression assertion.
+finding/scenario evidence, a required regression assertion, demonstrated path
+execution, final observable inspection, and the scoped boundary controls.
+
+For a proven candidate, `empirical/result.md` contains exactly one relative,
+nonempty artifact reference for each of `Frozen path witness`,
+`Candidate path witness`, `Frozen final observable`, and
+`Candidate final observable`. `empirical/boundary-matrix.md` contains distinct
+`defect`, `opposite`, and `adjacent` case IDs. Opposite or adjacent may be
+not-applicable only with a reason and a nonempty evidence artifact containing
+the source-backed disposition.
 
 ## Claim synthesis
 
@@ -99,13 +110,17 @@ the saved cross-examination round>
 - <rejected claim>
 
 ## Test assessment
-<frozen-head, candidate, mapped-test, and configuration evidence>
+<frozen-head, candidate, path-execution, final-observable, boundary-control,
+mapped-test, and configuration evidence>
 
 ## Proof status
 **Frozen-head result:** behavioral-fail / structural-defect / pass / blocked / not-applicable
 **Finding proof:** empirical / structural / missing
 **Scenario proof:** empirical / structural / missing
 **Candidate proof:** production-proven / targeted-proven / diagnostic-only / rejected / blocked / none
+**Changed path execution:** demonstrated / structural / blocked / missing / not-applicable
+**Final observable:** inspected / structural / blocked / missing / not-applicable
+**Boundary controls:** passed / partial / blocked / missing / not-applicable
 **Product oracle:** documented / author-confirmed / test-encoded / inferred / unknown
 **Oracle fidelity:** authoritative / corroborated / hypothesis / unknown
 **Mechanism fidelity:** reproduced / structural / inferred / unknown

@@ -948,6 +948,39 @@ function Resolve-CanonicalDirectoryPath
     }
 }
 
+function Resolve-CanonicalFilePath
+{
+    param(
+        [Parameter(Mandatory)]
+        [string] $Path
+    )
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf))
+    {
+        throw "file does not exist: $fullPath"
+    }
+
+    $canonicalParent = Resolve-CanonicalDirectoryPath (Split-Path -Parent $fullPath)
+    $item = Get-Item -LiteralPath (Join-Path $canonicalParent (Split-Path -Leaf $fullPath)) -Force
+    if ($item.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) -or $null -ne $item.LinkType)
+    {
+        $target = $item.ResolveLinkTarget($true)
+        if ($null -eq $target)
+        {
+            throw "unable to resolve symbolic-link file: $($item.FullName)"
+        }
+        $item = $target
+    }
+
+    if ($item.Attributes.HasFlag([IO.FileAttributes]::Directory))
+    {
+        throw "path is not a file: $($item.FullName)"
+    }
+
+    return [IO.Path]::GetFullPath($item.FullName)
+}
+
 function Get-PathComparison
 {
     if ([OperatingSystem]::IsWindows() -or [OperatingSystem]::IsMacOS())
@@ -1391,7 +1424,8 @@ function Test-ReviewArtifacts
             'cross-examination/candidate-a.md', 'cross-examination/candidate-b.md',
             'cross-examination/candidate-c.md', 'cross-examination/candidate-d.md',
             'empirical/manifest.md', 'empirical/head.log', 'empirical/claim-matrix.md',
-            'empirical/stress-matrix.md', 'empirical/result.md'
+            'empirical/boundary-matrix.md', 'empirical/stress-matrix.md',
+            'empirical/result.md'
         ) | ForEach-Object { $requiredNonEmpty.Add($_) }
         @(
             'empirical/before.diff', 'empirical/diagnostic.diff',
@@ -1409,6 +1443,61 @@ function Test-ReviewArtifacts
     foreach ($relativePath in $requiredExisting)
     {
         if (-not (Test-Path -LiteralPath (Join-Path $Root $relativePath) -PathType Leaf)) { $errors.Add("missing required artifact: $relativePath") }
+    }
+
+    $impactPath = Join-Path $Root 'evidence/impact-map.md'
+    if (Test-Path -LiteralPath $impactPath -PathType Leaf)
+    {
+        $impact = Get-Content -LiteralPath $impactPath -Raw
+        $authorityMatches = [regex]::Matches($impact, '(?m)^\*\*Authority-handoff mapping:\*\*\s*(.+?)\s*$')
+        if ($authorityMatches.Count -eq 0)
+        {
+            $errors.Add('impact map missing marker: **Authority-handoff mapping:**')
+        }
+        elseif ($authorityMatches.Count -gt 1)
+        {
+            $errors.Add('impact map contains duplicate marker: **Authority-handoff mapping:**')
+        }
+        else
+        {
+            $authorityDisposition = $authorityMatches[0].Groups[1].Value.Trim()
+            if ($authorityDisposition -eq 'required')
+            {
+                $sections = [regex]::Matches($impact, '(?ms)^## Authority handoffs\s*(.*?)(?=^## |\z)')
+                if ($sections.Count -ne 1)
+                {
+                    $errors.Add('required authority mapping needs exactly one Authority handoffs section')
+                }
+                else
+                {
+                    $lines = @($sections[0].Groups[1].Value -split "`r?`n" | Where-Object { $_.Trim().StartsWith('|') })
+                    $expectedHeader = '| Stage/handoff | Input authority | Effective authority | Transformation | Downstream observable | Governing contract | Disagreement risk |'
+                    $expectedSeparator = '|---|---|---|---|---|---|---|'
+                    if ($lines.Count -lt 3 -or $lines[0].Trim() -ne $expectedHeader -or $lines[1].Trim() -ne $expectedSeparator)
+                    {
+                        $errors.Add('required authority mapping needs the canonical seven-column table')
+                    }
+                    else
+                    {
+                        $dataRows = @($lines[2..($lines.Count - 1)])
+                        $invalidRows = @($dataRows | Where-Object {
+                            $cells = @($_.Trim().Trim('|') -split '\|' | ForEach-Object { $_.Trim() })
+                            $cells.Count -ne 7 -or
+                                @($cells | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0 -or
+                                $cells[0] -in @('Stage/handoff', '---')
+                        })
+                        if ($dataRows.Count -eq 0 -or $invalidRows.Count -gt 0)
+                        {
+                            $errors.Add('required authority mapping needs only complete, nonduplicate handoff rows')
+                        }
+                    }
+                }
+            }
+            elseif ($authorityDisposition -notmatch '^not applicable\s*-\s*\S.+;\s*source:\s*\S.+$')
+            {
+                $errors.Add('authority mapping must be required or a justified not-applicable disposition with a source')
+            }
+        }
     }
 
     if (-not (Test-Path -LiteralPath $reviewPath -PathType Leaf)) { return @($errors) }
@@ -1454,6 +1543,9 @@ function Test-ReviewArtifacts
         'Finding proof' = @('empirical', 'structural', 'missing')
         'Scenario proof' = @('empirical', 'structural', 'missing')
         'Candidate proof' = @('production-proven', 'targeted-proven', 'diagnostic-only', 'rejected', 'blocked', 'none')
+        'Changed path execution' = @('demonstrated', 'structural', 'blocked', 'missing', 'not-applicable')
+        'Final observable' = @('inspected', 'structural', 'blocked', 'missing', 'not-applicable')
+        'Boundary controls' = @('passed', 'partial', 'blocked', 'missing', 'not-applicable')
         'Product oracle' = @('documented', 'author-confirmed', 'test-encoded', 'inferred', 'unknown')
         'Oracle fidelity' = @('authoritative', 'corroborated', 'hypothesis', 'unknown')
         'Mechanism fidelity' = @('reproduced', 'structural', 'inferred', 'unknown')
@@ -1502,12 +1594,15 @@ function Test-ReviewArtifacts
                 $values['Finding proof'] -ne 'empirical' -or
                 $values['Scenario proof'] -ne 'empirical' -or
                 $values['Behavioral evidence'] -ne 'empirical' -or
+                $values['Changed path execution'] -ne 'demonstrated' -or
+                $values['Final observable'] -ne 'inspected' -or
+                $values['Boundary controls'] -ne 'passed' -or
                 $values['Regression assertion disposition'] -ne 'required-regression'
             )
             {
-                $errors.Add('bounded targeted-proven requires empirical behavioral red/green and a required-regression assertion')
+                $errors.Add('bounded targeted-proven requires empirical behavioral red/green, demonstrated path execution, final observable inspection, passed boundary controls, and a required-regression assertion')
             }
-            foreach ($relativePath in @('empirical/head.log', 'empirical/green.log', 'empirical/result.md'))
+            foreach ($relativePath in @('empirical/head.log', 'empirical/green.log', 'empirical/boundary-matrix.md', 'empirical/result.md'))
             {
                 $path = Join-Path $Root $relativePath
                 if (-not (Test-Path -LiteralPath $path -PathType Leaf))
@@ -1525,6 +1620,9 @@ function Test-ReviewArtifacts
             if (-not $provenHead) { $errors.Add('production-proven requires a proven frozen-head defect') }
             if ($weak) { $errors.Add('production-proven is incompatible with weak oracle, mechanism, or scenario fidelity') }
             if ($values['Finding proof'] -ne 'empirical' -or $values['Scenario proof'] -ne 'empirical') { $errors.Add('production-proven requires empirical finding and scenario proof') }
+            if ($values['Changed path execution'] -ne 'demonstrated') { $errors.Add('production-proven requires demonstrated changed-path execution') }
+            if ($values['Final observable'] -ne 'inspected') { $errors.Add('production-proven requires final observable inspection') }
+            if ($values['Boundary controls'] -ne 'passed') { $errors.Add('production-proven requires passed boundary controls') }
             if ($values['Regression assertion disposition'] -ne 'required-regression') { $errors.Add('production-proven requires a required-regression assertion disposition') }
             $stressPath = Join-Path $Root 'empirical/stress-matrix.md'
             if (Test-Path -LiteralPath $stressPath -PathType Leaf)
@@ -1546,6 +1644,174 @@ function Test-ReviewArtifacts
                 if ($rows.Count -lt 3 -or @($rows[1..($rows.Count - 1)] | Sort-Object -Unique).Count -lt 2)
                 {
                     $errors.Add('production-proven requires multiple distinct executed cases')
+                }
+            }
+        }
+
+        if ($values['Candidate proof'] -in @('targeted-proven', 'production-proven'))
+        {
+            $resultPath = Join-Path $Root 'empirical/result.md'
+            if (Test-Path -LiteralPath $resultPath -PathType Leaf)
+            {
+                $result = Get-Content -LiteralPath $resultPath -Raw
+                foreach ($label in @(
+                    'Frozen path witness',
+                    'Candidate path witness',
+                    'Frozen final observable',
+                    'Candidate final observable'
+                ))
+                {
+                    $matches = [regex]::Matches($result, "(?m)^\*\*$([regex]::Escape($label)):\*\*\s*(.+?)\s*$")
+                    if ($matches.Count -eq 0)
+                    {
+                        $errors.Add("proven candidate empirical result missing evidence reference: $label")
+                        continue
+                    }
+                    if ($matches.Count -gt 1)
+                    {
+                        $errors.Add("proven candidate empirical result contains duplicate evidence reference: $label")
+                        continue
+                    }
+
+                    $relativePath = $matches[0].Groups[1].Value.Trim()
+                    if ([IO.Path]::IsPathRooted($relativePath))
+                    {
+                        $errors.Add("proven candidate empirical result has invalid evidence reference for $label`: $relativePath")
+                    }
+                    else
+                    {
+                        $evidencePath = Join-Path $Root $relativePath
+                        if (-not (Test-Path -LiteralPath $evidencePath -PathType Leaf))
+                        {
+                            $errors.Add("proven candidate empirical result evidence reference is missing or empty for $label`: $relativePath")
+                        }
+                        else
+                        {
+                            try
+                            {
+                                $canonicalRoot = Resolve-CanonicalDirectoryPath $Root
+                                $canonicalEvidence = Resolve-CanonicalFilePath $evidencePath
+                                if (-not (Test-PathContainedBy -Path $canonicalEvidence -Root $canonicalRoot) -or
+                                    [string]::IsNullOrWhiteSpace((Get-Content -LiteralPath $canonicalEvidence -Raw)))
+                                {
+                                    $errors.Add("proven candidate empirical result evidence reference is missing or outside the artifact root for $label`: $relativePath")
+                                }
+                            }
+                            catch
+                            {
+                                $errors.Add("proven candidate empirical result has invalid evidence reference for $label`: $relativePath")
+                            }
+                        }
+                    }
+                }
+            }
+
+            $boundaryPath = Join-Path $Root 'empirical/boundary-matrix.md'
+            if (Test-Path -LiteralPath $boundaryPath -PathType Leaf)
+            {
+                $boundary = Get-Content -LiteralPath $boundaryPath -Raw
+                $lines = @($boundary -split "`r?`n" | Where-Object { $_.Trim().StartsWith('|') })
+                $expectedHeader = '| Case ID | Role | Trigger/path | Final observable | Result | Evidence artifact |'
+                $expectedSeparator = '|---|---|---|---|---|---|'
+                if ($lines.Count -lt 2 -or $lines[0].Trim() -ne $expectedHeader -or $lines[1].Trim() -ne $expectedSeparator)
+                {
+                    $errors.Add('proven candidate boundary matrix needs the canonical six-column table and three role rows')
+                }
+                else
+                {
+                    $rows = [Collections.Generic.List[object]]::new()
+                    $dataLines = @()
+                    if ($lines.Count -gt 2)
+                    {
+                        $dataLines = @($lines[2..($lines.Count - 1)])
+                    }
+                    if ($dataLines.Count -ne 3)
+                    {
+                        $errors.Add('proven candidate boundary matrix requires exactly three role rows')
+                    }
+                    foreach ($line in $dataLines)
+                    {
+                        $cells = @($line.Trim().Trim('|') -split '\|' | ForEach-Object { $_.Trim() })
+                        if ($cells.Count -ne 6 -or @($cells | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0)
+                        {
+                            $errors.Add('proven candidate boundary matrix contains an incomplete row')
+                            continue
+                        }
+                        $rows.Add([pscustomobject]@{
+                            Id = $cells[0]
+                            Role = $cells[1].ToLowerInvariant()
+                            Trigger = $cells[2]
+                            Observable = $cells[3]
+                            Result = $cells[4].ToLowerInvariant()
+                            Evidence = $cells[5]
+                        })
+                    }
+
+                    if (@($rows | ForEach-Object { $_.Id } | Sort-Object -Unique).Count -ne $rows.Count)
+                    {
+                        $errors.Add('proven candidate boundary matrix requires distinct case IDs')
+                    }
+                    $unknownRoles = @($rows | Where-Object Role -notin @('defect', 'opposite', 'adjacent'))
+                    if ($unknownRoles.Count -gt 0)
+                    {
+                        $errors.Add('proven candidate boundary matrix contains an unrecognized role')
+                    }
+                    foreach ($role in @('defect', 'opposite', 'adjacent'))
+                    {
+                        $roleRows = @($rows | Where-Object Role -eq $role)
+                        if ($roleRows.Count -ne 1)
+                        {
+                            $errors.Add("proven candidate boundary matrix requires exactly one $role row")
+                            continue
+                        }
+                        $row = $roleRows[0]
+                        $validResult = if ($role -eq 'defect')
+                        {
+                            $row.Result -eq 'passed'
+                        }
+                        else
+                        {
+                            $row.Result -eq 'passed' -or $row.Result -match '^not applicable\s*-\s*\S.+$'
+                        }
+                        if (-not $validResult)
+                        {
+                            $errors.Add("proven candidate boundary matrix has invalid $role result: $($row.Result)")
+                        }
+                        if ($row.Result -eq 'passed' -and ($row.Trigger -eq 'not-applicable' -or $row.Observable -eq 'not-applicable'))
+                        {
+                            $errors.Add("proven candidate boundary matrix $role row lacks executed trigger or observable evidence")
+                        }
+
+                        if ([IO.Path]::IsPathRooted($row.Evidence))
+                        {
+                            $errors.Add("proven candidate boundary matrix has invalid evidence artifact for $role`: $($row.Evidence)")
+                        }
+                        else
+                        {
+                            $evidencePath = Join-Path $Root $row.Evidence
+                            if (-not (Test-Path -LiteralPath $evidencePath -PathType Leaf))
+                            {
+                                $errors.Add("proven candidate boundary matrix evidence artifact is missing or empty for $role`: $($row.Evidence)")
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    $canonicalRoot = Resolve-CanonicalDirectoryPath $Root
+                                    $canonicalEvidence = Resolve-CanonicalFilePath $evidencePath
+                                    if (-not (Test-PathContainedBy -Path $canonicalEvidence -Root $canonicalRoot) -or
+                                        [string]::IsNullOrWhiteSpace((Get-Content -LiteralPath $canonicalEvidence -Raw)))
+                                    {
+                                        $errors.Add("proven candidate boundary matrix evidence artifact is missing or outside the artifact root for $role`: $($row.Evidence)")
+                                    }
+                                }
+                                catch
+                                {
+                                    $errors.Add("proven candidate boundary matrix has invalid evidence artifact for $role`: $($row.Evidence)")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

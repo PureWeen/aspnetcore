@@ -18,6 +18,12 @@ enough expected result, and faithful smallest boundary. A browser, transport,
 process, scheduler, serialization, or interop claim must exercise that producer;
 a consumer-only unit test cannot prove what the producer emits.
 
+Before counting behavioral red or green, define the final observable for the
+claim, such as a returned value, retained state, generated artifact, rendered UI,
+or transmitted payload. Retain a path-execution witness that shows the trigger
+reached the changed producer or handoff, and inspect that final observable.
+Intermediate metadata alone cannot prove the final observable contract.
+
 ## Isolate and freeze
 
 Create an isolated child session or disposable detached worktree at the frozen
@@ -53,7 +59,28 @@ primary assertion. Then run the approved assertion on untouched frozen head:
 
 Keep diagnostic assertion and implementation diffs separate. If head is red,
 apply the smallest candidate and run the identical assertion for green. Record a
-per-execution matrix; do not report only aggregate success.
+per-execution matrix, its path-execution witness, and the final observable; do
+not report only aggregate success. A failure before the changed path executes is
+not behavioral red for that change.
+
+In `empirical/result.md`, link the retained frozen and candidate logs that
+contain the path-execution and final-observable evidence. In
+`empirical/boundary-matrix.md`, record one row for each scoped boundary role:
+
+```markdown
+**Frozen path witness:** empirical/head.log
+**Candidate path witness:** empirical/green.log
+**Frozen final observable:** empirical/head.log
+**Candidate final observable:** empirical/green.log
+```
+
+| Case ID | Role | Trigger/path | Final observable | Result | Evidence artifact |
+|---|---|---|---|---|---|
+
+Use the roles `defect`, `opposite`, and `adjacent` exactly once with distinct case
+IDs. `defect` must pass. An opposite or adjacent row may be
+`not applicable - <reason>` only when its evidence artifact contains the
+source-backed disposition.
 
 At most three implementation iterations may refine one hypothesis. Preserve
 blocked output rather than replacing it with confidence-shaped prose.
@@ -65,6 +92,15 @@ The first green supports causality, not production readiness. Preserve:
 - finding proof: does frozen head exhibit the predicted defect?
 - scenario proof: did the real producer/runtime path exhibit it?
 - candidate proof: did the correction survive relevant counterexamples?
+
+For a candidate correction, execute a minimum scoped boundary set:
+
+1. the defect case at the identical assertion;
+2. one opposite-side positive control that must retain its existing behavior;
+3. the nearest adjacent producer or consumer behavior the mechanism can affect.
+
+Record a source-backed `not applicable` reason when the mechanism has no distinct
+opposite-side or adjacent case. Do not invent unrelated cases to fill the table.
 
 Vary only dimensions that could falsify the mechanism. Repeating one deterministic
 case proves repeatability, not breadth. Stateful recovery normally requires the
@@ -94,6 +130,8 @@ caps proof at `targeted-proven` until standard build or exact CI succeeds.
   scenario strong enough for the claim;
 - empirical finding and scenario proof;
 - required-regression coverage using the same assertion;
+- a retained path-execution witness and inspected final observable;
+- the scoped defect, opposite-side control, and adjacent-behavior set;
 - mapped unchanged tests and real producer boundary passing;
 - multiple distinct executed cases and explicit stress-dimension dispositions.
 

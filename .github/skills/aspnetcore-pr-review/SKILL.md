@@ -147,8 +147,11 @@ high-confidence implementation blocker.
 
 Continue the empirical protocol only when a candidate correction is proposed.
 Scale the falsification matrix to the mechanism and claim severity. Preserve
-targeted, configuration, platform, producer, and oracle limits rather than
-adding unrelated scaffolding to earn a stronger label.
+targeted, configuration, platform, producer, and oracle limits. Retain evidence
+that the changed path executed, inspect the final observable, and cover the
+defect case, an opposite-side control, and nearest affected adjacent behavior.
+Use source-backed not-applicable dispositions rather than adding unrelated
+scaffolding to earn a stronger label.
 
 ### 7. Refresh live head and synthesize
 

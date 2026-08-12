@@ -21,13 +21,13 @@ Add only the path-specific artifacts:
 ```text
 bounded:
   evidence/skipped-phases.md
-  empirical/{head,green}.log       # only when targeted red/green ran
-  empirical/result.md              # only when targeted red/green ran
+  empirical/{head,green}.log              # only when targeted red/green ran
+  empirical/{boundary-matrix,result}.md   # only when targeted red/green ran
 
 full:
   candidates/candidate-{c,d}.md
   cross-examination/candidate-{a,b,c,d}.md
-  empirical/{manifest,claim-matrix,stress-matrix,result}.md
+  empirical/{manifest,claim-matrix,boundary-matrix,stress-matrix,result}.md
   empirical/{head,red,green}.log
   empirical/{before,diagnostic,implementation,candidate}.diff
 ```
@@ -75,6 +75,35 @@ Map each changed producer, dispatcher, callback filter, state transition, or
 serialization edge to all consumers and directly impacted unchanged tests. Read
 callers and shared branches, not only changed-file tests. For every branch record
 the existing command to run or a source-backed reason no existing test applies.
+
+For a multi-stage pipeline whose metadata or state can be interpreted more than
+once, add an authority-handoff table:
+
+```markdown
+**Authority-handoff mapping:** required
+
+## Authority handoffs
+
+| Stage/handoff | Input authority | Effective authority | Transformation | Downstream observable | Governing contract | Disagreement risk |
+|---|---|---|---|---|---|---|
+```
+
+Distinguish declared metadata from effective runtime metadata and generated
+representations. Record which authority governs the final observable at each
+handoff. A disagreement is a claim to test; it does not make reflection,
+serialization metadata, generated state, or any other source universally
+authoritative. When a planning-only task requests inline output instead of
+artifacts, preserve the same handoff rows inline rather than compressing them
+into a conclusion.
+
+For a single-stage path, record
+`**Authority-handoff mapping:** not applicable - <reason>; source: <path or
+symbol>` instead of manufacturing a table.
+
+For each behavioral claim, identify the witness that would show the changed
+producer or handoff executed and the final consumer-visible value, state,
+artifact, UI, or payload to inspect. This is the proof plan, not a claim that
+execution already occurred.
 
 For stateful work, add a transition table:
 
@@ -138,7 +167,9 @@ different runtime model. Every prompt requires:
 - citations for repository, compatibility, API, runtime, and test claims;
 - explicit `UNSUPPORTED` labels for unverifiable claims;
 - the shared product oracle, impact map, and read-only/local-only boundary;
-- a direct check for false-passing tests and candidate-shaped assertions.
+- a direct check for false-passing tests and candidate-shaped assertions;
+- the authority handoff that controls the final observable when multiple stages
+  interpret the same metadata or state.
 
 Save raw responses unchanged. Validate them against the try-fix output contract;
 allow one correction turn for missing fields, not for changing the conclusion.

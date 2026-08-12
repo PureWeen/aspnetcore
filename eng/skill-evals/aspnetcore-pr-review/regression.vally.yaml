@@ -642,3 +642,82 @@ stimuli:
       - "The full panel may be reported as completed without a Candidate D substitution caveat."
       - "The response does not claim Candidate D ran on gpt-5.6-sol."
       - "The response does not invent a model failure or rerun requirement when the task and telemetry succeeded."
+  - name: "eval-20-multi-stage-authority-handoff"
+    prompt: |-
+      Use only evidence freezing, path selection, impact mapping, and proof planning for the supplied synthetic ASP.NET Core contract-generation fixture. Treat the fixture as the complete frozen evidence for this planning exercise. Return the complete planning decision inline; do not create artifacts or inspect unrelated source. Determine whether the bounded or full path applies, whether there is a concrete correctness claim worth adjudicating, what evidence would support it, which neighboring behavior constrains a correction, and whether the existing review note is actionable. Stop before launching candidates or empirical work. Keep the work local.
+
+      Fixture files:
+      - eval-input/fixture-1.md
+    tags:
+      eval_id: "20"
+      skill_name: "aspnetcore-pr-review"
+      mechanism: "multi-stage-authority-handoff"
+      executor_model: "gpt-5.6-sol"
+      expected_runs: "5"
+      area: "Cross-cutting/ContractGeneration"
+      score_family: "multi-stage-authority"
+      tier: "train"
+      provenance_kind: "synthetic"
+      provenance_source: "multi-stage contract projection defect"
+      discovery_mode: "discovery"
+      controls_positive: "0,1,2,3,4,5,6,7"
+      controls_negative: "8,9"
+      forbidden_prompt_terms: "[\"declared metadata\",\"effective metadata\",\"authority handoff\",\"opposite-side control\"]"
+    environment:
+      files:
+        - src: "../../../.github/skills/aspnetcore-pr-review/evals/fixtures/metadata-authority-defect.md"
+          dest: "eval-input/fixture-1.md"
+    graders:
+      - type: prompt
+        config:
+          threshold: 0.7
+    rubric:
+      - "Overall response matches this expected outcome: A full-path proof plan that identifies a concrete defect claim at the second contract stage, maps declared annotations versus effective binder metadata through the final serialized document, preserves the supplied same-assertion red/green and boundary controls as evidence to adjudicate rather than newly executed proof, and rejects the unrelated generated-name suggestion."
+      - "The review selects the full path because multiple contract-generation stages reinterpret metadata that controls serialized output."
+      - "The impact map names the declared annotation, effective binder descriptor, inline contract, shared contract, and serialized document as distinct authority handoffs."
+      - "The defect is localized to CreateSharedContract reconstructing write nullability without honoring CanWrite rather than treating the first stage or all declared metadata as wrong."
+      - "The plan preserves the identical serialized-document assertion and requires retained evidence that both contract stages executed on frozen and candidate states."
+      - "The final serialized contract is treated as the observable proof boundary rather than stopping at the runtime descriptor or inline contract."
+      - "The annotated public writer, explicitly included hidden writer, and non-nullable reader are used as bounded controls that constrain the correction."
+      - "The response distinguishes fixture-reported executions from commands it ran and does not claim production-proven or new empirical execution."
+      - "The nameof suggestion is discarded because the generic member is unavailable and the generated name follows an output naming policy."
+      - "The review does not claim that declared metadata or effective binder metadata is universally authoritative outside the generated request-contract boundary."
+      - "The review does not add unrelated lifecycle, concurrency, or platform matrices to this stateless contract-generation defect."
+  - name: "eval-21-multi-stage-authority-control"
+    prompt: |-
+      Use only evidence freezing, path selection, impact mapping, and proof planning for the supplied synthetic ASP.NET Core contract-generation fixture. Treat the fixture as the complete frozen evidence for this planning exercise. Return the complete planning decision inline; do not create artifacts or inspect unrelated source. Determine whether untouched frozen code has a concrete correctness claim worth adjudicating and whether either the supplied mutation evidence or the existing review note justifies a required change. Stop before launching candidates or empirical work. Keep the work local.
+
+      Fixture files:
+      - eval-input/fixture-1.md
+    tags:
+      eval_id: "21"
+      skill_name: "aspnetcore-pr-review"
+      mechanism: "multi-stage-authority-control"
+      executor_model: "gpt-5.6-sol"
+      expected_runs: "5"
+      area: "Cross-cutting/ContractGeneration"
+      score_family: "multi-stage-authority"
+      tier: "train"
+      provenance_kind: "synthetic"
+      provenance_source: "multi-stage contract projection no-defect control"
+      discovery_mode: "discovery"
+      controls_positive: "0,1,2,3,4"
+      controls_negative: "5,6"
+      forbidden_prompt_terms: "[\"declared annotations\",\"effective binder descriptor\",\"diagnostic-only\",\"nameof suggestion\"]"
+    environment:
+      files:
+        - src: "../../../.github/skills/aspnetcore-pr-review/evals/fixtures/metadata-authority-control.md"
+          dest: "eval-input/fixture-1.md"
+    graders:
+      - type: prompt
+        config:
+          threshold: 0.7
+    rubric:
+      - "Overall response matches this expected outcome: A no-defect control plan that maps the aligned contract stages, recognizes the fixture-reported untouched success and focused controls, treats the historical mutation as diagnostic rather than a current defect, and rejects the unrelated generated-name suggestion."
+      - "The review maps the declared annotation, effective binder descriptor, inline contract, shared contract, and serialized document even though their authorities agree."
+      - "Untouched frozen success across the defect-shaped case and controls rejects a current implementation blocker."
+      - "The historical mutation demonstrates why the boundary test is useful but does not manufacture red for the current implementation."
+      - "The serialized document and evidence that both contract stages executed are recognized as the relevant proof boundary."
+      - "The nameof suggestion is discarded because the generic member is unavailable and the generated name follows an output naming policy."
+      - "The review does not request a candidate correction merely because a multi-stage pipeline could hypothetically drift."
+      - "The review does not inflate the no-defect control into unrelated lifecycle, concurrency, or platform validation."
