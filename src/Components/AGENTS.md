@@ -4,10 +4,13 @@ This guide provides step-by-step instructions for working on issues in the ASP.N
 
 ## Working on issues
 
-You MUST follow this workflow when implementing new features or fixing bugs in the Components area.
+This guide applies to investigating, reviewing, and implementing behavioral bug fixes, and to implementing new features in the Components area. Follow the implementation workflow below when changing code, and apply the producer-validation bullets below when investigating or reviewing behavior.
 * Add the workflow to your `todos` and follow it strictly.
 - Create a sample scenario.
-- If working on a bug, use playwright to reproduce the behavior/problem first.
+- If working on a bug, use Playwright to reproduce the behavior/problem first.
+- For actionable correctness findings that depend on DOM measurement, browser observers, resize, navigation, browser event ordering, or JS interop classification, use Playwright in a real browser to validate the disputed precondition at its producer and the user-visible outcome when feasible.
+- Direct callback or component tests remain useful diagnostics, but they prove only downstream response and cannot replace validating producer reachability.
+- If an exact, faithful browser scenario does not reproduce the behavior, withdraw or narrow the claim unless a materially different trigger is identified and validated.
 - You MUST have reproduced the problem before attempting to fix it.
 - Research the problem area using the microsoft docs, existing code, git history, and logging on the sample project.
 - Implement the fix or feature in the sample project first.

@@ -38,7 +38,9 @@
 
 * To build and run tests in the repo, use the `build.sh` script that is located in each subdirectory within the `src` folder. For example, to run the build with tests in the `src/Http` directory, run `./src/Http/build.sh -test`.
 * Before claiming a bug fix is verified, confirm that the relevant test or check fails for the expected reason without the fix and passes with it. Reading the source or seeing a test pass on its own is not proof that the bug is fixed.
-* If that red/green verification isn't practical, explain why, state what you did verify, and don't describe the fix as verified.
+* For behavioral review findings and bug-fix verification, use the smallest faithful test path that includes the component that owns or produces the disputed precondition and observes the claimed user-visible outcome.
+* Injecting callbacks or events directly proves how the downstream consumer responds; it does not prove that the real producer can produce that condition.
+* If red/green or faithful producer-level validation isn't practical, state what you did verify and the observed boundary and limitation; don't present the fix or behavioral claim as verified.
 
 ## .NET Environment
 
