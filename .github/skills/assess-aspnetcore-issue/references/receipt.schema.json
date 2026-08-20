@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dotnet/aspnetcore/.github/skills/assess-aspnetcore-issue/receipt.schema.json",
+  "title": "ASP.NET Core issue actionability assessment receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "assessment_id",
+    "generated_at",
+    "artifact_root",
+    "source_repository",
+    "issue",
+    "assessed_repository",
+    "environment",
+    "upstream_triage",
+    "investigation",
+    "decision_signals",
+    "checks",
+    "check_summary",
+    "commands",
+    "evidence",
+    "confidence",
+    "reason_code",
+    "primary_disposition",
+    "supporting_findings",
+    "missing_evidence",
+    "blockers",
+    "next_route",
+    "safety"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "assessment_id": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "artifact_root": { "type": "string", "minLength": 1 },
+    "source_repository": { "const": "dotnet/aspnetcore" },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "url", "revision"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/dotnet/aspnetcore/issues/[1-9][0-9]*$"
+        },
+        "revision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["updated_at", "state", "state_reason"],
+          "properties": {
+            "updated_at": { "type": "string", "format": "date-time" },
+            "state": { "enum": ["OPEN", "CLOSED"] },
+            "state_reason": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "assessed_repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha", "dirty"],
+      "properties": {
+        "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sdk", "tfm", "os", "render_mode"],
+      "properties": {
+        "sdk": { "type": ["string", "null"] },
+        "tfm": { "type": ["string", "null"] },
+        "os": { "type": ["string", "null"] },
+        "render_mode": {
+          "enum": [
+            null,
+            "static_ssr",
+            "interactive_server",
+            "interactive_webassembly",
+            "interactive_auto",
+            "standalone_webassembly",
+            "not_applicable"
+          ]
+        }
+      }
+    },
+    "upstream_triage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["labels", "issue_type", "milestone", "missing_signals"],
+      "properties": {
+        "labels": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "issue_type": { "type": ["string", "null"] },
+        "milestone": { "type": ["string", "null"] },
+        "missing_signals": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "investigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "highest_tier",
+        "runtime_evidence_feasible",
+        "released_sdk_first",
+        "components_validator_delegated",
+        "customer_signal",
+        "release_signal",
+        "budget_minutes",
+        "search_budget",
+        "execution_attempt_budget"
+      ],
+      "properties": {
+        "highest_tier": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "runtime_evidence_feasible": { "type": "boolean" },
+        "released_sdk_first": { "type": "boolean" },
+        "components_validator_delegated": { "type": "boolean" },
+        "customer_signal": { "enum": ["high", "normal", "low", "unknown"] },
+        "release_signal": { "enum": ["high", "normal", "low", "unknown"] },
+        "budget_minutes": { "type": "integer", "minimum": 1 },
+        "search_budget": { "type": "integer", "minimum": 0 },
+        "execution_attempt_budget": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "decision_signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "security_report",
+        "verified_duplicate",
+        "verified_already_fixed",
+        "verified_by_design",
+        "unsupported_usage",
+        "invalid_or_incomplete_setup",
+        "documentation_gap",
+        "product_or_design_decision_required",
+        "runtime_reproduced",
+        "structural_failure_verified",
+        "required_reporter_evidence_missing",
+        "infrastructure_blocked",
+        "runtime_attempted",
+        "below_threshold"
+      ],
+      "properties": {
+        "security_report": { "type": "boolean" },
+        "verified_duplicate": { "type": "boolean" },
+        "verified_already_fixed": { "type": "boolean" },
+        "verified_by_design": { "type": "boolean" },
+        "unsupported_usage": { "type": "boolean" },
+        "invalid_or_incomplete_setup": { "type": "boolean" },
+        "documentation_gap": { "type": "boolean" },
+        "product_or_design_decision_required": { "type": "boolean" },
+        "runtime_reproduced": { "type": "boolean" },
+        "structural_failure_verified": { "type": "boolean" },
+        "required_reporter_evidence_missing": { "type": "boolean" },
+        "infrastructure_blocked": { "type": "boolean" },
+        "runtime_attempted": { "type": "boolean" },
+        "below_threshold": { "type": "boolean" }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "check_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempted", "passed", "failed", "skipped", "blocked"],
+      "properties": {
+        "attempted": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/command" }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "confidence": { "enum": ["high", "medium", "low"] },
+    "reason_code": {
+      "enum": [
+        "security_boundary",
+        "duplicate_verified",
+        "already_fixed_verified",
+        "upstream_by_design_verified",
+        "unsupported_configuration_verified",
+        "setup_invalid",
+        "setup_incomplete",
+        "documentation_gap_verified",
+        "product_decision_needed",
+        "api_design_needed",
+        "runtime_failure_reproduced",
+        "structural_failure_verified",
+        "reporter_repro_missing",
+        "environment_details_missing",
+        "environment_blocked",
+        "tooling_blocked",
+        "bounded_repro_did_not_reproduce",
+        "insufficient_customer_or_release_signal",
+        "insufficient_evidence"
+      ]
+    },
+    "primary_disposition": {
+      "enum": [
+        "security_process_required",
+        "duplicate_or_already_fixed",
+        "by_design",
+        "unsupported_usage",
+        "invalid_or_incomplete_setup",
+        "documentation_gap",
+        "product_or_design_decision_required",
+        "ready_for_fix_investigation",
+        "needs_reporter_evidence_or_repro",
+        "infrastructure_blocked_or_inconclusive",
+        "not_reproduced",
+        "deferred_below_threshold"
+      ]
+    },
+    "supporting_findings": { "type": "array", "items": { "type": "string" } },
+    "missing_evidence": { "type": "array", "items": { "type": "string" } },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "next_route": {
+      "enum": [
+        "security_reporting_process",
+        "existing_issue_or_release",
+        "stop_by_design",
+        "supported_usage_guidance",
+        "reporter_setup_correction",
+        "documentation_owner",
+        "maintainer_design_decision",
+        "aspnetcore_try_fix",
+        "reporter_evidence",
+        "infrastructure_or_retry",
+        "maintainer_recheck_or_reporter_evidence",
+        "defer"
+      ]
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "github_access",
+        "github_mutations",
+        "microsoft_365_writes",
+        "fixes_proposed",
+        "fixes_implemented",
+        "reproduction_isolation",
+        "credentials_removed",
+        "network_access",
+        "writable_roots"
+      ],
+      "properties": {
+        "github_access": { "const": "read_only" },
+        "github_mutations": { "type": "array", "maxItems": 0 },
+        "microsoft_365_writes": { "type": "array", "maxItems": 0 },
+        "fixes_proposed": { "const": false },
+        "fixes_implemented": { "const": false },
+        "reproduction_isolation": {
+          "enum": ["not_applicable", "sandboxed_no_credentials"]
+        },
+        "credentials_removed": { "type": "boolean" },
+        "network_access": {
+          "enum": ["not_applicable", "none"]
+        },
+        "writable_roots": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "status", "command_ids", "evidence_refs", "details"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "category": {
+          "enum": ["triage", "setup", "supported_usage", "history", "documentation", "reproduction", "in_tree"]
+        },
+        "status": { "enum": ["passed", "failed", "skipped", "blocked"] },
+        "command_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "evidence_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "details": { "type": "string", "minLength": 1 }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "command", "working_directory", "status", "exit_code", "stdout_ref", "stderr_ref"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "working_directory": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["passed", "failed", "blocked"] },
+        "exit_code": { "type": ["integer", "null"] },
+        "stdout_ref": { "type": ["string", "null"] },
+        "stderr_ref": { "type": ["string", "null"] }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "path", "sha256", "source"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "enum": ["issue_snapshot", "comment_snapshot", "documentation", "history", "source", "repro_source", "command_output", "validator_output"]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

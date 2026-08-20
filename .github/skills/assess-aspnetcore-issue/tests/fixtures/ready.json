@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "assessment_id": "synthetic-ready-1",
+  "generated_at": "2026-08-20T20:00:00Z",
+  "artifact_root": "/tmp/assess-aspnetcore-issue/synthetic-ready-1",
+  "source_repository": "dotnet/aspnetcore",
+  "issue": {
+    "number": 1,
+    "url": "https://github.com/dotnet/aspnetcore/issues/1",
+    "revision": {
+      "updated_at": "2026-08-20T19:00:00Z",
+      "state": "OPEN",
+      "state_reason": null
+    }
+  },
+  "assessed_repository": {
+    "sha": "1111111111111111111111111111111111111111",
+    "dirty": false
+  },
+  "environment": {
+    "sdk": "10.0.100",
+    "tfm": "net10.0",
+    "os": "Linux",
+    "render_mode": "not_applicable"
+  },
+  "upstream_triage": {
+    "labels": ["area-hosting"],
+    "issue_type": "Bug",
+    "milestone": null,
+    "missing_signals": ["milestone"]
+  },
+  "investigation": {
+    "highest_tier": 3,
+    "runtime_evidence_feasible": true,
+    "released_sdk_first": true,
+    "components_validator_delegated": false,
+    "customer_signal": "normal",
+    "release_signal": "normal",
+    "budget_minutes": 30,
+    "search_budget": 3,
+    "execution_attempt_budget": 2
+  },
+  "decision_signals": {
+    "security_report": false,
+    "verified_duplicate": false,
+    "verified_already_fixed": false,
+    "verified_by_design": false,
+    "unsupported_usage": false,
+    "invalid_or_incomplete_setup": false,
+    "documentation_gap": false,
+    "product_or_design_decision_required": false,
+    "runtime_reproduced": true,
+    "structural_failure_verified": false,
+    "required_reporter_evidence_missing": false,
+    "infrastructure_blocked": false,
+    "runtime_attempted": true,
+    "below_threshold": false
+  },
+  "checks": [
+    {
+      "id": "triage",
+      "category": "triage",
+      "status": "passed",
+      "command_ids": [],
+      "evidence_refs": ["issue-snapshot"],
+      "details": "Consumed the existing upstream area and issue type."
+    },
+    {
+      "id": "released-repro",
+      "category": "reproduction",
+      "status": "passed",
+      "command_ids": ["run-repro"],
+      "evidence_refs": ["repro-output"],
+      "details": "The released-SDK standalone repro observed the reported behavior."
+    }
+  ],
+  "check_summary": {
+    "attempted": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0
+  },
+  "commands": [
+    {
+      "id": "run-repro",
+      "command": "dotnet run --project Repro.csproj",
+      "working_directory": "/tmp/assess-aspnetcore-issue/synthetic-ready-1/repro",
+      "status": "passed",
+      "exit_code": 0,
+      "stdout_ref": "repro-output",
+      "stderr_ref": null
+    }
+  ],
+  "evidence": [
+    {
+      "id": "issue-snapshot",
+      "kind": "issue_snapshot",
+      "path": "evidence/issue.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "source": "https://github.com/dotnet/aspnetcore/issues/1"
+    },
+    {
+      "id": "repro-output",
+      "kind": "command_output",
+      "path": "evidence/repro.log",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source": "command:run-repro"
+    }
+  ],
+  "confidence": "high",
+  "reason_code": "runtime_failure_reproduced",
+  "primary_disposition": "ready_for_fix_investigation",
+  "supporting_findings": [],
+  "missing_evidence": ["milestone"],
+  "blockers": [],
+  "next_route": "aspnetcore_try_fix",
+  "safety": {
+    "github_access": "read_only",
+    "github_mutations": [],
+    "microsoft_365_writes": [],
+    "fixes_proposed": false,
+    "fixes_implemented": false,
+    "reproduction_isolation": "sandboxed_no_credentials",
+    "credentials_removed": true,
+    "network_access": "none",
+    "writable_roots": [
+      "/tmp/assess-aspnetcore-issue/synthetic-ready-1"
+    ]
+  }
+}
