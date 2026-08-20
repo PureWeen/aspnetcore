@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 
 
-SCHEMA_PATH = Path(__file__).resolve().parents[1] / "references" / "receipt.schema.json"
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "references" / "readiness-receipt.schema.json"
 RECEIPT_SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 
 DISPOSITIONS = {
@@ -44,7 +44,7 @@ DISPOSITIONS = {
     },
     "ready_for_fix_investigation": {
         "reasons": {"runtime_failure_reproduced", "structural_failure_verified"},
-        "routes": {"aspnetcore_try_fix"},
+        "routes": {"fix_investigation"},
     },
     "needs_reporter_evidence_or_repro": {
         "reasons": {"reporter_repro_missing", "environment_details_missing"},
@@ -124,6 +124,14 @@ def _resolve_schema_ref(root_schema, reference):
 def _validate_schema(value, schema, root_schema, path="$"):
     if "$ref" in schema:
         schema = _resolve_schema_ref(root_schema, schema["$ref"])
+    if "oneOf" in schema:
+        results = [
+            _validate_schema(value, candidate, root_schema, path)
+            for candidate in schema["oneOf"]
+        ]
+        if sum(not result for result in results) != 1:
+            return [f"{path} must match exactly one allowed schema"]
+        return []
 
     errors = []
     expected_types = schema.get("type")
@@ -229,13 +237,13 @@ def expected_decision(signals):
         return (
             "ready_for_fix_investigation",
             {"runtime_failure_reproduced"},
-            {"aspnetcore_try_fix"},
+            {"fix_investigation"},
         )
     if signals["structural_failure_verified"]:
         return (
             "ready_for_fix_investigation",
             {"structural_failure_verified"},
-            {"aspnetcore_try_fix"},
+            {"fix_investigation"},
         )
     if signals["required_reporter_evidence_missing"]:
         return (
@@ -272,7 +280,7 @@ def expected_disposition(signals):
     return expected_decision(signals)[0]
 
 
-def validate_receipt(receipt):
+def validate_readiness_receipt(receipt):
     errors = validate_schema(receipt)
     if errors:
         return errors
@@ -297,6 +305,8 @@ def validate_receipt(receipt):
         errors.append("assessed_repository.sha must be a lowercase 40-character SHA")
     if not isinstance(repository.get("dirty"), bool):
         errors.append("assessed_repository.dirty must be boolean")
+    if not Path(repository["path"]).is_absolute():
+        errors.append("assessed_repository.path must be an absolute path")
 
     environment = receipt["environment"]
     if environment.get("render_mode") not in RENDER_MODES:
@@ -338,11 +348,15 @@ def validate_receipt(receipt):
         command_by_id[command_id] = command
         command_text = command["command"]
         if GITHUB_WRITE_PATTERN.search(command_text) or re.search(
-            r"\bgit\s+push\b|\bcurl\b[^\n]*(?:-X|--request)\s*(?:POST|PUT|PATCH|DELETE)\b",
+            r"\bgit\s+push\b"
+            r"|\bcurl\b[^\n]*(?:-X|--request)\s*(?:POST|PUT|PATCH|DELETE)\b"
+            r"|\bcurl\b[^\n]*(?:^|\s)(?:-d|-F|-T|--data(?:-[\w-]+)?|--form(?:-string)?"
+            r"|--upload-file|--json)(?:=|\s)"
+            r"|\bwget\b[^\n]*(?:--post-data|--post-file|--method)(?:=|\s)",
             command_text,
             re.IGNORECASE,
         ):
-            errors.append(f"commands[{index}] contradicts the read-only safety contract")
+            errors.append(f"commands[{index}] contradicts the read-only safety attestation")
         if re.search(r"\bgh\s+api\b", command_text, re.IGNORECASE):
             methods = re.findall(r"--method(?:=|\s+)([A-Z]+)\b", command_text, re.IGNORECASE)
             if [method.upper() for method in methods] != ["GET"]:
@@ -397,6 +411,25 @@ def validate_receipt(receipt):
             )
             reproduction_passed = bool(passed_commands) and has_command_output
 
+    runtime_command_ids = {
+        command_id
+        for check in checks
+        if check["category"] in {"reproduction", "in_tree"} and check["status"] != "skipped"
+        for command_id in check["command_ids"]
+    }
+    executed_runtime_command_ids = {
+        command_id
+        for command_id in runtime_command_ids
+        if command_id in command_by_id
+        and command_by_id[command_id]["status"] in {"passed", "failed"}
+        and command_by_id[command_id]["exit_code"] is not None
+    }
+    runtime_execution_recorded = bool(executed_runtime_command_ids)
+    if runtime_execution_recorded and not signals["runtime_attempted"]:
+        errors.append("recorded reproduction or in-tree execution requires runtime_attempted")
+    if signals["runtime_attempted"] and not runtime_execution_recorded:
+        errors.append("runtime_attempted requires a recorded reproduction or in-tree execution")
+
     summary = receipt["check_summary"]
     expected_summary = {
         "attempted": counts["passed"] + counts["failed"] + counts["blocked"],
@@ -425,6 +458,37 @@ def validate_receipt(receipt):
             errors.append(
                 f"next_route '{receipt['next_route']}' is not valid for the winning decision row"
             )
+
+    resolution_reference = receipt["resolution_reference"]
+    if expected == "duplicate_or_already_fixed":
+        if resolution_reference is None:
+            errors.append("duplicate_or_already_fixed requires a resolution_reference")
+        else:
+            reference_patterns = {
+                "issue": re.compile(
+                    r"^https://github\.com/dotnet/aspnetcore/issues/[1-9][0-9]*$"
+                ),
+                "pull_request": re.compile(
+                    r"^https://github\.com/dotnet/aspnetcore/pull/[1-9][0-9]*$"
+                ),
+                "release": re.compile(
+                    r"^https://github\.com/dotnet/aspnetcore/releases/tag/\S+$"
+                ),
+            }
+            if (
+                reference_patterns[resolution_reference["kind"]].fullmatch(
+                    resolution_reference["url"]
+                )
+                is None
+            ):
+                errors.append("resolution_reference URL does not match its kind")
+            if resolution_reference["evidence_ref"] not in evidence_ids:
+                errors.append("resolution_reference references unknown evidence")
+            if not any(
+                resolution_reference["evidence_ref"] in check["evidence_refs"]
+                for check in decisive_checks
+            ):
+                errors.append("resolution_reference must be cited by a decisive check")
 
     decisive_requirements = {
         "security_process_required": ({"triage"}, {"passed"}),
@@ -490,8 +554,6 @@ def validate_receipt(receipt):
         errors.append("Blazor runtime assessment must delegate to validate-blazor-feature")
 
     safety = receipt["safety"]
-    if safety.get("github_access") != "read_only":
-        errors.append("safety.github_access must be read_only")
     if safety.get("github_mutations") != []:
         errors.append("safety.github_mutations must be empty")
     if safety.get("microsoft_365_writes") != []:
@@ -500,22 +562,136 @@ def validate_receipt(receipt):
         errors.append("safety.fixes_proposed must be false")
     if safety.get("fixes_implemented") is not False:
         errors.append("safety.fixes_implemented must be false")
-    if signals["runtime_attempted"]:
+
+    if safety["input_mode"] == "public_get_snapshot":
+        if safety["github_access"] != "public_get_only":
+            errors.append("public_get_snapshot requires github_access public_get_only")
+        if safety["acquisition_external_network_access"] != "public_github_get_only":
+            errors.append(
+                "public_get_snapshot requires acquisition_external_network_access "
+                "public_github_get_only"
+            )
+    else:
+        if safety["github_access"] != "none":
+            errors.append("provided_offline_snapshot requires github_access none")
+        if safety["acquisition_external_network_access"] != "none":
+            errors.append("provided_offline_snapshot requires no acquisition network access")
+
+    if safety["assessment_mode"] == "offline_no_credentials":
+        if safety["credentials_removed"] is not True:
+            errors.append("offline_no_credentials requires credentials_removed")
+        if safety["assessment_external_network_access"] != "none":
+            errors.append("offline_no_credentials requires no external assessment network")
+
+    if safety["execution_boundary"] == "host_attestation":
+        if safety["hard_no_mutation_guarantee"]:
+            errors.append("host_attestation cannot claim a hard no-mutation guarantee")
+    else:
+        if safety["assessment_mode"] != "offline_no_credentials":
+            errors.append(
+                "isolated_no_credentials_no_write_tools requires offline_no_credentials assessment"
+            )
+        if safety["credentials_removed"] is not True:
+            errors.append("isolated_no_credentials_no_write_tools requires credentials_removed")
+        if safety["assessment_external_network_access"] != "none":
+            errors.append(
+                "isolated_no_credentials_no_write_tools requires no external assessment network"
+            )
+    if safety["hard_no_mutation_guarantee"]:
+        if safety["github_access"] not in {"none", "public_get_only"}:
+            errors.append("hard guarantee allows only none or public_get_only GitHub access")
+
+    artifact_root = Path(receipt["artifact_root"]).resolve()
+    source_worktree = Path(repository["path"]).resolve()
+    disposable_root_value = safety["disposable_worktree_root"]
+    disposable_root = (
+        Path(disposable_root_value).resolve() if disposable_root_value is not None else None
+    )
+    cache_roots = [Path(path).resolve() for path in safety["cache_roots"]]
+    temp_roots = [Path(path).resolve() for path in safety["temp_roots"]]
+    writable_roots = [Path(path).resolve() for path in safety["writable_roots"]]
+    expected_writable_roots = [artifact_root]
+    if disposable_root is not None:
+        expected_writable_roots.append(disposable_root)
+    expected_writable_roots.extend(cache_roots)
+    expected_writable_roots.extend(temp_roots)
+
+    root_fields = [
+        ("artifact_root", receipt["artifact_root"]),
+        ("assessed_repository.path", repository["path"]),
+        ("disposable_worktree_root", disposable_root_value),
+        *[("cache_roots", path) for path in safety["cache_roots"]],
+        *[("temp_roots", path) for path in safety["temp_roots"]],
+        *[("writable_roots", path) for path in safety["writable_roots"]],
+    ]
+    for field, path in root_fields:
+        if path is not None and not Path(path).is_absolute():
+            errors.append(f"{field} entries must be absolute paths")
+
+    if set(writable_roots) != set(expected_writable_roots):
+        errors.append(
+            "writable_roots must exactly contain artifact_root plus the recorded "
+            "disposable worktree, cache, and temp roots"
+        )
+    for writable_root in writable_roots:
+        if (
+            writable_root == source_worktree
+            or writable_root.is_relative_to(source_worktree)
+            or source_worktree.is_relative_to(writable_root)
+        ):
+            errors.append("writable_roots must not overlap the user's source worktree")
+
+    runtime_scope = signals["runtime_attempted"] or runtime_execution_recorded
+    if runtime_scope:
         if safety["reproduction_isolation"] != "sandboxed_no_credentials":
             errors.append("runtime attempts require sandboxed_no_credentials isolation")
         if safety["credentials_removed"] is not True:
             errors.append("runtime attempts require credentials_removed")
-        if safety["network_access"] != "none":
-            errors.append("runtime attempts require network_access none")
-        if safety["writable_roots"] != [receipt["artifact_root"]]:
-            errors.append("runtime attempts must restrict writes to artifact_root")
+        if safety["assessment_external_network_access"] != "none":
+            errors.append("runtime attempts require no external assessment network")
+        if any(
+            check["category"] == "in_tree" and check["status"] != "skipped"
+            for check in checks
+        ) and disposable_root is None:
+            errors.append("in-tree checks require a disposable_worktree_root")
+
+        for command_id in runtime_command_ids:
+            command = command_by_id.get(command_id)
+            if command is None:
+                continue
+            working_directory = Path(command["working_directory"]).resolve()
+            if working_directory == source_worktree or working_directory.is_relative_to(
+                source_worktree
+            ):
+                errors.append(
+                    f"runtime command '{command_id}' must not run in the user's source worktree"
+                )
+            if not any(
+                working_directory == writable_root
+                or working_directory.is_relative_to(writable_root)
+                for writable_root in writable_roots
+            ):
+                errors.append(
+                    f"runtime command '{command_id}' must run beneath an authorized writable root"
+                )
     else:
         if safety["reproduction_isolation"] != "not_applicable":
-            errors.append("reproduction_isolation must be not_applicable without runtime attempts")
-        if safety["network_access"] != "not_applicable":
-            errors.append("network_access must be not_applicable without runtime attempts")
-        if safety["writable_roots"]:
-            errors.append("writable_roots must be empty without runtime attempts")
+            errors.append(
+                "reproduction_isolation must be not_applicable without recorded runtime execution"
+            )
+
+    interactive_render_modes = {
+        "interactive_server",
+        "interactive_webassembly",
+        "interactive_auto",
+        "standalone_webassembly",
+    }
+    if (
+        runtime_scope
+        and receipt["environment"]["render_mode"] in interactive_render_modes
+        and safety["loopback_network_access"] is not True
+    ):
+        errors.append("interactive runtime assessment requires loopback_network_access")
 
     for field in ("supporting_findings", "missing_evidence", "blockers"):
         if not isinstance(receipt[field], list):
@@ -524,7 +700,7 @@ def validate_receipt(receipt):
     return errors
 
 
-def validate_evidence_files(receipt, receipt_path):
+def validate_readiness_evidence_files(receipt, receipt_path):
     errors = []
     artifact_root = Path(receipt["artifact_root"]).resolve()
     repository_root = Path(__file__).resolve().parents[4]
@@ -545,11 +721,141 @@ def validate_evidence_files(receipt, receipt_path):
         if digest != item["sha256"]:
             errors.append(f"evidence[{index}] SHA-256 does not match: {item['path']}")
 
+    if receipt["safety"]["input_mode"] == "public_get_snapshot":
+        manifests = [
+            item for item in receipt["evidence"] if item["kind"] == "acquisition_manifest"
+        ]
+        if len(manifests) != 1:
+            errors.append("public_get_snapshot requires exactly one acquisition_manifest")
+        else:
+            manifest_path = (artifact_root / manifests[0]["path"]).resolve()
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"invalid acquisition_manifest: {error}")
+            else:
+                if manifest.get("authenticated") is not False:
+                    errors.append("acquisition_manifest must record authenticated false")
+                if manifest.get("input_mode") != "public_get_snapshot":
+                    errors.append("acquisition_manifest input_mode must be public_get_snapshot")
+                if manifest.get("source_repository") != "dotnet/aspnetcore":
+                    errors.append("acquisition_manifest source_repository is invalid")
+                if manifest.get("issue_number") != receipt["issue"]["number"]:
+                    errors.append("acquisition_manifest issue_number does not match receipt")
+                files = manifest.get("files")
+                if not isinstance(files, list) or not files:
+                    errors.append("acquisition_manifest files must be a non-empty array")
+                else:
+                    source_pattern = re.compile(
+                        r"^https://api\.github\.com/repos/dotnet/aspnetcore/issues/"
+                        r"[1-9][0-9]*(?:/comments)?$"
+                    )
+                    for index, item in enumerate(files):
+                        if item.get("method") != "GET":
+                            errors.append(
+                                f"acquisition_manifest.files[{index}] method must be GET"
+                            )
+                        if source_pattern.fullmatch(str(item.get("source", ""))) is None:
+                            errors.append(
+                                f"acquisition_manifest.files[{index}] source is not allowed"
+                            )
+                        relative_path = PurePosixPath(str(item.get("path", "")))
+                        if (
+                            relative_path.is_absolute()
+                            or ".." in relative_path.parts
+                            or "\\" in str(relative_path)
+                        ):
+                            errors.append(
+                                f"acquisition_manifest.files[{index}] path is unsafe"
+                            )
+                            continue
+                        acquired_path = (artifact_root / relative_path).resolve()
+                        if not acquired_path.is_relative_to(artifact_root):
+                            errors.append(
+                                f"acquisition_manifest.files[{index}] escapes artifact_root"
+                            )
+                            continue
+                        if not acquired_path.is_file():
+                            errors.append(
+                                f"acquisition_manifest.files[{index}] file does not exist"
+                            )
+                            continue
+                        digest = hashlib.sha256(acquired_path.read_bytes()).hexdigest()
+                        if digest != item.get("sha256"):
+                            errors.append(
+                                f"acquisition_manifest.files[{index}] SHA-256 does not match"
+                            )
+
+                    primary_source = (
+                        "https://api.github.com/repos/dotnet/aspnetcore/issues/"
+                        f"{receipt['issue']['number']}"
+                    )
+                    primary_files = [
+                        item for item in files if item.get("source") == primary_source
+                    ]
+                    if len(primary_files) != 1:
+                        errors.append(
+                            "acquisition_manifest must contain exactly one primary issue snapshot"
+                        )
+                    else:
+                        primary_path = (
+                            artifact_root / str(primary_files[0].get("path", ""))
+                        ).resolve()
+                        try:
+                            primary_issue = json.loads(
+                                primary_path.read_text(encoding="utf-8")
+                            )
+                        except (OSError, json.JSONDecodeError) as error:
+                            errors.append(f"invalid primary issue snapshot: {error}")
+                        else:
+                            expected_url = (
+                                "https://github.com/dotnet/aspnetcore/issues/"
+                                f"{receipt['issue']['number']}"
+                            )
+                            if primary_issue.get("number") != receipt["issue"]["number"]:
+                                errors.append(
+                                    "primary issue snapshot number does not match receipt"
+                                )
+                            if primary_issue.get("html_url") != expected_url:
+                                errors.append(
+                                    "primary issue snapshot URL does not match receipt"
+                                )
+                            if (
+                                primary_issue.get("repository_url")
+                                != "https://api.github.com/repos/dotnet/aspnetcore"
+                            ):
+                                errors.append(
+                                    "primary issue snapshot repository is not dotnet/aspnetcore"
+                                )
+                            if "pull_request" in primary_issue:
+                                errors.append(
+                                    "primary issue snapshot is a pull request, not an issue"
+                                )
+
+    resolution_reference = receipt["resolution_reference"]
+    if resolution_reference is not None:
+        matching_evidence = [
+            item
+            for item in receipt["evidence"]
+            if item["id"] == resolution_reference["evidence_ref"]
+        ]
+        if len(matching_evidence) == 1:
+            reference_path = (artifact_root / matching_evidence[0]["path"]).resolve()
+            try:
+                reference_snapshot = json.loads(reference_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"invalid resolution_reference evidence: {error}")
+            else:
+                if reference_snapshot.get("html_url") != resolution_reference["url"]:
+                    errors.append(
+                        "resolution_reference URL does not match its evidence snapshot"
+                    )
+
     return errors
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Validate an issue actionability receipt.")
+    parser = argparse.ArgumentParser(description="Validate an issue readiness receipt.")
     parser.add_argument("receipt", type=Path)
     args = parser.parse_args()
 
@@ -560,11 +866,11 @@ def main():
         return 1
 
     try:
-        errors = validate_receipt(receipt)
+        errors = validate_readiness_receipt(receipt)
     except (AttributeError, KeyError, TypeError, ValueError) as error:
         errors = [f"malformed receipt: {error}"]
     if not errors:
-        errors.extend(validate_evidence_files(receipt, args.receipt))
+        errors.extend(validate_readiness_evidence_files(receipt, args.receipt))
     if errors:
         for error in errors:
             print(f"INVALID: {error}", file=sys.stderr)

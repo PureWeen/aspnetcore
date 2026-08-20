@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "assessment_id": "synthetic-ready-1",
+  "assessment_id": "synthetic-ready-for-fix-investigation-1",
   "generated_at": "2026-08-20T20:00:00Z",
-  "artifact_root": "/tmp/assess-aspnetcore-issue/synthetic-ready-1",
+  "artifact_root": "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1",
   "source_repository": "dotnet/aspnetcore",
   "issue": {
     "number": 1,
@@ -15,7 +15,8 @@
   },
   "assessed_repository": {
     "sha": "1111111111111111111111111111111111111111",
-    "dirty": false
+    "dirty": false,
+    "path": "/workspaces/aspnetcore-user"
   },
   "environment": {
     "sdk": "10.0.100",
@@ -85,7 +86,7 @@
     {
       "id": "run-repro",
       "command": "dotnet run --project Repro.csproj",
-      "working_directory": "/tmp/assess-aspnetcore-issue/synthetic-ready-1/repro",
+      "working_directory": "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/worktree/repro",
       "status": "passed",
       "exit_code": 0,
       "stdout_ref": "repro-output",
@@ -114,18 +115,35 @@
   "supporting_findings": [],
   "missing_evidence": ["milestone"],
   "blockers": [],
-  "next_route": "aspnetcore_try_fix",
+  "resolution_reference": null,
+  "next_route": "fix_investigation",
   "safety": {
-    "github_access": "read_only",
+    "input_mode": "provided_offline_snapshot",
+    "assessment_mode": "offline_no_credentials",
+    "execution_boundary": "isolated_no_credentials_no_write_tools",
+    "hard_no_mutation_guarantee": true,
+    "github_access": "none",
     "github_mutations": [],
     "microsoft_365_writes": [],
     "fixes_proposed": false,
     "fixes_implemented": false,
     "reproduction_isolation": "sandboxed_no_credentials",
     "credentials_removed": true,
-    "network_access": "none",
+    "acquisition_external_network_access": "none",
+    "assessment_external_network_access": "none",
+    "loopback_network_access": false,
     "writable_roots": [
-      "/tmp/assess-aspnetcore-issue/synthetic-ready-1"
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1",
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/worktree",
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/cache",
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/tmp"
+    ],
+    "disposable_worktree_root": "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/worktree",
+    "cache_roots": [
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/cache"
+    ],
+    "temp_roots": [
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/tmp"
     ]
   }
 }

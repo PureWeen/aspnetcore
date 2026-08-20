@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/dotnet/aspnetcore/.github/skills/assess-aspnetcore-issue/receipt.schema.json",
-  "title": "ASP.NET Core issue actionability assessment receipt",
+  "$id": "https://github.com/dotnet/aspnetcore/.github/skills/assess-issue-readiness/readiness-receipt.schema.json",
+  "title": "ASP.NET Core issue readiness assessment receipt",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -26,6 +26,7 @@
     "supporting_findings",
     "missing_evidence",
     "blockers",
+    "resolution_reference",
     "next_route",
     "safety"
   ],
@@ -60,10 +61,11 @@
     "assessed_repository": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sha", "dirty"],
+      "required": ["sha", "dirty", "path"],
       "properties": {
         "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-        "dirty": { "type": "boolean" }
+        "dirty": { "type": "boolean" },
+        "path": { "type": "string", "minLength": 1 }
       }
     },
     "environment": {
@@ -228,6 +230,21 @@
     "supporting_findings": { "type": "array", "items": { "type": "string" } },
     "missing_evidence": { "type": "array", "items": { "type": "string" } },
     "blockers": { "type": "array", "items": { "type": "string" } },
+    "resolution_reference": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "url", "evidence_ref"],
+          "properties": {
+            "kind": { "enum": ["issue", "pull_request", "release"] },
+            "url": { "type": "string", "minLength": 1 },
+            "evidence_ref": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
     "next_route": {
       "enum": [
         "security_reporting_process",
@@ -237,7 +254,7 @@
         "reporter_setup_correction",
         "documentation_owner",
         "maintainer_design_decision",
-        "aspnetcore_try_fix",
+        "fix_investigation",
         "reporter_evidence",
         "infrastructure_or_retry",
         "maintainer_recheck_or_reporter_evidence",
@@ -248,6 +265,10 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "input_mode",
+        "assessment_mode",
+        "execution_boundary",
+        "hard_no_mutation_guarantee",
         "github_access",
         "github_mutations",
         "microsoft_365_writes",
@@ -255,11 +276,31 @@
         "fixes_implemented",
         "reproduction_isolation",
         "credentials_removed",
-        "network_access",
-        "writable_roots"
+        "acquisition_external_network_access",
+        "assessment_external_network_access",
+        "loopback_network_access",
+        "writable_roots",
+        "disposable_worktree_root",
+        "cache_roots",
+        "temp_roots"
       ],
       "properties": {
-        "github_access": { "const": "read_only" },
+        "input_mode": {
+          "enum": ["public_get_snapshot", "provided_offline_snapshot"]
+        },
+        "assessment_mode": {
+          "enum": ["offline_no_credentials", "host_attested"]
+        },
+        "execution_boundary": {
+          "enum": [
+            "isolated_no_credentials_no_write_tools",
+            "host_attestation"
+          ]
+        },
+        "hard_no_mutation_guarantee": { "type": "boolean" },
+        "github_access": {
+          "enum": ["none", "public_get_only", "host_attested_read_only"]
+        },
         "github_mutations": { "type": "array", "maxItems": 0 },
         "microsoft_365_writes": { "type": "array", "maxItems": 0 },
         "fixes_proposed": { "const": false },
@@ -268,10 +309,27 @@
           "enum": ["not_applicable", "sandboxed_no_credentials"]
         },
         "credentials_removed": { "type": "boolean" },
-        "network_access": {
-          "enum": ["not_applicable", "none"]
+        "acquisition_external_network_access": {
+          "enum": ["none", "public_github_get_only"]
         },
+        "assessment_external_network_access": {
+          "enum": ["none", "host_unrestricted"]
+        },
+        "loopback_network_access": { "type": "boolean" },
         "writable_roots": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "disposable_worktree_root": {
+          "type": ["string", "null"]
+        },
+        "cache_roots": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "temp_roots": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "uniqueItems": true
@@ -316,7 +374,7 @@
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "kind": {
-          "enum": ["issue_snapshot", "comment_snapshot", "documentation", "history", "source", "repro_source", "command_output", "validator_output"]
+          "enum": ["acquisition_manifest", "issue_snapshot", "release_snapshot", "comment_snapshot", "documentation", "history", "source", "repro_source", "command_output", "validator_output"]
         },
         "path": { "type": "string", "minLength": 1 },
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },

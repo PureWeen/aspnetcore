@@ -12,7 +12,7 @@ disposition. Lower rows may appear only as supporting findings.
 | 5 | `invalid_or_incomplete_setup` | `invalid_or_incomplete_setup` | `setup_invalid`, `setup_incomplete` | `reporter_setup_correction` |
 | 6 | `documentation_gap` | `documentation_gap` | `documentation_gap_verified` | `documentation_owner` |
 | 7 | `product_or_design_decision_required` | `product_or_design_decision_required` | `product_decision_needed`, `api_design_needed` | `maintainer_design_decision` |
-| 8 | `runtime_reproduced` or `structural_failure_verified` | `ready_for_fix_investigation` | `runtime_failure_reproduced`, `structural_failure_verified` | `aspnetcore_try_fix` |
+| 8 | `runtime_reproduced` or `structural_failure_verified` | `ready_for_fix_investigation` | `runtime_failure_reproduced`, `structural_failure_verified` | `fix_investigation` |
 | 9 | `required_reporter_evidence_missing` | `needs_reporter_evidence_or_repro` | `reporter_repro_missing`, `environment_details_missing` | `reporter_evidence` |
 | 10 | `infrastructure_blocked` | `infrastructure_blocked_or_inconclusive` | `environment_blocked`, `tooling_blocked` | `infrastructure_or_retry` |
 | 11 | `runtime_attempted` and not `runtime_reproduced` | `not_reproduced` | `bounded_repro_did_not_reproduce` | `maintainer_recheck_or_reporter_evidence` |
@@ -22,7 +22,8 @@ disposition. Lower rows may appear only as supporting findings.
 ## Interpretation rules
 
 - A duplicate or already-fixed result requires a verified canonical issue, PR, or
-  released version reference. Similar wording is only a supporting finding.
+  released version in `resolution_reference`, bound to decisive evidence. Similar
+  wording is only a supporting finding.
 - `by_design` requires an existing maintainer decision or authoritative contract.
   The assessor does not create product intent.
 - `unsupported_usage` requires authoritative support documentation. Lack of a
@@ -43,7 +44,13 @@ disposition. Lower rows may appear only as supporting findings.
 
 Reporter-controlled project and build files are executable input. A receipt with
 `runtime_attempted: true` is valid only when it records credential-free sandbox
-execution, no network access, and the artifact root as the sole writable root.
+execution, no external network access, and only explicit artifact, disposable
+worktree, cache, and temp writable roots. Interactive browser/app traffic may use
+recorded loopback access. No writable root or runtime working directory may
+overlap the user's source worktree.
+
 If those controls are unavailable, set `infrastructure_blocked` and do not run the
-repro. The validator also rejects command records containing GitHub mutations,
-`git push`, non-GET `gh api`, or mutating `curl` methods.
+repro. Command checks reject recorded GitHub mutations, `git push`, non-GET
+`gh api`, or mutating `curl` methods, but those checks are attestation validation,
+not prevention. A hard guarantee additionally requires an externally enforced
+credential-free boundary with no remote-write tools.
