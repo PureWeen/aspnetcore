@@ -403,18 +403,24 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
         receipt = copy.deepcopy(self.ready)
         receipt["instrumentation"]["tools"]["browser"]["unknown_reason"] = None
         receipt["instrumentation"]["model"] = {
-            "engine_identifier": None,
-            "engine_version": None,
-            "model_identifier": None,
-            "model_version": None,
-            "unknown_reason": None,
+            "engine": {
+                "identifier": None,
+                "version": None,
+                "unknown_reason": None,
+            },
+            "model": {
+                "identifier": None,
+                "version": None,
+                "unknown_reason": None,
+            },
         }
         receipt["instrumentation"]["cost"]["unknown_reason"] = None
 
         errors = VALIDATOR.validate_readiness_receipt(receipt)
 
         self.assertTrue(any("browser requires a not-used reason" in error for error in errors))
-        self.assertIn("instrumentation.model requires identifiers or unknown_reason", errors)
+        self.assertTrue(any("instrumentation.model.engine requires unknown_reason" in error for error in errors))
+        self.assertTrue(any("instrumentation.model.model requires unknown_reason" in error for error in errors))
         self.assertIn("unknown instrumentation cost requires unknown_reason", errors)
 
     def test_known_cost_requires_unit_and_source(self):
@@ -429,7 +435,10 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
 
         errors = VALIDATOR.validate_readiness_receipt(receipt)
 
-        self.assertIn("known instrumentation cost requires unit and source", errors)
+        self.assertIn(
+            "known instrumentation cost requires currency, unit, and source",
+            errors,
+        )
 
     def test_ready_reproduction_requires_successful_command_output(self):
         receipt = copy.deepcopy(self.ready)

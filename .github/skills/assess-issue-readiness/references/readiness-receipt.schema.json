@@ -121,19 +121,10 @@
         "model": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "engine_identifier",
-            "engine_version",
-            "model_identifier",
-            "model_version",
-            "unknown_reason"
-          ],
+          "required": ["engine", "model"],
           "properties": {
-            "engine_identifier": { "type": ["string", "null"] },
-            "engine_version": { "type": ["string", "null"] },
-            "model_identifier": { "type": ["string", "null"] },
-            "model_version": { "type": ["string", "null"] },
-            "unknown_reason": { "type": ["string", "null"] }
+            "engine": { "$ref": "#/$defs/componentVersion" },
+            "model": { "$ref": "#/$defs/componentVersion" }
           }
         },
         "attempts": {
@@ -488,6 +479,16 @@
       "required": ["used", "version", "unknown_reason"],
       "properties": {
         "used": { "type": "boolean" },
+        "version": { "type": ["string", "null"] },
+        "unknown_reason": { "type": ["string", "null"] }
+      }
+    },
+    "componentVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identifier", "version", "unknown_reason"],
+      "properties": {
+        "identifier": { "type": ["string", "null"] },
         "version": { "type": ["string", "null"] },
         "unknown_reason": { "type": ["string", "null"] }
       }

@@ -275,6 +275,22 @@ def _validate_tool_version(name, tool):
     return []
 
 
+def _validate_component_version(name, component):
+    missing = [
+        field for field in ("identifier", "version") if component[field] is None
+    ]
+    if missing and not component["unknown_reason"]:
+        return [
+            f"instrumentation.model.{name} requires unknown_reason for missing "
+            f"{', '.join(missing)}"
+        ]
+    if not missing and component["unknown_reason"] is not None:
+        return [
+            f"instrumentation.model.{name} unknown_reason must be null when complete"
+        ]
+    return []
+
+
 def _json_type_matches(value, expected):
     if expected == "object":
         return isinstance(value, dict)
@@ -500,18 +516,8 @@ def validate_readiness_receipt(receipt):
         errors.extend(_validate_tool_version(name, tool))
 
     model = instrumentation["model"]
-    model_values = [
-        model["engine_identifier"],
-        model["engine_version"],
-        model["model_identifier"],
-        model["model_version"],
-    ]
-    if not any(model_values) and not model["unknown_reason"]:
-        errors.append("instrumentation.model requires identifiers or unknown_reason")
-    if any(model_values) and model["unknown_reason"] is not None:
-        errors.append(
-            "instrumentation.model unknown_reason must be null when identifiers are known"
-        )
+    for name, component in model.items():
+        errors.extend(_validate_component_version(name, component))
 
     for name, attempt in instrumentation["attempts"].items():
         errors.extend(
@@ -528,8 +534,8 @@ def validate_readiness_receipt(receipt):
         if not cost["unknown_reason"]:
             errors.append("unknown instrumentation cost requires unknown_reason")
     else:
-        if cost["unit"] is None or cost["source"] is None:
-            errors.append("known instrumentation cost requires unit and source")
+        if any(cost[field] is None for field in ("currency", "unit", "source")):
+            errors.append("known instrumentation cost requires currency, unit, and source")
         if cost["unknown_reason"] is not None:
             errors.append("known instrumentation cost requires null unknown_reason")
 

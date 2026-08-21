@@ -59,11 +59,16 @@
       }
     },
     "model": {
-      "engine_identifier": "copilot-cli",
-      "engine_version": "1.0.80",
-      "model_identifier": "gpt-5.6-sol",
-      "model_version": null,
-      "unknown_reason": null
+      "engine": {
+        "identifier": "copilot-cli",
+        "version": "1.0.80",
+        "unknown_reason": null
+      },
+      "model": {
+        "identifier": "gpt-5.6-sol",
+        "version": null,
+        "unknown_reason": "provider model revision was not exposed"
+      }
     },
     "attempts": {
       "acquisition": {
