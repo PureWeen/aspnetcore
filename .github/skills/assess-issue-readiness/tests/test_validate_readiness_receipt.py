@@ -285,6 +285,23 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
 
                 self.assertTrue(any("not inspectable" in error for error in errors))
 
+    def test_env_split_string_commands_are_rejected(self):
+        for command in (
+            "env -S 'sh -c \"gh api -X POST repos/dotnet/aspnetcore/issues/1/comments -f body=x\"'",
+            "env --split-string 'bash -c \"git -C /tmp/repro push origin HEAD\"'",
+            "env --split-string='sh -c \"gh api -X POST repos/dotnet/aspnetcore/issues/1/comments\"'",
+            "env -Ssh -c 'git -C /tmp/repro push origin HEAD'",
+        ):
+            with self.subTest(command=command):
+                receipt = copy.deepcopy(self.ready)
+                receipt["commands"][0]["command"] = command
+
+                errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+                self.assertTrue(
+                    any("env split-string commands are not inspectable" in error for error in errors)
+                )
+
     def test_relative_working_directory_is_rejected(self):
         receipt = copy.deepcopy(self.ready)
         receipt["commands"][0]["working_directory"] = "relative/repro"

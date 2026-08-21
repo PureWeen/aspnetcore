@@ -170,6 +170,19 @@ def _recorded_command_safety_errors(command_text):
             errors.append("inline shell or evaluator commands are not inspectable")
             break
 
+    for index, token in enumerate(tokens):
+        executable = PurePosixPath(token.replace("\\", "/")).name.lower()
+        if executable != "env":
+            continue
+        if any(
+            argument in {"-S", "--split-string"}
+            or argument.startswith("-S")
+            or argument.startswith("--split-string=")
+            for argument in tokens[index + 1 :]
+        ):
+            errors.append("env split-string commands are not inspectable")
+            break
+
     git_options_with_values = {
         "-C",
         "-c",
