@@ -440,6 +440,54 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
             errors,
         )
 
+    def test_negative_float_cost_is_rejected(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["cost"] = {
+            "amount": -0.25,
+            "currency": "USD",
+            "unit": "dollars",
+            "source": "billing export",
+            "unknown_reason": None,
+        }
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertTrue(any("instrumentation.cost.amount must be at least 0" in error for error in errors))
+
+    def test_negative_float_duration_is_rejected(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["timing"]["active_execution"] = {
+            "value": -0.5,
+            "unknown_reason": None,
+        }
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertTrue(
+            any(
+                "instrumentation.timing.active_execution.value must be at least 0"
+                in error
+                for error in errors
+            )
+        )
+
+    def test_negative_integer_attempt_count_remains_rejected(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["attempts"]["assessment"] = {
+            "value": -1,
+            "unknown_reason": None,
+        }
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertTrue(
+            any(
+                "instrumentation.attempts.assessment.value must be at least 0"
+                in error
+                for error in errors
+            )
+        )
+
     def test_ready_reproduction_requires_successful_command_output(self):
         receipt = copy.deepcopy(self.ready)
         receipt["checks"][1]["command_ids"] = []

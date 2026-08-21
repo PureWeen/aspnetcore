@@ -385,7 +385,7 @@ def _validate_schema(value, schema, root_schema, path="$"):
             except ValueError:
                 errors.append(f"{path} must be an RFC 3339 date-time with an offset")
 
-    if isinstance(value, int) and not isinstance(value, bool):
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
         if "minimum" in schema and value < schema["minimum"]:
             errors.append(f"{path} must be at least {schema['minimum']}")
         if "maximum" in schema and value > schema["maximum"]:
