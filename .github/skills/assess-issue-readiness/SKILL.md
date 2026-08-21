@@ -75,6 +75,11 @@ manifest beneath `<artifact-root>/evidence/`. It does not read environment token
 or accept arbitrary URLs. After acquisition, remove external network access and
 perform assessment from those files.
 
+Unauthenticated GitHub API access is rate-limited (commonly about 60 requests per
+hour, subject to GitHub policy). Keep acquisitions bounded, reuse a frozen snapshot
+for the same issue revision, and cache related-issue evidence under the same
+artifact root. Do not add authenticated tokens merely to increase this budget.
+
 An already supplied public snapshot may use `provided_offline_snapshot`; record
 its provenance and hashes. Do not fetch missing triage signals during offline
 assessment. Report them as missing.
@@ -103,9 +108,11 @@ Advance only while the preceding tier leaves readiness unresolved.
 | 3 | Run a released-SDK standalone repro | 30 minutes, 2 execution attempts |
 | 4 | Use an in-tree build only for unreleased/in-tree claims | 45 minutes, 1 targeted build/test surface |
 
-Budgets are ceilings. Record exhausted budgets as blockers. High customer/release
-signal may justify advancing one tier or a maintainer-approved extension. Low
-signal may produce `deferred_below_threshold`; it does not alter factual findings.
+These progressive tiers make deep investigation optional: stop as soon as a
+higher-precedence disposition is supported. Budgets are ceilings. Record exhausted
+budgets as blockers. High customer/release signal may justify advancing one tier
+or a maintainer-approved extension. Low signal may produce
+`deferred_below_threshold`; it does not alter factual findings.
 
 ## Reproduction and isolation
 
@@ -151,6 +158,10 @@ that later stage; this receipt never depends on that external skill.
 
 ## Receipt and validation
 
+The human-readable decision, reason, and next route are the primary maintainer
+output. The JSON receipt is the audit artifact that binds those fields to frozen
+evidence and validator checks.
+
 Write `<artifact-root>/receipt.json` using
 [references/readiness-receipt.schema.json](references/readiness-receipt.schema.json).
 Use artifact-root-relative evidence paths with SHA-256 hashes. Record every
@@ -165,6 +176,10 @@ The validator checks schema, deterministic disposition precedence, evidence file
 and hashes, safety-mode consistency, neutral routing, authorized writable roots,
 runtime command locations, loopback requirements, and contradictions in recorded
 commands. It does not create the external execution boundary.
+
+Keep the current disposition names as internal routing outcomes. Some encode
+existing upstream decisions rather than assessor judgments; taxonomy simplification
+is a separate maintainer/design decision and is not part of this hardening pass.
 
 ## Output
 

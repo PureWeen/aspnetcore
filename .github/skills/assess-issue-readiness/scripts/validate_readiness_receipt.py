@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+import shlex
 import sys
 from collections import Counter
 from datetime import datetime
@@ -71,6 +72,7 @@ CHECK_CATEGORIES = {
     "supported_usage",
     "history",
     "documentation",
+    "proportionality",
     "reproduction",
     "in_tree",
 }
@@ -92,6 +94,79 @@ GITHUB_WRITE_PATTERN = re.compile(
     r"transfer|dispatch|cancel|rerun)\b",
     re.IGNORECASE,
 )
+
+
+def _parse_recorded_command(command_text):
+    try:
+        return shlex.split(command_text, posix=True), None
+    except ValueError as error:
+        return [], f"cannot parse recorded command: {error}"
+
+
+def _gh_api_method_error(tokens):
+    for index in range(len(tokens) - 1):
+        if tokens[index : index + 2] != ["gh", "api"]:
+            continue
+
+        methods = []
+        argument_index = index + 2
+        while argument_index < len(tokens):
+            argument = tokens[argument_index]
+            if argument == "--method" or argument == "-X":
+                if argument_index + 1 >= len(tokens):
+                    return "gh api method option is missing a value"
+                methods.append(tokens[argument_index + 1].upper())
+                argument_index += 2
+                continue
+            if argument.startswith("--method="):
+                methods.append(argument.partition("=")[2].upper())
+            elif argument.startswith("-X") and argument != "-X":
+                methods.append(argument[2:].upper())
+            argument_index += 1
+
+        if methods != ["GET"]:
+            return "gh api command must use exactly one unambiguous GET method option"
+
+    return None
+
+
+def _recorded_command_safety_errors(command_text):
+    errors = []
+    tokens, parse_error = _parse_recorded_command(command_text)
+    if parse_error is not None:
+        return [parse_error]
+
+    method_error = _gh_api_method_error(tokens)
+    if method_error is not None:
+        errors.append(method_error)
+
+    for index, token in enumerate(tokens):
+        if token == "git" and "push" in tokens[index + 1 :]:
+            errors.append("git push is not allowed in a readiness assessment")
+            break
+
+    return errors
+
+
+def _normalize_datetime(value):
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _datetimes_equal(left, right):
+    try:
+        return _normalize_datetime(left) == _normalize_datetime(right)
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def _normalize_state(value):
+    return str(value).upper()
+
+
+def _normalize_state_reason(value):
+    if value is None:
+        return None
+    return str(value).replace("-", "_").upper()
 
 
 def _json_type_matches(value, expected):
@@ -357,10 +432,10 @@ def validate_readiness_receipt(receipt):
             re.IGNORECASE,
         ):
             errors.append(f"commands[{index}] contradicts the read-only safety attestation")
-        if re.search(r"\bgh\s+api\b", command_text, re.IGNORECASE):
-            methods = re.findall(r"--method(?:=|\s+)([A-Z]+)\b", command_text, re.IGNORECASE)
-            if [method.upper() for method in methods] != ["GET"]:
-                errors.append(f"commands[{index}] gh api command must use exactly one --method GET")
+        for command_error in _recorded_command_safety_errors(command_text):
+            errors.append(f"commands[{index}] {command_error}")
+        if not Path(command["working_directory"]).is_absolute():
+            errors.append(f"commands[{index}].working_directory must be an absolute path")
         for ref_name in ("stdout_ref", "stderr_ref"):
             ref = command.get(ref_name)
             if ref is not None and ref not in evidence_ids:
@@ -493,12 +568,12 @@ def validate_readiness_receipt(receipt):
     decisive_requirements = {
         "security_process_required": ({"triage"}, {"passed"}),
         "duplicate_or_already_fixed": ({"triage"}, {"passed"}),
-        "by_design": ({"triage", "documentation"}, {"passed"}),
+        "by_design": ({"history", "documentation"}, {"passed"}),
         "unsupported_usage": ({"supported_usage", "documentation"}, {"passed"}),
         "invalid_or_incomplete_setup": ({"setup"}, {"passed"}),
         "documentation_gap": ({"documentation"}, {"passed"}),
         "product_or_design_decision_required": (
-            {"triage", "history", "documentation"},
+            {"history", "documentation"},
             {"passed"},
         ),
         "ready_for_fix_investigation": ({"reproduction", "in_tree"}, {"passed"}),
@@ -508,7 +583,7 @@ def validate_readiness_receipt(receipt):
             {"blocked"} if signals["infrastructure_blocked"] else CHECK_STATUSES,
         ),
         "not_reproduced": ({"reproduction"}, {"failed"}),
-        "deferred_below_threshold": ({"triage"}, {"passed"}),
+        "deferred_below_threshold": ({"proportionality"}, {"passed"}),
     }
     required_categories, required_statuses = decisive_requirements[expected]
     if not any(
@@ -830,6 +905,28 @@ def validate_readiness_evidence_files(receipt, receipt_path):
                             if "pull_request" in primary_issue:
                                 errors.append(
                                     "primary issue snapshot is a pull request, not an issue"
+                                )
+                            snapshot_updated_at = primary_issue.get("updated_at")
+                            if not _datetimes_equal(
+                                snapshot_updated_at,
+                                receipt["issue"]["revision"]["updated_at"],
+                            ):
+                                errors.append(
+                                    "primary issue snapshot updated_at does not match receipt revision"
+                                )
+                            if _normalize_state(primary_issue.get("state")) != receipt[
+                                "issue"
+                            ]["revision"]["state"]:
+                                errors.append(
+                                    "primary issue snapshot state does not match receipt revision"
+                                )
+                            if _normalize_state_reason(
+                                primary_issue.get("state_reason")
+                            ) != _normalize_state_reason(
+                                receipt["issue"]["revision"]["state_reason"]
+                            ):
+                                errors.append(
+                                    "primary issue snapshot state_reason does not match receipt revision"
                                 )
 
     resolution_reference = receipt["resolution_reference"]

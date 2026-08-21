@@ -345,7 +345,7 @@
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "category": {
-          "enum": ["triage", "setup", "supported_usage", "history", "documentation", "reproduction", "in_tree"]
+          "enum": ["triage", "setup", "supported_usage", "history", "documentation", "proportionality", "reproduction", "in_tree"]
         },
         "status": { "enum": ["passed", "failed", "skipped", "blocked"] },
         "command_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },

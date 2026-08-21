@@ -25,13 +25,16 @@ disposition. Lower rows may appear only as supporting findings.
   released version in `resolution_reference`, bound to decisive evidence. Similar
   wording is only a supporting finding.
 - `by_design` requires an existing maintainer decision or authoritative contract.
-  The assessor does not create product intent.
+  The assessor does not create product intent. Cite passed `history` or
+  `documentation` evidence, not generic triage metadata.
 - `unsupported_usage` requires authoritative support documentation. Lack of a
   matching sample is not proof.
 - Setup mistakes outrank a reproduction result because the reported configuration
   did not exercise the supported product contract.
 - `documentation_gap` is primary only when expected runtime behavior is established
   and the actionable defect is missing or incorrect documentation.
+- `product_or_design_decision_required` needs passed `history` or `documentation`
+  evidence showing the unresolved decision boundary.
 - `ready_for_fix_investigation` is a route, not a bug verdict. When
   `runtime_evidence_feasible` is true, it requires a passed reproduction check with
   evidence. When false, `structural_failure_verified` needs direct compiler,
@@ -39,6 +42,8 @@ disposition. Lower rows may appear only as supporting findings.
 - `not_reproduced` never recommends closing an issue. It routes to recheck or
   additional evidence.
 - Missing upstream triage signals never become locally re-derived signals.
+- `deferred_below_threshold` needs passed `proportionality` evidence recording the
+  customer/release signals and bounded-depth rationale.
 
 ## Execution safety
 
