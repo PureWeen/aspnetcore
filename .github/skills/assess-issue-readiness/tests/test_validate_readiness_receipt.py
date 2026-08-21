@@ -271,6 +271,9 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
         for command in (
             "sh -c 'gh api -X POST repos/dotnet/aspnetcore/issues/1/comments -f body=x'",
             "bash -c 'git -C /tmp/repro push origin HEAD'",
+            "env sh -c 'gh api -X POST repos/dotnet/aspnetcore/issues/1/comments -f body=x'",
+            "command bash -c 'git -C /tmp/repro push origin HEAD'",
+            "timeout 30 /usr/bin/bash -c 'git -C /tmp/repro push origin HEAD'",
             'cmd.exe /c "gh api -X POST repos/dotnet/aspnetcore/issues/1/comments"',
             "pwsh -EncodedCommand Z2ggYXBpIC1YIFBPU1Q=",
         ):

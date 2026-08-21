@@ -142,10 +142,6 @@ def _recorded_command_safety_errors(command_text):
     if method_error is not None:
         errors.append(method_error)
 
-    executable = (
-        PurePosixPath(tokens[0].replace("\\", "/")).name.lower() if tokens else ""
-    )
-    lowered_arguments = {argument.lower() for argument in tokens[1:]}
     inline_flags = {
         "sh": {"-c"},
         "bash": {"-c"},
@@ -165,10 +161,14 @@ def _recorded_command_safety_errors(command_text):
         "ruby": {"-e"},
         "perl": {"-e"},
     }
-    if executable in inline_flags and lowered_arguments.intersection(
-        inline_flags[executable]
-    ):
-        errors.append("inline shell or evaluator commands are not inspectable")
+    for index, token in enumerate(tokens):
+        executable = PurePosixPath(token.replace("\\", "/")).name.lower()
+        if executable not in inline_flags:
+            continue
+        lowered_arguments = {argument.lower() for argument in tokens[index + 1 :]}
+        if lowered_arguments.intersection(inline_flags[executable]):
+            errors.append("inline shell or evaluator commands are not inspectable")
+            break
 
     git_options_with_values = {
         "-C",
