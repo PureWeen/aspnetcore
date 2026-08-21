@@ -240,6 +240,41 @@ def _normalize_state_reason(value):
     return str(value).replace("-", "_").upper()
 
 
+def source_manifest_sha256(source):
+    manifest = {
+        "skill_commit_sha": source["skill_commit_sha"],
+        "artifacts": source["artifacts"],
+    }
+    content = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(content).hexdigest()
+
+
+def _validate_nullable_measurement(name, measurement):
+    value = measurement["value"]
+    unknown_reason = measurement["unknown_reason"]
+    if value is None and not unknown_reason:
+        return [f"{name} requires unknown_reason when value is null"]
+    if value is not None and unknown_reason is not None:
+        return [f"{name} unknown_reason must be null when value is known"]
+    return []
+
+
+def _validate_tool_version(name, tool):
+    if not tool["used"]:
+        if tool["version"] is not None:
+            return [f"instrumentation.tools.{name} version must be null when unused"]
+        if not tool["unknown_reason"]:
+            return [f"instrumentation.tools.{name} requires a not-used reason"]
+        return []
+    if tool["version"] is None and not tool["unknown_reason"]:
+        return [f"instrumentation.tools.{name} requires version or unknown_reason"]
+    if tool["version"] is not None and tool["unknown_reason"] is not None:
+        return [
+            f"instrumentation.tools.{name} unknown_reason must be null when version is known"
+        ]
+    return []
+
+
 def _json_type_matches(value, expected):
     if expected == "object":
         return isinstance(value, dict)
@@ -431,6 +466,73 @@ def validate_readiness_receipt(receipt):
     if errors:
         return errors
 
+    instrumentation = receipt["instrumentation"]
+    source = instrumentation["source"]
+    if source_manifest_sha256(source) != source["manifest_sha256"]:
+        errors.append("instrumentation.source.manifest_sha256 does not match source manifest")
+
+    timing = instrumentation["timing"]
+    started_at = _normalize_datetime(timing["started_at"])
+    ended_at = _normalize_datetime(timing["ended_at"])
+    if ended_at < started_at:
+        errors.append("instrumentation.timing.ended_at must not precede started_at")
+    elapsed_seconds = (ended_at - started_at).total_seconds()
+    if abs(timing["wall_clock_seconds"] - elapsed_seconds) > 0.001:
+        errors.append(
+            "instrumentation.timing.wall_clock_seconds must equal ended_at minus started_at"
+        )
+    if _normalize_datetime(receipt["generated_at"]) != ended_at:
+        errors.append("generated_at must equal instrumentation.timing.ended_at")
+    active_execution = timing["active_execution"]
+    errors.extend(
+        _validate_nullable_measurement(
+            "instrumentation.timing.active_execution",
+            active_execution,
+        )
+    )
+    if (
+        active_execution["value"] is not None
+        and active_execution["value"] > timing["wall_clock_seconds"]
+    ):
+        errors.append("active execution duration cannot exceed wall-clock duration")
+
+    for name, tool in instrumentation["tools"].items():
+        errors.extend(_validate_tool_version(name, tool))
+
+    model = instrumentation["model"]
+    model_values = [
+        model["engine_identifier"],
+        model["engine_version"],
+        model["model_identifier"],
+        model["model_version"],
+    ]
+    if not any(model_values) and not model["unknown_reason"]:
+        errors.append("instrumentation.model requires identifiers or unknown_reason")
+    if any(model_values) and model["unknown_reason"] is not None:
+        errors.append(
+            "instrumentation.model unknown_reason must be null when identifiers are known"
+        )
+
+    for name, attempt in instrumentation["attempts"].items():
+        errors.extend(
+            _validate_nullable_measurement(
+                f"instrumentation.attempts.{name}",
+                attempt,
+            )
+        )
+
+    cost = instrumentation["cost"]
+    if cost["amount"] is None:
+        if any(cost[field] is not None for field in ("currency", "unit", "source")):
+            errors.append("unknown instrumentation cost cannot include currency, unit, or source")
+        if not cost["unknown_reason"]:
+            errors.append("unknown instrumentation cost requires unknown_reason")
+    else:
+        if cost["unit"] is None or cost["source"] is None:
+            errors.append("known instrumentation cost requires unit and source")
+        if cost["unknown_reason"] is not None:
+            errors.append("known instrumentation cost requires null unknown_reason")
+
     if not Path(str(receipt["artifact_root"])).is_absolute():
         errors.append("artifact_root must be an absolute path")
 
@@ -589,6 +691,9 @@ def validate_readiness_receipt(receipt):
         errors.append("recorded reproduction or in-tree execution requires runtime_attempted")
     if signals["runtime_attempted"] and not runtime_execution_recorded:
         errors.append("runtime_attempted requires a recorded reproduction or in-tree execution")
+    reproduction_attempts = instrumentation["attempts"]["reproduction"]["value"]
+    if signals["runtime_attempted"] and reproduction_attempts == 0:
+        errors.append("runtime_attempted requires at least one reproduction attempt")
 
     summary = receipt["check_summary"]
     expected_summary = {

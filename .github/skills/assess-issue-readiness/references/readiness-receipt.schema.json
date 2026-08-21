@@ -8,6 +8,7 @@
     "schema_version",
     "assessment_id",
     "generated_at",
+    "instrumentation",
     "artifact_root",
     "source_repository",
     "issue",
@@ -31,9 +32,134 @@
     "safety"
   ],
   "properties": {
-    "schema_version": { "const": "1.0" },
+    "schema_version": { "const": "2.0" },
     "assessment_id": { "type": "string", "minLength": 1 },
     "generated_at": { "type": "string", "format": "date-time" },
+    "instrumentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "source",
+        "timing",
+        "tools",
+        "model",
+        "attempts",
+        "cost"
+      ],
+      "properties": {
+        "protocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["evaluation_protocol_version", "cohort_version"],
+          "properties": {
+            "evaluation_protocol_version": { "const": "1.0" },
+            "cohort_version": { "type": "string", "minLength": 1 }
+          }
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skill_commit_sha", "artifacts", "manifest_sha256"],
+          "properties": {
+            "skill_commit_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+            "artifacts": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "skill_md_sha256",
+                "disposition_policy_sha256",
+                "receipt_schema_sha256",
+                "validator_sha256"
+              ],
+              "properties": {
+                "skill_md_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                "disposition_policy_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                "receipt_schema_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                "validator_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+              }
+            },
+            "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "started_at",
+            "ended_at",
+            "wall_clock_seconds",
+            "active_execution"
+          ],
+          "properties": {
+            "started_at": { "type": "string", "format": "date-time" },
+            "ended_at": { "type": "string", "format": "date-time" },
+            "wall_clock_seconds": { "type": "number", "minimum": 0 },
+            "active_execution": { "$ref": "#/$defs/nullableNonnegativeMeasurement" }
+          }
+        },
+        "tools": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "python",
+            "git",
+            "dotnet_sdk",
+            "browser",
+            "playwright",
+            "domain_validator"
+          ],
+          "properties": {
+            "python": { "$ref": "#/$defs/toolVersion" },
+            "git": { "$ref": "#/$defs/toolVersion" },
+            "dotnet_sdk": { "$ref": "#/$defs/toolVersion" },
+            "browser": { "$ref": "#/$defs/toolVersion" },
+            "playwright": { "$ref": "#/$defs/toolVersion" },
+            "domain_validator": { "$ref": "#/$defs/toolVersion" }
+          }
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "engine_identifier",
+            "engine_version",
+            "model_identifier",
+            "model_version",
+            "unknown_reason"
+          ],
+          "properties": {
+            "engine_identifier": { "type": ["string", "null"] },
+            "engine_version": { "type": ["string", "null"] },
+            "model_identifier": { "type": ["string", "null"] },
+            "model_version": { "type": ["string", "null"] },
+            "unknown_reason": { "type": ["string", "null"] }
+          }
+        },
+        "attempts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["acquisition", "assessment", "reproduction"],
+          "properties": {
+            "acquisition": { "$ref": "#/$defs/nullableNonnegativeIntegerMeasurement" },
+            "assessment": { "$ref": "#/$defs/nullableNonnegativeIntegerMeasurement" },
+            "reproduction": { "$ref": "#/$defs/nullableNonnegativeIntegerMeasurement" }
+          }
+        },
+        "cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amount", "currency", "unit", "source", "unknown_reason"],
+          "properties": {
+            "amount": { "type": ["number", "null"], "minimum": 0 },
+            "currency": { "type": ["string", "null"] },
+            "unit": { "type": ["string", "null"] },
+            "source": { "type": ["string", "null"] },
+            "unknown_reason": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
     "artifact_root": { "type": "string", "minLength": 1 },
     "source_repository": { "const": "dotnet/aspnetcore" },
     "issue": {
@@ -338,6 +464,34 @@
     }
   },
   "$defs": {
+    "nullableNonnegativeMeasurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unknown_reason"],
+      "properties": {
+        "value": { "type": ["number", "null"], "minimum": 0 },
+        "unknown_reason": { "type": ["string", "null"] }
+      }
+    },
+    "nullableNonnegativeIntegerMeasurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unknown_reason"],
+      "properties": {
+        "value": { "type": ["integer", "null"], "minimum": 0 },
+        "unknown_reason": { "type": ["string", "null"] }
+      }
+    },
+    "toolVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["used", "version", "unknown_reason"],
+      "properties": {
+        "used": { "type": "boolean" },
+        "version": { "type": ["string", "null"] },
+        "unknown_reason": { "type": ["string", "null"] }
+      }
+    },
     "check": {
       "type": "object",
       "additionalProperties": false,

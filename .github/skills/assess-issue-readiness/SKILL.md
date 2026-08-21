@@ -165,7 +165,20 @@ evidence and validator checks.
 Write `<artifact-root>/receipt.json` using
 [references/readiness-receipt.schema.json](references/readiness-receipt.schema.json).
 Use artifact-root-relative evidence paths with SHA-256 hashes. Record every
-command, including failures, and make `check_summary` match `checks`.
+command, including failures, and make `check_summary` match `checks`. Schema 2.0
+also requires:
+
+- evaluation protocol/cohort version;
+- source commit plus hashes for the skill, policy, schema, and validator;
+- coherent start/end, wall-clock, and nullable active-execution timing;
+- tool and model/engine versions with explicit unknown reasons;
+- acquisition/assessment/reproduction attempt counts or explicit unknowns; and
+- cost/AI-credit amount, unit, source, and currency when known, or an explicit
+  unknown reason.
+
+For frozen cohorts, follow
+[references/evaluation-protocol.md](references/evaluation-protocol.md). A prompt,
+implementation, model, or evidence-policy change creates a new cohort.
 
 ```bash
 python3 .github/skills/assess-issue-readiness/scripts/validate_readiness_receipt.py \
@@ -196,6 +209,9 @@ is a separate maintainer/design decision and is not part of this hardening pass.
 **Reason code:** <reason_code>
 **Next route:** <next_route>
 **Hard no-mutation guarantee:** yes / no
+**Cohort:** <cohort_version> (protocol <evaluation_protocol_version>)
+**Elapsed:** <wall_clock_seconds>s wall / <active_execution or "unknown"> active
+**Cost:** <amount and unit, or "unknown: reason">
 
 ## Evidence
 - <decisive evidence references>

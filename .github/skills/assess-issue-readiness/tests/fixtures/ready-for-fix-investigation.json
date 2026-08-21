@@ -1,7 +1,92 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "assessment_id": "synthetic-ready-for-fix-investigation-1",
   "generated_at": "2026-08-20T20:00:00Z",
+  "instrumentation": {
+    "protocol": {
+      "evaluation_protocol_version": "1.0",
+      "cohort_version": "synthetic-contract-tests-v1"
+    },
+    "source": {
+      "skill_commit_sha": "1111111111111111111111111111111111111111",
+      "artifacts": {
+        "skill_md_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "disposition_policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "receipt_schema_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "validator_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "manifest_sha256": "bc0dcdfe4d9970bfd7792961959740c899355f8bf2f78d925eb3838a6656cf25"
+    },
+    "timing": {
+      "started_at": "2026-08-20T19:59:00Z",
+      "ended_at": "2026-08-20T20:00:00Z",
+      "wall_clock_seconds": 60,
+      "active_execution": {
+        "value": 10.5,
+        "unknown_reason": null
+      }
+    },
+    "tools": {
+      "python": {
+        "used": true,
+        "version": "3.14.0",
+        "unknown_reason": null
+      },
+      "git": {
+        "used": true,
+        "version": "2.51.0",
+        "unknown_reason": null
+      },
+      "dotnet_sdk": {
+        "used": true,
+        "version": "10.0.100",
+        "unknown_reason": null
+      },
+      "browser": {
+        "used": false,
+        "version": null,
+        "unknown_reason": "not_used"
+      },
+      "playwright": {
+        "used": false,
+        "version": null,
+        "unknown_reason": "not_used"
+      },
+      "domain_validator": {
+        "used": false,
+        "version": null,
+        "unknown_reason": "not_used"
+      }
+    },
+    "model": {
+      "engine_identifier": "copilot-cli",
+      "engine_version": "1.0.80",
+      "model_identifier": "gpt-5.6-sol",
+      "model_version": null,
+      "unknown_reason": null
+    },
+    "attempts": {
+      "acquisition": {
+        "value": 1,
+        "unknown_reason": null
+      },
+      "assessment": {
+        "value": 1,
+        "unknown_reason": null
+      },
+      "reproduction": {
+        "value": 1,
+        "unknown_reason": null
+      }
+    },
+    "cost": {
+      "amount": null,
+      "currency": null,
+      "unit": null,
+      "source": null,
+      "unknown_reason": "cost telemetry unavailable"
+    }
+  },
   "artifact_root": "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1",
   "source_repository": "dotnet/aspnetcore",
   "issue": {

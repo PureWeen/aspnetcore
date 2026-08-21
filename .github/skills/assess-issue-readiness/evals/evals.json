@@ -9,6 +9,7 @@
       "expectations": [
         "The readiness assessment consumes existing upstream triage rather than assigning new labels or type.",
         "The receipt records issue revision, repository SHA, environment, checks, commands, evidence hashes, confidence, blockers, reason code, disposition, and route.",
+        "The schema 2.0 receipt records a frozen cohort/protocol, source hashes, coherent timing, tool/model versions, attempts, and cost or explicit unknown reasons.",
         "Ready for fix investigation requires executable reproduction evidence when feasible.",
         "Reporter-controlled repro code runs only in a credential-free sandbox with external networking denied, explicit loopback, and authorized disposable/cache/temp roots.",
         "No fix is proposed and no GitHub resource is mutated."

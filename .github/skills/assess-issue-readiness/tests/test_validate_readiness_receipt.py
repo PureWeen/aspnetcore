@@ -348,6 +348,89 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
         self.assertTrue(any("date-time" in error for error in errors))
         self.assertTrue(any("unexpected" in error for error in errors))
 
+    def test_schema_two_requires_instrumentation(self):
+        receipt = copy.deepcopy(self.ready)
+        del receipt["instrumentation"]
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertTrue(any("instrumentation is required" in error for error in errors))
+
+    def test_source_manifest_hash_is_bound(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["source"]["artifacts"][
+            "skill_md_sha256"
+        ] = "f" * 64
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertIn(
+            "instrumentation.source.manifest_sha256 does not match source manifest",
+            errors,
+        )
+
+    def test_timing_must_be_coherent(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["timing"]["wall_clock_seconds"] = 59
+        receipt["instrumentation"]["timing"]["active_execution"]["value"] = 61
+        receipt["generated_at"] = "2026-08-20T20:00:01Z"
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertTrue(any("ended_at minus started_at" in error for error in errors))
+        self.assertIn("active execution duration cannot exceed wall-clock duration", errors)
+        self.assertIn("generated_at must equal instrumentation.timing.ended_at", errors)
+
+    def test_unknown_measurements_require_reasons(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["timing"]["active_execution"] = {
+            "value": None,
+            "unknown_reason": None,
+        }
+        receipt["instrumentation"]["attempts"]["reproduction"] = {
+            "value": None,
+            "unknown_reason": None,
+        }
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertTrue(any("active_execution requires unknown_reason" in error for error in errors))
+        self.assertTrue(
+            any("attempts.reproduction requires unknown_reason" in error for error in errors)
+        )
+
+    def test_tool_model_and_cost_unknown_semantics_are_explicit(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["tools"]["browser"]["unknown_reason"] = None
+        receipt["instrumentation"]["model"] = {
+            "engine_identifier": None,
+            "engine_version": None,
+            "model_identifier": None,
+            "model_version": None,
+            "unknown_reason": None,
+        }
+        receipt["instrumentation"]["cost"]["unknown_reason"] = None
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertTrue(any("browser requires a not-used reason" in error for error in errors))
+        self.assertIn("instrumentation.model requires identifiers or unknown_reason", errors)
+        self.assertIn("unknown instrumentation cost requires unknown_reason", errors)
+
+    def test_known_cost_requires_unit_and_source(self):
+        receipt = copy.deepcopy(self.ready)
+        receipt["instrumentation"]["cost"] = {
+            "amount": 12.5,
+            "currency": None,
+            "unit": None,
+            "source": None,
+            "unknown_reason": None,
+        }
+
+        errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+        self.assertIn("known instrumentation cost requires unit and source", errors)
+
     def test_ready_reproduction_requires_successful_command_output(self):
         receipt = copy.deepcopy(self.ready)
         receipt["checks"][1]["command_ids"] = []
