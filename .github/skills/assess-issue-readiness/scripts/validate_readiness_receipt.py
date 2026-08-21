@@ -105,7 +105,9 @@ def _parse_recorded_command(command_text):
 
 def _gh_api_method_error(tokens):
     for index in range(len(tokens) - 1):
-        if tokens[index : index + 2] != ["gh", "api"]:
+        if PurePosixPath(tokens[index].replace("\\", "/")).name != "gh" or tokens[
+            index + 1
+        ] != "api":
             continue
 
         methods = []
@@ -140,9 +142,65 @@ def _recorded_command_safety_errors(command_text):
     if method_error is not None:
         errors.append(method_error)
 
+    executable = (
+        PurePosixPath(tokens[0].replace("\\", "/")).name.lower() if tokens else ""
+    )
+    lowered_arguments = {argument.lower() for argument in tokens[1:]}
+    inline_flags = {
+        "sh": {"-c"},
+        "bash": {"-c"},
+        "zsh": {"-c"},
+        "dash": {"-c"},
+        "ksh": {"-c"},
+        "fish": {"-c"},
+        "cmd": {"/c"},
+        "cmd.exe": {"/c"},
+        "powershell": {"-command", "-encodedcommand", "-enc"},
+        "powershell.exe": {"-command", "-encodedcommand", "-enc"},
+        "pwsh": {"-command", "-encodedcommand", "-enc"},
+        "pwsh.exe": {"-command", "-encodedcommand", "-enc"},
+        "python": {"-c"},
+        "python3": {"-c"},
+        "node": {"-e", "--eval"},
+        "ruby": {"-e"},
+        "perl": {"-e"},
+    }
+    if executable in inline_flags and lowered_arguments.intersection(
+        inline_flags[executable]
+    ):
+        errors.append("inline shell or evaluator commands are not inspectable")
+
+    git_options_with_values = {
+        "-C",
+        "-c",
+        "--config-env",
+        "--exec-path",
+        "--git-dir",
+        "--namespace",
+        "--super-prefix",
+        "--work-tree",
+    }
     for index, token in enumerate(tokens):
-        if token == "git" and "push" in tokens[index + 1 :]:
-            errors.append("git push is not allowed in a readiness assessment")
+        if PurePosixPath(token.replace("\\", "/")).name != "git":
+            continue
+        argument_index = index + 1
+        while argument_index < len(tokens):
+            argument = tokens[argument_index]
+            if argument in git_options_with_values:
+                argument_index += 2
+                continue
+            if any(
+                argument.startswith(f"{option}=")
+                for option in git_options_with_values
+                if option.startswith("--")
+            ):
+                argument_index += 1
+                continue
+            if argument.startswith("-"):
+                argument_index += 1
+                continue
+            if argument == "push":
+                errors.append("git push is not allowed in a readiness assessment")
             break
 
     return errors
@@ -399,6 +457,7 @@ def validate_readiness_receipt(receipt):
         return errors
 
     evidence = receipt["evidence"]
+    evidence_by_id = {item["id"]: item for item in evidence}
     evidence_ids = set()
     for index, item in enumerate(evidence):
         evidence_id = item.get("id")
@@ -468,7 +527,21 @@ def validate_readiness_receipt(receipt):
         for evidence_id in refs:
             if evidence_id not in evidence_ids:
                 errors.append(f"checks[{index}] references unknown evidence '{evidence_id}'")
-        if refs:
+        required_evidence_kinds = {
+            "history": {"history", "comment_snapshot"},
+            "documentation": {"documentation"},
+            "proportionality": {"proportionality"},
+        }.get(category)
+        has_category_evidence = required_evidence_kinds is None or any(
+            evidence_by_id[evidence_id]["kind"] in required_evidence_kinds
+            for evidence_id in refs
+            if evidence_id in evidence_by_id
+        )
+        if required_evidence_kinds is not None and refs and not has_category_evidence:
+            errors.append(
+                f"checks[{index}] category '{category}' requires matching evidence kind"
+            )
+        if refs and has_category_evidence:
             decisive_checks.append(check)
         if category == "reproduction" and status == "passed" and refs:
             passed_commands = [
@@ -478,7 +551,6 @@ def validate_readiness_receipt(receipt):
                 and command_by_id[command_id]["status"] == "passed"
                 and command_by_id[command_id]["exit_code"] == 0
             ]
-            evidence_by_id = {item["id"]: item for item in evidence}
             has_command_output = any(
                 evidence_by_id[evidence_id]["kind"] == "command_output"
                 for evidence_id in refs
@@ -796,6 +868,56 @@ def validate_readiness_evidence_files(receipt, receipt_path):
         if digest != item["sha256"]:
             errors.append(f"evidence[{index}] SHA-256 does not match: {item['path']}")
 
+    issue_number = receipt["issue"]["number"]
+    issue_url = receipt["issue"]["url"]
+    issue_api_url = (
+        f"https://api.github.com/repos/dotnet/aspnetcore/issues/{issue_number}"
+    )
+    primary_evidence = [
+        item
+        for item in receipt["evidence"]
+        if item["kind"] == "issue_snapshot"
+        and item["source"] in {issue_url, f"GET {issue_api_url}"}
+    ]
+    primary_issue = None
+    if len(primary_evidence) != 1:
+        errors.append("receipt requires exactly one primary issue_snapshot evidence")
+    else:
+        primary_path = (artifact_root / primary_evidence[0]["path"]).resolve()
+        try:
+            primary_issue = json.loads(primary_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            errors.append(f"invalid primary issue snapshot: {error}")
+        else:
+            if primary_issue.get("number") != issue_number:
+                errors.append("primary issue snapshot number does not match receipt")
+            if primary_issue.get("html_url") != issue_url:
+                errors.append("primary issue snapshot URL does not match receipt")
+            if (
+                primary_issue.get("repository_url")
+                != "https://api.github.com/repos/dotnet/aspnetcore"
+            ):
+                errors.append("primary issue snapshot repository is not dotnet/aspnetcore")
+            if "pull_request" in primary_issue:
+                errors.append("primary issue snapshot is a pull request, not an issue")
+            if not _datetimes_equal(
+                primary_issue.get("updated_at"),
+                receipt["issue"]["revision"]["updated_at"],
+            ):
+                errors.append(
+                    "primary issue snapshot updated_at does not match receipt revision"
+                )
+            if _normalize_state(primary_issue.get("state")) != receipt["issue"][
+                "revision"
+            ]["state"]:
+                errors.append("primary issue snapshot state does not match receipt revision")
+            if _normalize_state_reason(
+                primary_issue.get("state_reason")
+            ) != _normalize_state_reason(receipt["issue"]["revision"]["state_reason"]):
+                errors.append(
+                    "primary issue snapshot state_reason does not match receipt revision"
+                )
+
     if receipt["safety"]["input_mode"] == "public_get_snapshot":
         manifests = [
             item for item in receipt["evidence"] if item["kind"] == "acquisition_manifest"
@@ -873,61 +995,15 @@ def validate_readiness_evidence_files(receipt, receipt_path):
                             "acquisition_manifest must contain exactly one primary issue snapshot"
                         )
                     else:
-                        primary_path = (
-                            artifact_root / str(primary_files[0].get("path", ""))
-                        ).resolve()
-                        try:
-                            primary_issue = json.loads(
-                                primary_path.read_text(encoding="utf-8")
+                        if len(primary_evidence) == 1 and (
+                            primary_files[0].get("path") != primary_evidence[0]["path"]
+                            or primary_files[0].get("sha256")
+                            != primary_evidence[0]["sha256"]
+                        ):
+                            errors.append(
+                                "acquisition_manifest primary issue does not match "
+                                "receipt issue_snapshot evidence"
                             )
-                        except (OSError, json.JSONDecodeError) as error:
-                            errors.append(f"invalid primary issue snapshot: {error}")
-                        else:
-                            expected_url = (
-                                "https://github.com/dotnet/aspnetcore/issues/"
-                                f"{receipt['issue']['number']}"
-                            )
-                            if primary_issue.get("number") != receipt["issue"]["number"]:
-                                errors.append(
-                                    "primary issue snapshot number does not match receipt"
-                                )
-                            if primary_issue.get("html_url") != expected_url:
-                                errors.append(
-                                    "primary issue snapshot URL does not match receipt"
-                                )
-                            if (
-                                primary_issue.get("repository_url")
-                                != "https://api.github.com/repos/dotnet/aspnetcore"
-                            ):
-                                errors.append(
-                                    "primary issue snapshot repository is not dotnet/aspnetcore"
-                                )
-                            if "pull_request" in primary_issue:
-                                errors.append(
-                                    "primary issue snapshot is a pull request, not an issue"
-                                )
-                            snapshot_updated_at = primary_issue.get("updated_at")
-                            if not _datetimes_equal(
-                                snapshot_updated_at,
-                                receipt["issue"]["revision"]["updated_at"],
-                            ):
-                                errors.append(
-                                    "primary issue snapshot updated_at does not match receipt revision"
-                                )
-                            if _normalize_state(primary_issue.get("state")) != receipt[
-                                "issue"
-                            ]["revision"]["state"]:
-                                errors.append(
-                                    "primary issue snapshot state does not match receipt revision"
-                                )
-                            if _normalize_state_reason(
-                                primary_issue.get("state_reason")
-                            ) != _normalize_state_reason(
-                                receipt["issue"]["revision"]["state_reason"]
-                            ):
-                                errors.append(
-                                    "primary issue snapshot state_reason does not match receipt revision"
-                                )
 
     resolution_reference = receipt["resolution_reference"]
     if resolution_reference is not None:

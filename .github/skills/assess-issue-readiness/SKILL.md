@@ -175,7 +175,9 @@ python3 .github/skills/assess-issue-readiness/scripts/validate_readiness_receipt
 The validator checks schema, deterministic disposition precedence, evidence files
 and hashes, safety-mode consistency, neutral routing, authorized writable roots,
 runtime command locations, loopback requirements, and contradictions in recorded
-commands. It does not create the external execution boundary.
+commands. Recorded commands must be direct, inspectable invocations; inline shell
+or language evaluator wrappers are rejected rather than recursively interpreted.
+These checks do not create the external execution boundary.
 
 Keep the current disposition names as internal routing outcomes. Some encode
 existing upstream decisions rather than assessor judgments; taxonomy simplification

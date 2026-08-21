@@ -51,6 +51,11 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
         receipt["reason_code"] = reason
         receipt["next_route"] = route
         receipt["checks"][0]["category"] = category
+        if category in {"history", "documentation", "proportionality"}:
+            receipt["evidence"][0]["kind"] = category
+            receipt["checks"][0][
+                "details"
+            ] = f"Captured specific {category} evidence for the selected route."
         receipt["checks"][1]["status"] = "skipped"
         receipt["checks"][1]["command_ids"] = []
         receipt["checks"][1]["evidence_refs"] = []
@@ -261,6 +266,21 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
                 errors = VALIDATOR.validate_readiness_receipt(receipt)
 
                 self.assertTrue(any("git push is not allowed" in error for error in errors))
+
+    def test_inline_shell_wrappers_are_rejected(self):
+        for command in (
+            "sh -c 'gh api -X POST repos/dotnet/aspnetcore/issues/1/comments -f body=x'",
+            "bash -c 'git -C /tmp/repro push origin HEAD'",
+            'cmd.exe /c "gh api -X POST repos/dotnet/aspnetcore/issues/1/comments"',
+            "pwsh -EncodedCommand Z2ggYXBpIC1YIFBPU1Q=",
+        ):
+            with self.subTest(command=command):
+                receipt = copy.deepcopy(self.ready)
+                receipt["commands"][0]["command"] = command
+
+                errors = VALIDATOR.validate_readiness_receipt(receipt)
+
+                self.assertTrue(any("not inspectable" in error for error in errors))
 
     def test_relative_working_directory_is_rejected(self):
         receipt = copy.deepcopy(self.ready)
@@ -559,7 +579,16 @@ class ValidateReadinessReceiptTests(unittest.TestCase):
                 path.mkdir(parents=True, exist_ok=True)
 
             contents = {
-                "issue-snapshot": b"{\"number\": 1}\n",
+                "issue-snapshot": json.dumps(
+                    {
+                        "number": receipt["issue"]["number"],
+                        "html_url": receipt["issue"]["url"],
+                        "repository_url": "https://api.github.com/repos/dotnet/aspnetcore",
+                        "updated_at": receipt["issue"]["revision"]["updated_at"],
+                        "state": receipt["issue"]["revision"]["state"].lower(),
+                        "state_reason": receipt["issue"]["revision"]["state_reason"],
+                    }
+                ).encode("utf-8"),
                 "repro-output": b"reproduced\n",
             }
             for item in receipt["evidence"]:

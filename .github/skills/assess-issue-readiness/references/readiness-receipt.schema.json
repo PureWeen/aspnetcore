@@ -374,7 +374,7 @@
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "kind": {
-          "enum": ["acquisition_manifest", "issue_snapshot", "release_snapshot", "comment_snapshot", "documentation", "history", "source", "repro_source", "command_output", "validator_output"]
+          "enum": ["acquisition_manifest", "issue_snapshot", "release_snapshot", "comment_snapshot", "documentation", "history", "proportionality", "source", "repro_source", "command_output", "validator_output"]
         },
         "path": { "type": "string", "minLength": 1 },
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
