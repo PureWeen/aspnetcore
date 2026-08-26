@@ -46,6 +46,19 @@ Run these commands from any directory:
 ./eng/skill-evals/run.ps1 Run -Eval eng/skill-evals/<skill>/<specialized>.vally.yaml
 ```
 
+## Hosted entry point
+
+`.github/workflows/skill-evals.yml` runs `Validate` automatically when pull
+requests or pushes to `main` change runtime skills, eval assets, or the workflow
+itself. Automatic runs never invoke a model or judge.
+
+Maintainers can also dispatch `Validate`, `Test`, or `Lint` manually. The
+model-bearing `Run` action requires selecting one standard skill, runs through
+the `copilot-pat-pool` environment with one worker, serializes model-bearing
+runs, and retains the raw Vally output as a workflow artifact for seven days.
+The environment must provide `COPILOT_PAT_0` and allow the selected workflow
+ref.
+
 `Validate`, `Lint`, and `Run` use the exact
 `@microsoft/vally-cli@0.13.0` package through `npx` and the Microsoft package
 feed proxy. Pass `-Vally <command> -VallyPrefix <arguments>` only to
@@ -105,5 +118,5 @@ refresh to keep coverage representative and bounded.
 Validation does not judge prompt or rubric quality, run a model, validate
 runtime skill behavior, or decide whether a specialized suite is statistically
 persuasive. Those concerns belong in skill-specific review and runtime
-validation. Hosted execution, result publication, PR automation, and
-cross-repository comparison adapters are deliberate follow-ups.
+validation. Centralized result publication, PR automation, scheduled model
+evals, and cross-repository comparison adapters are deliberate follow-ups.

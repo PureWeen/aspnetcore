@@ -1,0 +1,105 @@
+name: Skill evaluations
+
+on:
+  pull_request:
+    paths:
+      - '.github/skills/**'
+      - 'eng/skill-evals/**'
+      - '.github/workflows/skill-evals.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/skills/**'
+      - 'eng/skill-evals/**'
+      - '.github/workflows/skill-evals.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Operation to run
+        type: choice
+        required: true
+        default: Validate
+        options:
+          - Validate
+          - Test
+          - Lint
+          - Run
+      eval:
+        description: Skill to evaluate when action is Run
+        type: choice
+        required: true
+        default: review-public-api
+        options:
+          - review-public-api
+          - validate-blazor-feature
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.action || 'Validate' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.action != 'Run' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.x
+
+      - name: Run skill eval checks
+        shell: pwsh
+        env:
+          ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || 'Validate' }}
+        run: ./eng/skill-evals/run.ps1 -Action $env:ACTION
+
+  run:
+    name: Run ${{ inputs.eval }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'Run' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: copilot-pat-pool
+    concurrency:
+      group: skill-evals-model-run
+      cancel-in-progress: false
+    env:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT_0 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.x
+
+      - name: Run skill eval
+        shell: pwsh
+        env:
+          EVAL_NAME: ${{ inputs.eval }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:COPILOT_GITHUB_TOKEN)) {
+              throw 'COPILOT_PAT_0 is not configured in the copilot-pat-pool environment.'
+          }
+
+          $parameters = @{
+              Action = 'Run'
+              Eval = "eng/skill-evals/$env:EVAL_NAME/eval.vally.yaml"
+              OutputDirectory = 'artifacts/skill-evals'
+              Arguments = @('--workers', '1')
+          }
+          ./eng/skill-evals/run.ps1 @parameters
+
+      - name: Upload skill eval results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skill-evals-${{ inputs.eval }}-${{ github.run_id }}
+          path: artifacts/skill-evals
+          if-no-files-found: warn
+          retention-days: 7
