@@ -47,7 +47,7 @@ permissions:
 
 jobs:
   validate:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.action || 'Validate' }}
+    name: Skill eval checks
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.action != 'Run' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -96,16 +96,37 @@ jobs:
               throw 'COPILOT_PAT_0 is not configured in the copilot-pat-pool environment.'
           }
 
-          $parameters = @{
-              Action = 'Run'
-              Eval = "eng/skill-evals/$env:EVAL_NAME/eval.vally.yaml"
-              OutputDirectory = 'artifacts/skill-evals'
-              Arguments = @('--workers', '1')
-          }
+          $arguments = @(
+              '-NoProfile'
+              '-File'
+              './eng/skill-evals/run.ps1'
+              'Run'
+              '-Eval'
+              "eng/skill-evals/$env:EVAL_NAME/eval.vally.yaml"
+              '-OutputDirectory'
+              'artifacts/skill-evals'
+          )
           if ($env:RUN_TYPE -eq 'Smoke') {
-              $parameters.Experiment = 'eng/skill-evals/skills-smoke.experiment.yaml'
+              $arguments += @(
+                  '-Experiment'
+                  'eng/skill-evals/skills-smoke.experiment.yaml'
+              )
           }
-          ./eng/skill-evals/run.ps1 @parameters
+          $arguments += @('--workers', '1')
+
+          & pwsh @arguments
+          $vallyExitCode = $LASTEXITCODE
+          if ($vallyExitCode -notin @(0, 1)) {
+              throw "Vally failed with unexpected exit code $vallyExitCode."
+          }
+
+          ./eng/skill-evals/assert_results.ps1 `
+              -OutputDirectory artifacts/skill-evals `
+              -Variant skilled
+
+          if ($vallyExitCode -eq 1) {
+              Write-Warning 'Vally reported a non-passing baseline; the skilled variant passed its quality gate.'
+          }
 
       - name: Upload skill eval results
         if: ${{ always() }}

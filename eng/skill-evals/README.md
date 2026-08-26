@@ -59,7 +59,9 @@ the one-run-per-stimulus smoke experiment. Full runs retain the standard spec's
 trial count. Both modes run through the `copilot-pat-pool` environment with one
 worker, serialize model-bearing runs, and retain the raw Vally output as a
 workflow artifact for seven days. The environment must provide `COPILOT_PAT_0`
-and allow the selected workflow ref.
+and allow the selected workflow ref. The hosted quality gate evaluates the
+`skilled` variant independently: a weak baseline is expected and does not fail
+the workflow, while incomplete trials or a skilled score below its threshold do.
 
 `Validate`, `Lint`, and `Run` use the exact
 `@microsoft/vally-cli@0.13.0` package through `npx` and the Microsoft package

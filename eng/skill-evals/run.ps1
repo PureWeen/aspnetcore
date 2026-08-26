@@ -249,6 +249,7 @@ switch ($Action) {
     'Test' {
         & (Join-Path $PSScriptRoot 'test_validate.ps1')
         & (Join-Path $PSScriptRoot 'test_run.ps1')
+        & (Join-Path $PSScriptRoot 'test_assert_results.ps1')
     }
     'Lint' {
         Invoke-VallyLint
