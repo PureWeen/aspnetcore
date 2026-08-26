@@ -347,7 +347,21 @@ jobs:
           STATE="$(jq -r '.state // ""' <<< "$STATUS")"
           TARGET_URL="$(jq -r '.target_url // ""' <<< "$STATUS")"
           if [[ "$STATE" == 'pending' && "$TARGET_URL" == "$RUN_URL" ]]; then
-            echo 'claimed=true' >> "$GITHUB_OUTPUT"
+            # A preceding serialized model job may have completed while its
+            # separate read-only reporter is still replacing this pending claim.
+            sleep 20
+            STATUS="$(
+              gh api "repos/$REPOSITORY/commits/$HEAD_SHA/status" \
+                --jq '[.statuses[] | select(.context == "skill-evaluations")][0]'
+            )"
+            STATE="$(jq -r '.state // ""' <<< "$STATUS")"
+            TARGET_URL="$(jq -r '.target_url // ""' <<< "$STATUS")"
+            if [[ "$STATE" == 'pending' && "$TARGET_URL" == "$RUN_URL" ]]; then
+              echo 'claimed=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'claimed=false' >> "$GITHUB_OUTPUT"
+              echo "::notice::A completed evaluation replaced this racing claim; skipping the duplicate model run."
+            fi
           else
             echo 'claimed=false' >> "$GITHUB_OUTPUT"
             echo "::notice::A newer or completed evaluation owns $HEAD_SHA; skipping this duplicate model run."
@@ -426,6 +440,7 @@ jobs:
           if ($failedEvals.Count -gt 0) {
               throw "Skill evaluation failed for: $($failedEvals -join ', ')."
           }
+          exit 0
 
       - name: Upload skill eval results
         if: ${{ always() && steps.claim.outputs.claimed == 'true' }}
