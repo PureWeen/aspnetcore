@@ -76,11 +76,14 @@ The gate resolves the full commit, verifies it belongs to the PR, rejects fork
 content, and discovers standard evals affected by the change. A central runner,
 experiment, or workflow change selects every standard eval. The gate posts one
 pending `skill-evaluations` commit status so duplicate requests for the same
-commit do not start another model run. The model job has read-only repository
-permissions, checks out the validated commit, runs affected evals serially, and
-publishes a final commit status and PR comment linking to the retained artifacts.
-Smoke results validate execution and the skilled threshold, but Full runs remain
-the quality-evidence path.
+commit normally stop at the gate. After acquiring the global model lane, the
+worker verifies that its run still owns the pending status before exposing PR
+content to the PAT-backed step; a racing request therefore cannot cause a second
+model run. The model job has read-only repository permissions, checks out the
+validated commit, runs affected evals serially, and publishes a final commit
+status and PR comment linking to the retained artifacts. Smoke results validate
+execution and the skilled threshold, but Full runs remain the quality-evidence
+path.
 
 `workflow_dispatch` remains the first control surface. Supplying both
 `pr_number` and `head_sha` exercises the same exact-SHA PR gate while the
