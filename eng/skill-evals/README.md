@@ -63,6 +63,34 @@ and allow the selected workflow ref. The hosted quality gate evaluates the
 `skilled` variant independently: a weak baseline is expected and does not fail
 the workflow, while incomplete trials or a skilled score below its threshold do.
 
+After the workflow is present on the repository's default branch, maintainers
+with `write`, `maintain`, or `admin` permission can request a smoke evaluation
+for an open, same-repository pull request:
+
+- Recommended: submit a PR review whose body starts with `/evaluate`. GitHub
+  supplies the exact reviewed commit.
+- In the PR conversation, comment `/evaluate <sha>`. A bare `/evaluate` posts
+  guidance because an `issue_comment` event does not identify a commit.
+
+The gate resolves the full commit, verifies it belongs to the PR, rejects fork
+content, and discovers standard evals affected by the change. A central runner,
+experiment, or workflow change selects every standard eval. The gate posts one
+pending `skill-evaluations` commit status so duplicate requests for the same
+commit do not start another model run. The model job has read-only repository
+permissions, checks out the validated commit, runs affected evals serially, and
+publishes a final commit status and PR comment linking to the retained artifacts.
+Smoke results validate execution and the skilled threshold, but Full runs remain
+the quality-evidence path.
+
+`workflow_dispatch` remains the first control surface. Supplying both
+`pr_number` and `head_sha` exercises the same exact-SHA PR gate while the
+selected `eval` acts as a bounded override; omitting them preserves the original
+one-skill manual run. Comment and review events always load workflow YAML from
+the default branch. The secret-bearing job still executes eval and skill content
+from the validated PR commit, so same-repository write access is an explicit
+trust boundary. Use required reviewers on `copilot-pat-pool` if repository write
+access alone should not authorize that execution.
+
 `Validate`, `Lint`, and `Run` use the exact
 `@microsoft/vally-cli@0.13.0` package through `npx` and the Microsoft package
 feed proxy. Pass `-Vally <command> -VallyPrefix <arguments>` only to
@@ -122,5 +150,5 @@ refresh to keep coverage representative and bounded.
 Validation does not judge prompt or rubric quality, run a model, validate
 runtime skill behavior, or decide whether a specialized suite is statistically
 persuasive. Those concerns belong in skill-specific review and runtime
-validation. Centralized result publication, PR automation, scheduled model
-evals, and cross-repository comparison adapters are deliberate follow-ups.
+validation. Scheduled model evals and cross-repository comparison adapters are
+deliberate follow-ups.
