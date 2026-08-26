@@ -33,6 +33,14 @@ on:
         options:
           - review-public-api
           - validate-blazor-feature
+      run_type:
+        description: Trial count to use when action is Run
+        type: choice
+        required: true
+        default: Smoke
+        options:
+          - Smoke
+          - Full
 
 permissions:
   contents: read
@@ -82,6 +90,7 @@ jobs:
         shell: pwsh
         env:
           EVAL_NAME: ${{ inputs.eval }}
+          RUN_TYPE: ${{ inputs.run_type }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:COPILOT_GITHUB_TOKEN)) {
               throw 'COPILOT_PAT_0 is not configured in the copilot-pat-pool environment.'
@@ -93,13 +102,16 @@ jobs:
               OutputDirectory = 'artifacts/skill-evals'
               Arguments = @('--workers', '1')
           }
+          if ($env:RUN_TYPE -eq 'Smoke') {
+              $parameters.Experiment = 'eng/skill-evals/skills-smoke.experiment.yaml'
+          }
           ./eng/skill-evals/run.ps1 @parameters
 
       - name: Upload skill eval results
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: skill-evals-${{ inputs.eval }}-${{ github.run_id }}
+          name: skill-evals-${{ inputs.eval }}-${{ inputs.run_type }}-${{ github.run_id }}
           path: artifacts/skill-evals
           if-no-files-found: warn
           retention-days: 7

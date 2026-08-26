@@ -43,6 +43,7 @@ Run these commands from any directory:
 # Model-bearing operations are explicit and are not part of validation
 ./eng/skill-evals/run.ps1 Run
 ./eng/skill-evals/run.ps1 Run -Eval eng/skill-evals/review-public-api/eval.vally.yaml
+./eng/skill-evals/run.ps1 Run -Eval eng/skill-evals/review-public-api/eval.vally.yaml -Experiment eng/skill-evals/skills-smoke.experiment.yaml
 ./eng/skill-evals/run.ps1 Run -Eval eng/skill-evals/<skill>/<specialized>.vally.yaml
 ```
 
@@ -53,11 +54,12 @@ requests or pushes to `main` change runtime skills, eval assets, or the workflow
 itself. Automatic runs never invoke a model or judge.
 
 Maintainers can also dispatch `Validate`, `Test`, or `Lint` manually. The
-model-bearing `Run` action requires selecting one standard skill, runs through
-the `copilot-pat-pool` environment with one worker, serializes model-bearing
-runs, and retains the raw Vally output as a workflow artifact for seven days.
-The environment must provide `COPILOT_PAT_0` and allow the selected workflow
-ref.
+model-bearing `Run` action requires selecting one standard skill and defaults to
+the one-run-per-stimulus smoke experiment. Full runs retain the standard spec's
+trial count. Both modes run through the `copilot-pat-pool` environment with one
+worker, serialize model-bearing runs, and retain the raw Vally output as a
+workflow artifact for seven days. The environment must provide `COPILOT_PAT_0`
+and allow the selected workflow ref.
 
 `Validate`, `Lint`, and `Run` use the exact
 `@microsoft/vally-cli@0.13.0` package through `npx` and the Microsoft package
