@@ -58,7 +58,7 @@ concurrency:
   # pull request conversation comment, `pull_request.number` for a review comment. Without a
   # per-pull-request term every review would share one repository-wide group and queued runs
   # would replace each other.
-  group: aspnetcore-pr-review-${{ github.repository }}-${{ github.event.issue.number || github.event.pull_request.number }}
+  group: pull-request-review-${{ github.repository }}-${{ github.event.issue.number || github.event.pull_request.number }}
   # Never cancel a review that is already running: a maintainer asked for it, and killing the
   # agent mid-run wastes the credits already spent and leaves no result.
   cancel-in-progress: false
