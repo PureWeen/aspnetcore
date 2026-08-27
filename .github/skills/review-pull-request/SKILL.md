@@ -32,15 +32,24 @@ evidence base.
 
 Never, in any mode:
 
-- post, approve, request changes on, dismiss, resolve, react to, or reply to a review or comment;
-- create, edit, hide, or delete any comment, issue, label, or pull request field;
+- approve a pull request, request changes on it, merge it, or dismiss, resolve, react to, or reply
+  to an existing review or comment;
+- publish anything yourself — you have no write path of your own, and must not seek one;
+- create, edit, hide, or delete any issue, label, or pull request field;
 - edit, create, or delete any file in the working tree;
 - commit, push, force-push, rebase, or create a branch;
 - check out, build, run, test, or otherwise **execute the pull request's code**, its tests, or its
   scripts, or write tests for it;
 - call any GitHub API that mutates state.
 
-Your caller decides what, if anything, is published. Producing analysis is the whole job.
+Producing the analysis is the whole job; the caller decides what, if anything, reaches GitHub.
+
+Running locally, that means you return the result and publish nothing at all. A hosted caller may
+hand you capped, publication-specific tools — for example a review-comment tool restricted to
+`COMMENT`. Emitting a finding through a tool the caller explicitly provided is that caller
+exercising its own contract, and is the one exception to the rule above. It never licenses anything
+wider: not approving, not requesting changes, not mutating issues or labels, and not any GitHub API
+the caller did not hand you.
 
 ## Step 1 — Freeze the evidence
 
@@ -91,7 +100,14 @@ this change and only dilute the review.
 | **every change** | `cross-cutting-reviewer.md` — always |
 
 `cross-cutting-reviewer.md` always applies, and is the primary reference for any area without a
-dedicated one. `src/Http` and `src/Servers` are shared: a change there can match two references.
+dedicated one.
+
+Some paths appear in two rows. `src/Http` covers both the HTTP stack and minimal APIs; `src/Servers`
+covers managed servers and, under `src/Servers/IIS`, native interop. **A shared path is one domain,
+not two.** Pick the single owner the change actually touches — `minimal-api-openapi` only when
+endpoint, routing, or OpenAPI generation code changed, `native-interop` only when the IIS native or
+installer code changed — and otherwise route to the broader owner. Counting a shared path twice
+would burn the whole budget before any second domain is considered.
 
 **Cap the fan-out at cross-cutting plus at most two domain references.** If more than two domains
 are materially changed, pick the two owning the highest-risk production changes and **state the
