@@ -11,7 +11,9 @@
 # Usage: bash .github/evals/check-type-rubric.sh
 # Exit 0 = pass, exit 1 = fail (with diagnostics).
 
-set -euo pipefail
+set -uo pipefail
+# Note: -e is intentionally omitted so that all six checks always run and
+# report, even when grep finds no match (exit 1) on the pre-fix base.
 
 WORKFLOW=".github/workflows/issue-triage-agent.md"
 failures=0
@@ -20,24 +22,26 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 pass() { echo "PASS: $1"; }
 
 # ---------------------------------------------------------------------------
-# Helper: extract the Step 2 type rubric section (between "## Step 2" and
-# the next "## Step") and collect the type names from table rows.
+# Extraction helpers — every grep/pipeline that may legitimately produce no
+# output is guarded with "|| true" so a missing element is reported as a
+# check failure, not a silent script abort.
 # ---------------------------------------------------------------------------
-step2_section=$(sed -n '/^## Step 2: Type Classification$/,/^## Step [0-9]/p' "$WORKFLOW" | sed '$d')
+step2_section=$(sed -n '/^## Step 2: Type Classification$/,/^## Step [0-9]/p' "$WORKFLOW" | sed '$d' || true)
 
 extract_rubric_types() {
-  echo "$step2_section" | grep -oE '\| `[A-Za-z]+`' | sed 's/| `//;s/`//' | sort -u
+  echo "$step2_section" | grep -oE '\| `[A-Za-z]+`' | sed 's/| `//;s/`//' | sort -u || true
 }
 
 # ---------------------------------------------------------------------------
 # 1. Safe-output allow-list types (from set-issue-type.allowed)
 # ---------------------------------------------------------------------------
-allowlist_line=$(grep -A1 'set-issue-type:' "$WORKFLOW" | grep 'allowed:')
+allowlist_line=$(grep -A1 'set-issue-type:' "$WORKFLOW" | grep 'allowed:' || true)
+allowlist_types=""
 if [ -z "$allowlist_line" ]; then
   fail "Cannot find set-issue-type allowed list"
 else
-  allowlist_types=$(echo "$allowlist_line" | grep -oE '"[A-Za-z]+"' | tr -d '"' | sort -u)
-  pass "Found safe-output allow-list: $allowlist_types"
+  allowlist_types=$(echo "$allowlist_line" | grep -oE '"[A-Za-z]+"' | tr -d '"' | sort -u || true)
+  pass "Found safe-output allow-list: $(echo "$allowlist_types" | tr '\n' ' ')"
 fi
 
 # ---------------------------------------------------------------------------
@@ -58,7 +62,9 @@ fi
 # ---------------------------------------------------------------------------
 # 3. Allow-list and rubric must agree (set equality)
 # ---------------------------------------------------------------------------
-if [ "$allowlist_types" = "$rubric_types" ]; then
+if [ -z "$allowlist_types" ]; then
+  fail "Allow-list/rubric comparison skipped (allow-list not found)"
+elif [ "$allowlist_types" = "$rubric_types" ]; then
   pass "Allow-list and rubric agree on types"
 else
   fail "Allow-list and rubric disagree. Allow-list: $(echo "$allowlist_types" | tr '\n' ' ') Rubric: $(echo "$rubric_types" | tr '\n' ' ')"
@@ -68,13 +74,13 @@ fi
 # 4. Report template **Type:** line must list all four types
 #    Scoped to the Step 6 section (between "## Step 6" and "## Step 7")
 # ---------------------------------------------------------------------------
-step6_section=$(sed -n '/^## Step 6: Draft the Triage Comment$/,/^## Step [0-9]/p' "$WORKFLOW" | sed '$d')
-template_type_line=$(echo "$step6_section" | grep '^\*\*Type:\*\*')
+step6_section=$(sed -n '/^## Step 6: Draft the Triage Comment$/,/^## Step [0-9]/p' "$WORKFLOW" | sed '$d' || true)
+template_type_line=$(echo "$step6_section" | grep '^\*\*Type:\*\*' || true)
 
 if [ -z "$template_type_line" ]; then
   fail "Cannot find **Type:** line in Step 6 report template"
 else
-  template_types=$(echo "$template_type_line" | grep -oE '`[A-Za-z]+`' | tr -d '`' | sort -u)
+  template_types=$(echo "$template_type_line" | grep -oE '`[A-Za-z]+`' | tr -d '`' | sort -u || true)
   if [ "$template_types" = "$expected_types" ]; then
     pass "Report template **Type:** line lists all four types"
   else
@@ -85,8 +91,10 @@ fi
 # ---------------------------------------------------------------------------
 # 5. Task row in Step 2 rubric must mention docs sub-type
 # ---------------------------------------------------------------------------
-task_row=$(echo "$step2_section" | grep '| `Task`')
-if echo "$task_row" | grep -q 'docs'; then
+task_row=$(echo "$step2_section" | grep '| `Task`' || true)
+if [ -z "$task_row" ]; then
+  fail "Task rubric row not found in Step 2"
+elif echo "$task_row" | grep -q 'docs'; then
   pass "Task rubric row references docs sub-type"
 else
   fail "Task rubric row does not reference docs sub-type"
@@ -95,8 +103,10 @@ fi
 # ---------------------------------------------------------------------------
 # 6. Bug row in Step 2 rubric must include broken-behavior guardrail
 # ---------------------------------------------------------------------------
-bug_row=$(echo "$step2_section" | grep '| `Bug`')
-if echo "$bug_row" | grep -q 'broken.*behavior.*Bug\|current behavior is broken\|broken shipped behavior.*Bug'; then
+bug_row=$(echo "$step2_section" | grep '| `Bug`' || true)
+if [ -z "$bug_row" ]; then
+  fail "Bug rubric row not found in Step 2"
+elif echo "$bug_row" | grep -q 'broken.*behavior.*Bug\|current behavior is broken\|broken shipped behavior.*Bug'; then
   pass "Bug rubric row includes broken-behavior guardrail"
 else
   fail "Bug rubric row lacks broken-behavior guardrail distinguishing Bug from Task"
