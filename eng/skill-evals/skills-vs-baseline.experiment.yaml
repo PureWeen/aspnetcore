@@ -1,4 +1,4 @@
-name: skills-vs-baseline
+name: CANDIDATE_CENTRAL_EXPERIMENT_CANARY
 
 # Controlled A/B for every skill that ships a Vally eval: the same stimuli run with
 # no skill (baseline) and with that skill loaded (skilled). Only /environment/skills

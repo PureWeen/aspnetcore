@@ -26,6 +26,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3
+throw 'CANDIDATE_RUNNER_CANARY_EXECUTED'
 
 $repoRoot = if ($Root) {
     (Resolve-Path $Root).Path

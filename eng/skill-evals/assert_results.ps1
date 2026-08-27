@@ -9,6 +9,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3
+throw 'CANDIDATE_ASSERTION_CANARY_EXECUTED'
 
 $resolvedOutput = (Resolve-Path $OutputDirectory).Path
 $runDirectories = @(Get-ChildItem $resolvedOutput -Directory)

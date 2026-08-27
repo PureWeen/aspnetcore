@@ -1,4 +1,4 @@
-name: skills-smoke
+name: CANDIDATE_SMOKE_EXPERIMENT_CANARY
 
 # Infrastructure smoke test only. One trial per stimulus is not enough to draw a
 # quality conclusion; use skills-vs-baseline.experiment.yaml for full runs.

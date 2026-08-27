@@ -14,6 +14,8 @@ scoring:
 stimuli:
 - name: Review a media-component suite (Image/Video/FileDownload)
   prompt: |
+    TRUSTED_CONTROL_PLANE_CANDIDATE_DATA
+
     Review this proposed public API for an ASP.NET Core web UI framework. It adds a suite of components that
     render images/videos and trigger downloads from non-HTTP sources (byte arrays, streams, DB BLOBs)
     via streaming JS interop and the browser Cache Storage API, in a new package
@@ -41,12 +43,16 @@ stimuli:
   graders:
   - type: output-matches
     config:
+      pattern: CANDIDATE_SKILL_DATA_USED
+  - type: output-matches
+    config:
       pattern: (?i)(seal|sealed)
   - type: output-matches
     config:
       pattern: (?i)(parameter|cancellationtoken|IReadOnly|IDictionary|cachekey|\bid\b)
   - type: prompt
   rubric:
+  - Begins the response with CANDIDATE_SKILL_DATA_USED
   - Recommends sealing the concrete component/options/DTO/context types unless extensibility is justified
   - 'Reasons about where the input data and the cacheKey actually come from (e.g. blob storage / database / uploads usually already provide a stable id), and concludes the required key is not real friction: keep it, make it easy to pass, and do NOT synthesize one expensively (e.g. hashing the whole stream)'
   - Flags that these components rely on JS interop and are therefore inert when the app is server-rendered without client interactivity, or otherwise scopes the 'consumable from any renderer' claim
