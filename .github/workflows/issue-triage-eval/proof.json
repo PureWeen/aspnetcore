@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "repository": "PureWeen/aspnetcore",
+  "workflow": "issue-triage-agent-eval-trial",
+  "safe_outputs_staged": true,
+  "persistence_tested": false,
+  "runs": [
+    {
+      "run_id": 32997176133,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/32997176133",
+      "case_id": "67979-missing-data",
+      "phase": "red",
+      "workflow_conclusion": "failure",
+      "score": {
+        "passed": 6,
+        "total": 7
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": false,
+        "safe_outputs": "partial_failure"
+      },
+      "finding": "set_issue_type omitted issue_number on workflow_dispatch"
+    },
+    {
+      "run_id": 32997976178,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/32997976178",
+      "case_id": "67979-missing-data",
+      "phase": "green",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 7,
+        "total": 7
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "historical missing-data abstention no longer reproduces; explicit targets process successfully"
+    },
+    {
+      "run_id": 32998957004,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/32998957004",
+      "case_id": "67614-startup-failure",
+      "phase": "red",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 6,
+        "total": 7
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "classified Identity template markup as area-blazor instead of area-identity"
+    },
+    {
+      "run_id": 32999826061,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/32999826061",
+      "case_id": "67614-startup-failure",
+      "phase": "green",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 7,
+        "total": 7
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "Identity scaffolding boundary correctly selects area-identity"
+    },
+    {
+      "run_id": 33000529103,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33000529103",
+      "case_id": "67766-safety-blocked",
+      "phase": "control",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 7,
+        "total": 7
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "historical safety-blocked classification now completes in staged mode"
+    },
+    {
+      "run_id": 33001117587,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33001117587",
+      "case_id": "68331-clean-control",
+      "phase": "red",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 7,
+        "total": 8
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "reapplied already-correct labels/type and commented instead of abstaining"
+    },
+    {
+      "run_id": 33001821028,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33001821028",
+      "case_id": "68331-clean-control",
+      "phase": "green",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 8,
+        "total": 8
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 1,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "already-correct issue now emits only noop"
+    },
+    {
+      "run_id": 33002514313,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33002514313",
+      "case_id": "65910-type-subtype",
+      "phase": "red",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 8,
+        "total": 9
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 4,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "docs-only update classified as Feature because the type rubric omitted Task and Epic"
+    },
+    {
+      "run_id": 33003270820,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33003270820",
+      "case_id": "65910-type-subtype",
+      "phase": "green",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 9,
+        "total": 9
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 4,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "docs-only update now selects Task and preserves subtype/removal behavior"
+    },
+    {
+      "run_id": 33028797465,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33028797465",
+      "case_id": "67614-startup-failure",
+      "phase": "red",
+      "workflow_conclusion": "failure",
+      "score": null,
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": false,
+        "safe_outputs": "partial_failure"
+      },
+      "finding": "set_issue_type omitted issue_number despite prompt guidance"
+    },
+    {
+      "run_id": 33035039408,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33035039408",
+      "case_id": "67614-startup-failure",
+      "phase": "green",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 7,
+        "total": 7
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "target wildcard configuration and explicit issue_number process successfully"
+    },
+    {
+      "run_id": 33035380053,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33035380053",
+      "case_id": "67614-startup-failure",
+      "phase": "green-repeat",
+      "workflow_conclusion": "success",
+      "score": {
+        "passed": 7,
+        "total": 7
+      },
+      "operational": {
+        "activation": "success",
+        "agent": "success",
+        "content_source": "frozen snapshot",
+        "requested_safe_outputs": 3,
+        "output_contract_valid": true,
+        "safe_outputs": "success"
+      },
+      "finding": "explicit target contract remains valid on repeat"
+    }
+  ],
+  "limitations": [
+    "All proof runs used staged safe outputs, so no issue state was mutated.",
+    "Persistence was not tested.",
+    "The challenge set is a bounded sample and is not a population estimate for all 48 maintainer-triaged issues.",
+    "Repeated final-workflow results and observed variance are recorded separately in repeat-proof.json."
+  ]
+}
