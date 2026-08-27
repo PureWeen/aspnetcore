@@ -285,6 +285,10 @@ Authentication, Authorization, OAuth, OIDC, Bearer tokens, cookie auth, JWT.
 ASP.NET Core Identity, user/role management, identity providers, scaffolding.
 **Code:** `src/Identity/` (Core, UI, Extensions.Core, Extensions.Stores, EntityFrameworkCore)
 **Namespaces:** `Microsoft.AspNetCore.Identity.*`, `Microsoft.Extensions.Identity.Core.*`, `Microsoft.Extensions.Identity.Stores.*`
+**Boundary:** Identity UI scaffolding and Identity template markup belong here,
+including `.razor` files under generated or project-template `Components/Account`
+pages. Use `area-blazor` only when the defect is in Blazor component/runtime
+behavior rather than the Identity template that consumes it.
 **Packages:** `Microsoft.AspNetCore.Identity`, `Microsoft.AspNetCore.Identity.UI`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.Extensions.Identity.Core`, `Microsoft.Extensions.Identity.Stores`
 **Key types:** `UserManager<TUser>`, `SignInManager<TUser>`, `RoleManager<TRole>`, `IdentityOptions`, `IdentityResult`, `IdentityError`, `IdentityUser`, `IdentityRole`, `IUserStore<T>`, `IRoleStore<T>`, `IPasswordHasher<T>`, `IUserClaimsPrincipalFactory<T>`, `ExternalLoginInfo`, `IEmailSender`, `SecurityStampValidator`, `IPasskeyHandler<T>`
 **Config:** `AddIdentity<TUser,TRole>()`, `AddDefaultIdentity<TUser>()`, `MapIdentityApi<TUser>()`
@@ -355,11 +359,17 @@ Host builder, WebApplication, startup, server configuration.
 
 #### `area-commandlinetools`
 CLI tools: dotnet-dev-certs, dotnet-user-jwts, dotnet-user-secrets, OpenAPI tooling.
-**Code:** `src/Tools/` (dotnet-dev-certs, dotnet-user-secrets, dotnet-user-jwts, dotnet-sql-cache, Extensions.ApiDescription.Server/Client), `src/OpenApi/Microsoft.dotnet-openapi/`, `src/ProjectTemplates/`, `src/Installers/`
+**Code:** `src/Tools/` (dotnet-dev-certs, dotnet-user-secrets, dotnet-user-jwts, dotnet-sql-cache, Extensions.ApiDescription.Server/Client), `src/OpenApi/Microsoft.dotnet-openapi/`, `src/ProjectTemplates/` (template infrastructure), `src/Installers/`
 **Namespaces:** `Microsoft.Extensions.SecretManager.*`, `Microsoft.AspNetCore.DeveloperCertificates.*`, `Microsoft.AspNetCore.Authentication.JwtBearer.Tools.*`
 **Packages:** `Microsoft.AspNetCore.DeveloperCertificates.XPlat`, `Microsoft.dotnet-openapi`, `Microsoft.Extensions.ApiDescription.Client`, `Microsoft.Extensions.ApiDescription.Server`
 **Key types:** `SecretsStore`, `JwtStore`, `UserSecretsIdAttribute`
 **Concepts:** `dotnet dev-certs https --trust`, `dotnet user-secrets`, `dotnet user-jwts`, `dotnet sql-cache`, `dotnet-openapi`, `secrets.json`, HTTPS dev certificate, user secrets ID
+**Boundary:** Use this area for template engine, packaging, installation, and
+scaffolding infrastructure. For content or assets emitted by a web template,
+choose the product area that owns the generated output. Shared layouts, CSS,
+JavaScript, and UI libraries used across Razor Pages, MVC, and Blazor templates
+belong to `area-ui-rendering`; Blazor-specific template behavior belongs to
+`area-blazor`.
 
 #### `area-grpc`
 gRPC wire-up, JSON transcoding, gRPC Swagger (main library is grpc/grpc-dotnet).
@@ -390,7 +400,7 @@ Security hardening, antiforgery, cookie policy, CSRF/XSRF protection.
 
 #### `area-ui-rendering`
 MVC Views, Razor Pages (rendering/templates), TagHelpers, view compilation.
-**Code:** `src/Razor/`, `src/Components/Forms/`, `src/Components/QuickGrid/`, `src/Components/CustomElements/`
+**Code:** `src/Razor/`, shared UI content/assets under `src/ProjectTemplates/Web.ProjectTemplates/`, `src/Components/Forms/`, `src/Components/QuickGrid/`, `src/Components/CustomElements/`
 **Namespaces:** `Microsoft.AspNetCore.Razor.*`, `Microsoft.AspNetCore.Html.*`
 **Packages:** `Microsoft.AspNetCore.Razor`, `Microsoft.AspNetCore.Razor.Runtime`, `Microsoft.AspNetCore.Html.Abstractions`
 **Key types:** `ViewResult`, `PartialViewResult`, `IHtmlHelper`, `ViewDataDictionary`, `TempDataDictionary`, `ViewComponent`, `ViewComponentResult`, `RazorPagesOptions`, `AnchorTagHelper`, `FormTagHelper`, `InputTagHelper`, `CacheTagHelper`, `EnvironmentTagHelper`, `ImageTagHelper`, `GlobbingUrlBuilder`
@@ -422,7 +432,8 @@ When multiple areas could match, use these priorities:
 - **`MapGet`/`MapPost`, `Results.*`, endpoint filters** → `area-minimal`
 - **`[ApiController]`, `Controller`, action filters** → `area-mvc`
 - **`[Authorize]`, authentication schemes, JWT, OAuth** → `area-auth`
-- **`UserManager`, `SignInManager`, Identity scaffolding** → `area-identity`
+- **`UserManager`, `SignInManager`, Identity scaffolding/template markup** → `area-identity` (even when the template is implemented with `.razor` components)
+- **Shared web-template layouts, Bootstrap/CSS/JS, and rendered UI assets** → `area-ui-rendering`, NOT `area-commandlinetools`
 - **`UseCors()`, `UseStaticFiles()`, `UseSession()`, response caching** → `area-middleware`
 - **Route templates, constraints, `LinkGenerator`** → `area-routing`
 - **`IDataProtector`, key management, protect/unprotect** → `area-dataprotection`
