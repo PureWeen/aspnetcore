@@ -1,0 +1,1295 @@
+{
+  "schema_version": 1,
+  "repository": "PureWeen/aspnetcore",
+  "workflow_prefix": "issue-triage-final-",
+  "safe_outputs_staged": true,
+  "persistence_tested": false,
+  "summary": {
+    "expected_cases": 11,
+    "observed_cases": 11,
+    "total_runs": 25,
+    "passing_runs": 24,
+    "output_contract_valid_runs": 25,
+    "stable_scored_cases": 9,
+    "stable_full_output_cases": 7,
+    "complete_cases": 11
+  },
+  "cases": [
+    {
+      "case_id": "65910-type-subtype",
+      "historical_outcome": "success-with-no-visible-output",
+      "run_count": 3,
+      "passing_runs": 3,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 3,
+      "stable_scored_decision": true,
+      "stable_full_decision": true,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Task",
+          "subtypes": [
+            "docs"
+          ],
+          "removed_labels": [
+            "needs-area-label"
+          ],
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Task",
+          "subtypes": [
+            "docs"
+          ],
+          "removed_labels": [
+            "needs-area-label"
+          ],
+          "abstained": false,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33019702300,
+        33020042807,
+        33034678924
+      ]
+    },
+    {
+      "case_id": "67154-usable-control",
+      "historical_outcome": "usable-classification",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": true,
+      "stable_full_decision": true,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-mvc"
+          ],
+          "issue_type": "Feature",
+          "subtypes": [
+            "api-proposal"
+          ],
+          "removed_labels": null,
+          "abstained": true,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-mvc"
+          ],
+          "issue_type": "Feature",
+          "subtypes": [
+            "api-proposal"
+          ],
+          "removed_labels": [],
+          "abstained": true,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33020357718,
+        33020703845
+      ]
+    },
+    {
+      "case_id": "67614-startup-failure",
+      "historical_outcome": "startup-failure",
+      "run_count": 3,
+      "passing_runs": 3,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 3,
+      "stable_scored_decision": true,
+      "stable_full_decision": true,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-identity"
+          ],
+          "issue_type": "Bug",
+          "subtypes": null,
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-identity"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33024804356,
+        33035039408,
+        33035380053
+      ]
+    },
+    {
+      "case_id": "67666-failure-multi-area",
+      "historical_outcome": "failure",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": true,
+      "stable_full_decision": true,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-ui-rendering"
+          ],
+          "issue_type": "Bug",
+          "subtypes": null,
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-ui-rendering"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33019233637,
+        33029095032
+      ]
+    },
+    {
+      "case_id": "67766-safety-blocked",
+      "historical_outcome": "safety-blocked",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": true,
+      "stable_full_decision": false,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": null,
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": [
+            64359
+          ]
+        },
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": [
+            64543
+          ]
+        }
+      ],
+      "run_ids": [
+        33029460695,
+        33029798716
+      ]
+    },
+    {
+      "case_id": "67979-missing-data",
+      "historical_outcome": "missing-data-abstention",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": true,
+      "stable_full_decision": false,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": null,
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": [
+            46549
+          ]
+        },
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33030155521,
+        33030486639
+      ]
+    },
+    {
+      "case_id": "68331-clean-control",
+      "historical_outcome": "already-classified-control",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": true,
+      "stable_full_decision": true,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-minimal"
+          ],
+          "issue_type": "Feature",
+          "subtypes": [
+            "api-proposal"
+          ],
+          "removed_labels": null,
+          "abstained": true,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-minimal"
+          ],
+          "issue_type": "Feature",
+          "subtypes": [
+            "api-proposal"
+          ],
+          "removed_labels": [],
+          "abstained": true,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33030872507,
+        33031188641
+      ]
+    },
+    {
+      "case_id": "68549-failure-multi-area",
+      "historical_outcome": "failure",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": false,
+      "stable_full_decision": false,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-auth"
+          ],
+          "issue_type": "Bug",
+          "subtypes": null,
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        },
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": null,
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-auth"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": [
+            66978
+          ]
+        },
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": [
+            66978
+          ]
+        }
+      ],
+      "run_ids": [
+        33031820895,
+        33032193332
+      ]
+    },
+    {
+      "case_id": "68678-partial-persistence",
+      "historical_outcome": "partial-safe-output-materialization",
+      "run_count": 3,
+      "passing_runs": 2,
+      "pass_rate": 0.6666666666666666,
+      "average_score_ratio": 0.9523809523809524,
+      "output_contract_valid_runs": 3,
+      "stable_scored_decision": false,
+      "stable_full_decision": false,
+      "distinct_scored_decisions": [
+        {
+          "areas": null,
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        },
+        {
+          "areas": null,
+          "issue_type": "Bug",
+          "subtypes": [
+            "external"
+          ],
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        },
+        {
+          "areas": [],
+          "issue_type": "Bug",
+          "subtypes": [
+            "external"
+          ],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        },
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [
+            "external"
+          ],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33032664945,
+        33033019921,
+        33035709061
+      ]
+    },
+    {
+      "case_id": "68724-automation-no-run",
+      "historical_outcome": "no-run-github-token-created",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": true,
+      "stable_full_decision": true,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": null,
+          "subtypes": [
+            "test-failure"
+          ],
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Bug",
+          "subtypes": [
+            "test-failure"
+          ],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33033375406,
+        33033674816
+      ]
+    },
+    {
+      "case_id": "68801-current-control",
+      "historical_outcome": "usable-classification",
+      "run_count": 2,
+      "passing_runs": 2,
+      "pass_rate": 1,
+      "average_score_ratio": 1,
+      "output_contract_valid_runs": 2,
+      "stable_scored_decision": true,
+      "stable_full_decision": true,
+      "distinct_scored_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Task",
+          "subtypes": null,
+          "removed_labels": null,
+          "abstained": false,
+          "duplicate_citations": null
+        }
+      ],
+      "distinct_full_decisions": [
+        {
+          "areas": [
+            "area-blazor"
+          ],
+          "issue_type": "Task",
+          "subtypes": [],
+          "removed_labels": [],
+          "abstained": false,
+          "duplicate_citations": []
+        }
+      ],
+      "run_ids": [
+        33033993808,
+        33034339839
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "run_id": 33019233637,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33019233637",
+      "timestamp": "2026-08-26T17:25:07.237847-05:00",
+      "case_id": "67666-failure-multi-area",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-ui-rendering"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67666-failure-multi-area-PureWeen-aspnetcore.20260826-171818-786000.json"
+    },
+    {
+      "run_id": 33019702300,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33019702300",
+      "timestamp": "2026-08-26T17:31:43.276369-05:00",
+      "case_id": "65910-type-subtype",
+      "workflow_success": true,
+      "score": {
+        "passed": 9,
+        "total": 9,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 4,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Task",
+        "subtypes": [
+          "docs"
+        ],
+        "removed_labels": [
+          "needs-area-label"
+        ],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-65910-type-subtype-PureWeen-aspnetcore.20260826-172548-570000.json"
+    },
+    {
+      "run_id": 33020042807,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33020042807",
+      "timestamp": "2026-08-26T17:37:13.974394-05:00",
+      "case_id": "65910-type-subtype",
+      "workflow_success": true,
+      "score": {
+        "passed": 9,
+        "total": 9,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 4,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Task",
+        "subtypes": [
+          "docs"
+        ],
+        "removed_labels": [
+          "needs-area-label"
+        ],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-65910-type-subtype-PureWeen-aspnetcore.20260826-173201-167000.json"
+    },
+    {
+      "run_id": 33020357718,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33020357718",
+      "timestamp": "2026-08-26T17:44:18.285241-05:00",
+      "case_id": "67154-usable-control",
+      "workflow_success": true,
+      "score": {
+        "passed": 8,
+        "total": 8,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 1,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-mvc"
+        ],
+        "issue_type": "Feature",
+        "subtypes": [
+          "api-proposal"
+        ],
+        "removed_labels": [],
+        "abstained": true,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67154-usable-control-PureWeen-aspnetcore.20260826-173846-946000.json"
+    },
+    {
+      "run_id": 33020703845,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33020703845",
+      "timestamp": "2026-08-26T17:50:22.839381-05:00",
+      "case_id": "67154-usable-control",
+      "workflow_success": true,
+      "score": {
+        "passed": 8,
+        "total": 8,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 1,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-mvc"
+        ],
+        "issue_type": "Feature",
+        "subtypes": [
+          "api-proposal"
+        ],
+        "removed_labels": [],
+        "abstained": true,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67154-usable-control-PureWeen-aspnetcore.20260826-174441-999000.json"
+    },
+    {
+      "run_id": 33024804356,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33024804356",
+      "timestamp": "2026-08-26T18:57:19.437688-05:00",
+      "case_id": "67614-startup-failure",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-identity"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67614-startup-failure-PureWeen-aspnetcore.20260826-185119-26000.json"
+    },
+    {
+      "run_id": 33029095032,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33029095032",
+      "timestamp": "2026-08-26T20:13:34.366517-05:00",
+      "case_id": "67666-failure-multi-area",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-ui-rendering"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67666-failure-multi-area-PureWeen-aspnetcore.20260826-200716-143000.json"
+    },
+    {
+      "run_id": 33029460695,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33029460695",
+      "timestamp": "2026-08-26T20:19:52.393123-05:00",
+      "case_id": "67766-safety-blocked",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": [
+          64359
+        ]
+      },
+      "source_file": "issue-triage-final-67766-safety-blocked-PureWeen-aspnetcore.20260826-201352-991000.json"
+    },
+    {
+      "run_id": 33029798716,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33029798716",
+      "timestamp": "2026-08-26T20:25:54.703852-05:00",
+      "case_id": "67766-safety-blocked",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": [
+          64543
+        ]
+      },
+      "source_file": "issue-triage-final-67766-safety-blocked-PureWeen-aspnetcore.20260826-202012-894000.json"
+    },
+    {
+      "run_id": 33030155521,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33030155521",
+      "timestamp": "2026-08-26T20:32:59.367714-05:00",
+      "case_id": "67979-missing-data",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": [
+          46549
+        ]
+      },
+      "source_file": "issue-triage-final-67979-missing-data-PureWeen-aspnetcore.20260826-202710-671000.json"
+    },
+    {
+      "run_id": 33030486639,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33030486639",
+      "timestamp": "2026-08-26T20:38:48.20196-05:00",
+      "case_id": "67979-missing-data",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67979-missing-data-PureWeen-aspnetcore.20260826-203318-773000.json"
+    },
+    {
+      "run_id": 33030872507,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33030872507",
+      "timestamp": "2026-08-26T20:46:05.789608-05:00",
+      "case_id": "68331-clean-control",
+      "workflow_success": true,
+      "score": {
+        "passed": 8,
+        "total": 8,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 1,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-minimal"
+        ],
+        "issue_type": "Feature",
+        "subtypes": [
+          "api-proposal"
+        ],
+        "removed_labels": [],
+        "abstained": true,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68331-clean-control-PureWeen-aspnetcore.20260826-204021-218000.json"
+    },
+    {
+      "run_id": 33031188641,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33031188641",
+      "timestamp": "2026-08-26T20:51:22.020641-05:00",
+      "case_id": "68331-clean-control",
+      "workflow_success": true,
+      "score": {
+        "passed": 8,
+        "total": 8,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 1,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-minimal"
+        ],
+        "issue_type": "Feature",
+        "subtypes": [
+          "api-proposal"
+        ],
+        "removed_labels": [],
+        "abstained": true,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68331-clean-control-PureWeen-aspnetcore.20260826-204623-492000.json"
+    },
+    {
+      "run_id": 33031820895,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33031820895",
+      "timestamp": "2026-08-26T21:04:30.059376-05:00",
+      "case_id": "68549-failure-multi-area",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-auth"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": [
+          66978
+        ]
+      },
+      "source_file": "issue-triage-final-68549-failure-multi-area-PureWeen-aspnetcore.20260826-205814-246000.json"
+    },
+    {
+      "run_id": 33032193332,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33032193332",
+      "timestamp": "2026-08-26T21:11:21.840015-05:00",
+      "case_id": "68549-failure-multi-area",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": [
+          66978
+        ]
+      },
+      "source_file": "issue-triage-final-68549-failure-multi-area-PureWeen-aspnetcore.20260826-210448-611000.json"
+    },
+    {
+      "run_id": 33032664945,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33032664945",
+      "timestamp": "2026-08-26T21:20:10.369324-05:00",
+      "case_id": "68678-partial-persistence",
+      "workflow_success": true,
+      "score": {
+        "passed": 6,
+        "total": 7,
+        "ratio": 0.8571428571428571
+      },
+      "passed": false,
+      "failed_checks": [
+        {
+          "id": "one-subtype",
+          "actual": [],
+          "expected": "external"
+        }
+      ],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68678-partial-persistence-PureWeen-aspnetcore.20260826-211348-343000.json"
+    },
+    {
+      "run_id": 33033019921,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33033019921",
+      "timestamp": "2026-08-26T21:26:56.553897-05:00",
+      "case_id": "68678-partial-persistence",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [],
+        "issue_type": "Bug",
+        "subtypes": [
+          "external"
+        ],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68678-partial-persistence-PureWeen-aspnetcore.20260826-212030-968000.json"
+    },
+    {
+      "run_id": 33033375406,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33033375406",
+      "timestamp": "2026-08-26T21:33:00.929319-05:00",
+      "case_id": "68724-automation-no-run",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [
+          "test-failure"
+        ],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68724-automation-no-run-PureWeen-aspnetcore.20260826-212718-938000.json"
+    },
+    {
+      "run_id": 33033674816,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33033674816",
+      "timestamp": "2026-08-26T21:39:00.571604-05:00",
+      "case_id": "68724-automation-no-run",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [
+          "test-failure"
+        ],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68724-automation-no-run-PureWeen-aspnetcore.20260826-213324-790000.json"
+    },
+    {
+      "run_id": 33033993808,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33033993808",
+      "timestamp": "2026-08-26T21:45:52.829203-05:00",
+      "case_id": "68801-current-control",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Task",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68801-current-control-PureWeen-aspnetcore.20260826-213921-520000.json"
+    },
+    {
+      "run_id": 33034339839,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33034339839",
+      "timestamp": "2026-08-26T21:51:35.313857-05:00",
+      "case_id": "68801-current-control",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Task",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68801-current-control-PureWeen-aspnetcore.20260826-214611-37000.json"
+    },
+    {
+      "run_id": 33034678924,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33034678924",
+      "timestamp": "2026-08-26T21:59:27.616637-05:00",
+      "case_id": "65910-type-subtype",
+      "workflow_success": true,
+      "score": {
+        "passed": 9,
+        "total": 9,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 4,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Task",
+        "subtypes": [
+          "docs"
+        ],
+        "removed_labels": [
+          "needs-area-label"
+        ],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-65910-type-subtype-PureWeen-aspnetcore.20260826-215302-250000.json"
+    },
+    {
+      "run_id": 33035039408,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33035039408",
+      "timestamp": "2026-08-26T22:06:06.355746-05:00",
+      "case_id": "67614-startup-failure",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-identity"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67614-startup-failure-PureWeen-aspnetcore.20260826-215945-969000.json"
+    },
+    {
+      "run_id": 33035380053,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33035380053",
+      "timestamp": "2026-08-26T22:12:36.13578-05:00",
+      "case_id": "67614-startup-failure",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-identity"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-67614-startup-failure-PureWeen-aspnetcore.20260826-220624-597000.json"
+    },
+    {
+      "run_id": 33035709061,
+      "url": "https://github.com/PureWeen/aspnetcore/actions/runs/33035709061",
+      "timestamp": "2026-08-26T22:20:07.833171-05:00",
+      "case_id": "68678-partial-persistence",
+      "workflow_success": true,
+      "score": {
+        "passed": 7,
+        "total": 7,
+        "ratio": 1
+      },
+      "passed": true,
+      "failed_checks": [],
+      "output_contract_valid": true,
+      "requested_safe_output_count": 3,
+      "safe_output_errors": [],
+      "decision": {
+        "areas": [
+          "area-blazor"
+        ],
+        "issue_type": "Bug",
+        "subtypes": [
+          "external"
+        ],
+        "removed_labels": [],
+        "abstained": false,
+        "duplicate_citations": []
+      },
+      "source_file": "issue-triage-final-68678-partial-persistence-PureWeen-aspnetcore.20260826-221252-543000.json"
+    }
+  ]
+}

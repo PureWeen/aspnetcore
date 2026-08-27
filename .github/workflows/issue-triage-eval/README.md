@@ -29,16 +29,12 @@ and any follow-up maintainer record that was not already public at the snapshot 
 - `materialize-trial.mjs` creates a single-case, staged trial workflow with the
   frozen snapshot embedded.
 - `score.mjs` scores agent output and optional persisted after-state evidence.
-- `aggregate.mjs` scores repeated result exports and reports per-case pass rates
-  and decision variance.
+- `aggregate.mjs` scores repeated `gh aw trial` results and reports per-case
+  pass rates and decision variance.
 - `score.test.mjs` verifies the deterministic scoring contract and safety checks.
-
-This layer adds the fork-only staged replay execution lane on top of the
-frozen public corpus: the committed workflow accepts a bounded `eval_case`
-`workflow_dispatch` input, and `materialize-trial.mjs` builds a single-case
-trial workflow for `gh aw trial`. Both paths stage every safe output so
-replay runs never write to a real issue. A later stack layer records
-evidence from executing this lane.
+- `proof.json` records the bounded staged runs used for red/green proof.
+- `repeat-proof.json` records the final repeated full-corpus results and run
+  URLs.
 
 ## Run
 
@@ -83,14 +79,14 @@ Run the synthetic scorer tests:
 node --test .github/workflows/issue-triage-eval/score.test.mjs
 ```
 
-Aggregate repeated result exports:
+The committed workflow also exposes the same bounded cases through
+`workflow_dispatch`. Frozen replays are restricted to forks and set all safe
+outputs to staged mode. Trial and dispatch runs must not be used to infer
+persistence; staged previews prove the requested output contract only.
+
+Aggregate repeated trial results:
 
 ```bash
 node .github/workflows/issue-triage-eval/aggregate.mjs trials \
-  issue-triage-repeat- > /tmp/issue-triage-repeat-summary.json
+  issue-triage-repeat- > /tmp/issue-triage-repeat-proof.json
 ```
-
-The deterministic scorer is intentionally strict about the accepted contract and
-exclusions above. It scores only the exported workflow actions for the selected
-case and does not assert or prove persistence, workflow execution state, or
-future maintainer decisions beyond the public snapshot itself.
