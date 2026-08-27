@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# Focused eval: verify the issue-triage-agent prompt's type rubric covers
-# Task and Epic, and that the report template lists all four types.
-# Red/green: fails against the pre-fix prompt, passes after the fix.
+# Static prompt-contract regression test for issue-triage-agent.md.
+#
+# Verifies that the safe-output allow-list, Step 2 type rubric, and
+# report template all agree on the same four issue types, and that
+# the Task/docs and Bug-vs-Task guardrails are present in the rubric.
+#
+# This is NOT a model-classification or end-to-end eval. It tests the
+# static contract surface of the prompt only.
 #
 # Usage: bash .github/evals/check-type-rubric.sh
 # Exit 0 = pass, exit 1 = fail (with diagnostics).
@@ -9,69 +14,101 @@
 set -euo pipefail
 
 WORKFLOW=".github/workflows/issue-triage-agent.md"
-FIXTURE=".github/evals/issue-triage-type-65910.json"
 failures=0
 
-# 1. Type rubric must define Task
-if ! grep -q '| `Task`' "$WORKFLOW"; then
-  echo "FAIL: Type rubric missing Task definition"
-  failures=$((failures + 1))
+fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
+pass() { echo "PASS: $1"; }
+
+# ---------------------------------------------------------------------------
+# Helper: extract the Step 2 type rubric section (between "## Step 2" and
+# the next "## Step") and collect the type names from table rows.
+# ---------------------------------------------------------------------------
+step2_section=$(sed -n '/^## Step 2: Type Classification$/,/^## Step [0-9]/p' "$WORKFLOW" | sed '$d')
+
+extract_rubric_types() {
+  echo "$step2_section" | grep -oE '\| `[A-Za-z]+`' | sed 's/| `//;s/`//' | sort -u
+}
+
+# ---------------------------------------------------------------------------
+# 1. Safe-output allow-list types (from set-issue-type.allowed)
+# ---------------------------------------------------------------------------
+allowlist_line=$(grep -A1 'set-issue-type:' "$WORKFLOW" | grep 'allowed:')
+if [ -z "$allowlist_line" ]; then
+  fail "Cannot find set-issue-type allowed list"
 else
-  echo "PASS: Type rubric defines Task"
+  allowlist_types=$(echo "$allowlist_line" | grep -oE '"[A-Za-z]+"' | tr -d '"' | sort -u)
+  pass "Found safe-output allow-list: $allowlist_types"
 fi
 
-# 2. Type rubric must define Epic
-if ! grep -q '| `Epic`' "$WORKFLOW"; then
-  echo "FAIL: Type rubric missing Epic definition"
-  failures=$((failures + 1))
+# ---------------------------------------------------------------------------
+# 2. Step 2 rubric must define exactly Bug, Epic, Feature, Task
+# ---------------------------------------------------------------------------
+rubric_types=$(extract_rubric_types)
+expected_types="Bug
+Epic
+Feature
+Task"
+
+if [ "$rubric_types" = "$expected_types" ]; then
+  pass "Step 2 rubric defines all four types: $(echo "$rubric_types" | tr '\n' ' ')"
 else
-  echo "PASS: Type rubric defines Epic"
+  fail "Step 2 rubric types mismatch. Expected: $(echo "$expected_types" | tr '\n' ' ') Got: $(echo "$rubric_types" | tr '\n' ' ')"
 fi
 
-# 3. Report template must list all four types
-if ! grep -q 'Bug.*Feature.*Task.*Epic' "$WORKFLOW"; then
-  echo "FAIL: Report template does not list all four types (Bug | Feature | Task | Epic)"
-  failures=$((failures + 1))
+# ---------------------------------------------------------------------------
+# 3. Allow-list and rubric must agree (set equality)
+# ---------------------------------------------------------------------------
+if [ "$allowlist_types" = "$rubric_types" ]; then
+  pass "Allow-list and rubric agree on types"
 else
-  echo "PASS: Report template lists Bug | Feature | Task | Epic"
+  fail "Allow-list and rubric disagree. Allow-list: $(echo "$allowlist_types" | tr '\n' ' ') Rubric: $(echo "$rubric_types" | tr '\n' ' ')"
 fi
 
-# 4. Task definition must mention docs subtype
-if ! grep -q 'Task.*docs' "$WORKFLOW"; then
-  echo "FAIL: Task definition does not reference docs sub-type"
-  failures=$((failures + 1))
-else
-  echo "PASS: Task definition references docs sub-type"
-fi
+# ---------------------------------------------------------------------------
+# 4. Report template **Type:** line must list all four types
+#    Scoped to the Step 6 section (between "## Step 6" and "## Step 7")
+# ---------------------------------------------------------------------------
+step6_section=$(sed -n '/^## Step 6: Draft the Triage Comment$/,/^## Step [0-9]/p' "$WORKFLOW" | sed '$d')
+template_type_line=$(echo "$step6_section" | grep '^\*\*Type:\*\*')
 
-# 5. Bug-vs-Task guardrail: Bug definition should mention broken behavior
-if ! grep -q 'Bug.*broken.*behavior\|Bug.*current behavior is broken' "$WORKFLOW"; then
-  echo "FAIL: Bug definition lacks broken-behavior guardrail"
-  failures=$((failures + 1))
+if [ -z "$template_type_line" ]; then
+  fail "Cannot find **Type:** line in Step 6 report template"
 else
-  echo "PASS: Bug definition includes broken-behavior guardrail"
-fi
-
-# 6. Fixture file exists and has expected type=Task
-if [ ! -f "$FIXTURE" ]; then
-  echo "FAIL: Fixture file missing: $FIXTURE"
-  failures=$((failures + 1))
-else
-  expected_type=$(python3 -c "import json; print(json.load(open('$FIXTURE'))['expected']['issue_type'])" 2>/dev/null || echo "")
-  if [ "$expected_type" = "Task" ]; then
-    echo "PASS: Fixture expects issue_type=Task for #65910"
+  template_types=$(echo "$template_type_line" | grep -oE '`[A-Za-z]+`' | tr -d '`' | sort -u)
+  if [ "$template_types" = "$expected_types" ]; then
+    pass "Report template **Type:** line lists all four types"
   else
-    echo "FAIL: Fixture expected issue_type should be Task, got: $expected_type"
-    failures=$((failures + 1))
+    fail "Report template **Type:** line missing types. Found: $(echo "$template_types" | tr '\n' ' ')"
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# 5. Task row in Step 2 rubric must mention docs sub-type
+# ---------------------------------------------------------------------------
+task_row=$(echo "$step2_section" | grep '| `Task`')
+if echo "$task_row" | grep -q 'docs'; then
+  pass "Task rubric row references docs sub-type"
+else
+  fail "Task rubric row does not reference docs sub-type"
+fi
+
+# ---------------------------------------------------------------------------
+# 6. Bug row in Step 2 rubric must include broken-behavior guardrail
+# ---------------------------------------------------------------------------
+bug_row=$(echo "$step2_section" | grep '| `Bug`')
+if echo "$bug_row" | grep -q 'broken.*behavior.*Bug\|current behavior is broken\|broken shipped behavior.*Bug'; then
+  pass "Bug rubric row includes broken-behavior guardrail"
+else
+  fail "Bug rubric row lacks broken-behavior guardrail distinguishing Bug from Task"
+fi
+
+# ---------------------------------------------------------------------------
+# Result
+# ---------------------------------------------------------------------------
+echo ""
 if [ "$failures" -gt 0 ]; then
-  echo ""
   echo "RESULT: $failures check(s) failed"
   exit 1
 fi
-
-echo ""
-echo "RESULT: All checks passed"
+echo "RESULT: All 6 checks passed"
 exit 0
