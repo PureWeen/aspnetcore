@@ -101,6 +101,12 @@ engine:
   id: copilot
   env:
     COPILOT_GITHUB_TOKEN: ${{ case(needs.pat_pool.outputs.pat_number == '0', secrets.COPILOT_PAT_0, needs.pat_pool.outputs.pat_number == '1', secrets.COPILOT_PAT_1, needs.pat_pool.outputs.pat_number == '2', secrets.COPILOT_PAT_2, needs.pat_pool.outputs.pat_number == '3', secrets.COPILOT_PAT_3, needs.pat_pool.outputs.pat_number == '4', secrets.COPILOT_PAT_4, needs.pat_pool.outputs.pat_number == '5', secrets.COPILOT_PAT_5, needs.pat_pool.outputs.pat_number == '6', secrets.COPILOT_PAT_6, needs.pat_pool.outputs.pat_number == '7', secrets.COPILOT_PAT_7, needs.pat_pool.outputs.pat_number == '8', secrets.COPILOT_PAT_8, needs.pat_pool.outputs.pat_number == '9', secrets.COPILOT_PAT_9, 'NO COPILOT PAT AVAILABLE') }}
+
+evals:
+  - id: type_classification_applied
+    question: Does the agent output confirm that set-issue-type was called exactly once with one of Bug, Feature, Task, or Epic?
+  - id: docs_subtype_when_docs_issue
+    question: If the issue body is primarily requesting documentation updates or corrections, does the agent output show that the docs label was included in add-labels?
 ---
 
 # Issue Triage Agent for dotnet/aspnetcore
@@ -436,8 +442,25 @@ Classify the issue into one of these types:
 
 | Type | When to use |
 |-----------|-------------|
-| `Bug` | The report clearly identifies a behavior as a bug and it can be reproduced. Something is broken or behaving unexpectedly compared to its intended design. |
+| `Bug` | Something that currently ships is broken or behaving unexpectedly compared to its intended design. The report identifies a concrete defect that can be reproduced. |
 | `Feature` | The report asks for a behavior that is not currently implemented. This may be a brand-new feature or an addition/enhancement to an existing feature. |
+| `Task` | A bounded maintenance, documentation, test, infrastructure, or refactoring work item where no currently shipped behavior is broken. Examples: updating or creating docs, adding missing test coverage, build-system chores, code cleanup. |
+| `Epic` | A large, cross-cutting initiative that will be broken into multiple child issues. Rarely assigned during triage; use only when the issue explicitly describes an epic-level tracking item. |
+
+### Bug vs. Task guardrail
+
+If an issue reports a small or mechanical fix, decide between `Bug` and `Task`
+by asking: *"Is currently shipped behavior broken?"*
+
+- **Yes** → `Bug`, even if the fix is trivial (e.g., a one-line typo that
+  causes a runtime error, a wrong default that breaks an API contract).
+- **No** → `Task`. The work is maintenance — docs updates, missing tests,
+  refactoring, infrastructure improvements — where nothing observable is
+  broken for users today.
+
+When the issue's sole deliverable is a documentation change (new, updated, or
+corrected docs), classify it as `Task` and also apply the `docs` sub-type
+label from Step 3.
 
 ## Step 3: Additional Labels
 
@@ -507,7 +530,7 @@ structure — no additional sections beyond what is listed below:
 ### Triage Summary
 
 **Area:** `area-xyz` (brief reason)
-**Type:** `Bug` | `Feature` (brief reason)
+**Type:** `Bug` | `Feature` | `Task` | `Epic` (brief reason)
 
 #### Regression Info
 - **Previously working version:** .NET x.y / ASP.NET Core x.y
