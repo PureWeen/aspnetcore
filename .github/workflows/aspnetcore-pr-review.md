@@ -11,6 +11,19 @@ on:
 
   roles: [admin, maintainer, write]
 
+  # Staged mode suppresses safe outputs, but the centralized router's own reaction and
+  # activation/status comments are separate writes that would still land on the pull request.
+  # Turn both off so a staged run is genuinely side-effect-free on GitHub.
+  reaction: none
+  status-comment: false
+
+  # Residual limitation: the generated centralized router listens to `created` AND `edited`
+  # comment events by compiler design, and its event types cannot be narrowed from here.
+  # Editing a comment that contains `/review` therefore re-triggers the workflow. This is not a
+  # privilege escalation — the role gate above is evaluated against the event sender, i.e. the
+  # user who performed the edit — and re-runs are bounded by the PR-scoped concurrency group and
+  # `user-rate-limit` below.
+
 description: >
   Maintainer-invoked, read-only domain-expert review of a pull request. A maintainer types
   `/review` in a pull request comment or review comment; the agent freezes the pull request head
@@ -20,9 +33,12 @@ description: >
   or runs pull request code, and never mutates anything else.
 
 # This review is advisory. It exists to gather wider maintainer feedback on whether domain-scoped
-# automated review is useful on real pull requests. The same analysis contract is available to
-# developers locally through the `review-pull-request-by-area` skill, so hosted and local
-# review stay in sync. Findings are suggestions for a human reviewer, never a merge gate.
+# automated review is useful on real pull requests. Developers can run the same review locally
+# through the `review-pull-request-by-area` skill: the inline agents below import that skill's
+# domain reference bodies verbatim, so hosted and local review apply the *same domain criteria*.
+# The surrounding routing, validation, and publication logic is stated separately in each place
+# and can diverge — only the domain references are single-sourced. Findings are suggestions for a
+# human reviewer, never a merge gate.
 
 permissions:
   contents: read
@@ -101,6 +117,14 @@ tools:
     toolsets: [context, repos, issues, pull_requests]
 
 safe-outputs:
+  # gh-aw auto-enables incomplete-reporting whenever any safe output exists, which would add
+  # `create_report_incomplete_issue` / `report_incomplete` handlers that can create an issue.
+  # This workflow promises no issue mutation, so turn it off explicitly.
+  report-incomplete: false
+  # Likewise for failed custom jobs: this workflow imports the PAT-pool job, and the default
+  # would file an issue if it failed. Together with `report-failure-as-issue: false` below, this
+  # leaves no path by which any run outcome creates or edits an issue.
+  report-failed-jobs: false
   # Start staged: runs render the intended review in the step summary instead of posting.
   # Maintainers remove this line deliberately, after reviewing real previews.
   staged: true
@@ -296,8 +320,11 @@ contain:
 - a one-line summary of the change;
 - which reviewer agents ran, and any materially changed area **not** covered;
 - the test-boundary assessment from the skill (false-pass risk, ownership, coverage);
-- limitations, including `independence: single-orchestrator (no independent second opinion)`, any
-  injection attempt you noticed, and anything you could not verify;
+- limitations, including the **actual** review topology, reported honestly: write
+  `independence: subagent-per-reference (n=<number of reviewer agents that actually ran>)` when
+  you invoked the reviewer agents as subagents, and `independence: single-orchestrator (no
+  independent second opinion)` only if subagents were unavailable and you performed the passes
+  yourself in this context. Never overclaim independence — and never deny it when it happened;
 - this exact caveat: **"This is an advisory source-level review of the frozen commit. It is not
   runtime proof: no pull request code was checked out, built, or executed."**
 

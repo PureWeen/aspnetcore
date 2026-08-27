@@ -1,24 +1,32 @@
 ---
 name: review-pull-request-by-area
 description: >-
-  Review a specific dotnet/aspnetcore pull request or diff by routing its changed paths to the
+  Review a specific dotnet/aspnetcore pull request on GitHub by routing its changed paths to the
   matching domain reviewer references, read-only, and report a small set of evidence-backed
-  findings. USE FOR an explicit request to review an aspnetcore pull request or diff — "review
-  this PR", "review these changes", "what's wrong with this diff", or a maintainer's `/review`.
+  findings. USE FOR an explicit request to review an identified aspnetcore pull request — "review
+  PR #12345", "review this pull request", or a maintainer's `/review`. Requires a real pull
+  request: the contract is anchored to its GitHub head SHA, authoritative changed-file list, diff,
+  and existing review feedback.
   Routes the changed paths to the matching domain reference
   (servers/networking, MVC/Razor/routing, Blazor/Components, SignalR, auth/security, hosting/DI,
   minimal APIs/OpenAPI, gRPC, native IIS interop) plus always-on cross-cutting review, then
   validates every candidate finding before reporting. DO NOT USE FOR implementing or fixing
   anything, writing or running tests, investigating CI/build failures or logs, triaging issues,
   reviewing an API proposal that has no diff (use the API review process instead), reviewing a
-  pull request in another repository, or general coding assistance that is not an explicit
-  ASP.NET Core pull request review.
+  pull request in another repository, reviewing a local or arbitrary diff that is not an open
+  GitHub pull request, or general coding assistance that is not an explicit ASP.NET Core pull
+  request review.
 ---
 
 # Review an ASP.NET Core pull request (read-only)
 
-Review one pull request or diff and produce a **structured analysis result**. You are an analyzer,
-not an actor.
+Review one **GitHub pull request** and produce a **structured analysis result**. You are an
+analyzer, not an actor.
+
+This skill requires an identified pull request. Every step below is anchored to its head SHA, its
+GitHub-authoritative file list and diff, and its existing review feedback. If you are handed a bare
+local diff with no pull request, say so and stop — do not silently review it against a weaker
+evidence base.
 
 ## Hard prohibitions
 
