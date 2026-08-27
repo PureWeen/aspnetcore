@@ -44,7 +44,7 @@ description: >
 
 # This review is advisory. It exists to gather wider maintainer feedback on whether domain-scoped
 # automated review is useful on real pull requests. Developers can run the same review locally
-# through the `review-pull-request-by-area` skill: the inline agents below import that skill's
+# through the `review-aspnetcore-pull-request` skill: the inline agents below import that skill's
 # domain reference bodies verbatim, so hosted and local review apply the *same domain criteria*.
 # The surrounding routing, validation, and publication logic is stated separately in each place
 # and can diverge — only the domain references are single-sourced. Findings are suggestions for a
@@ -108,7 +108,7 @@ checkout: false
 # The analysis contract lives in this repository and is installed from the local path at
 # activation time. This is the only skill installed, and never from an external source.
 skills:
-  - .github/skills/review-pull-request-by-area
+  - .github/skills/review-aspnetcore-pull-request
 
 tools:
   startup-timeout: 5
@@ -227,8 +227,8 @@ Reviewing a fraction of a huge diff and presenting it as a review is worse than 
 
 ## Step 2 — Route to reviewer agents
 
-Apply the repository skill `review-pull-request-by-area` (installed at
-`.github/skills/review-pull-request-by-area`). It is the analysis contract for this task:
+Apply the repository skill `review-aspnetcore-pull-request` (installed at
+`.github/skills/review-aspnetcore-pull-request`). It is the analysis contract for this task:
 evidence freezing, routing, scope, untrusted-input handling, the validation gates every finding
 must pass, the test-boundary assessment, and the result format. Follow it.
 
@@ -370,7 +370,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/auth-security-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/auth-security-reviewer.md}}
 
 ## end agent: `auth-security-reviewer`
 
@@ -392,7 +392,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/blazor-components-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/blazor-components-reviewer.md}}
 
 ## end agent: `blazor-components-reviewer`
 
@@ -414,7 +414,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/cross-cutting-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/cross-cutting-reviewer.md}}
 
 ## end agent: `cross-cutting-reviewer`
 
@@ -436,7 +436,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/grpc-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/grpc-reviewer.md}}
 
 ## end agent: `grpc-reviewer`
 
@@ -458,7 +458,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/hosting-di-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/hosting-di-reviewer.md}}
 
 ## end agent: `hosting-di-reviewer`
 
@@ -480,7 +480,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/minimal-api-openapi-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/minimal-api-openapi-reviewer.md}}
 
 ## end agent: `minimal-api-openapi-reviewer`
 
@@ -502,7 +502,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/mvc-razor-routing-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/mvc-razor-routing-reviewer.md}}
 
 ## end agent: `mvc-razor-routing-reviewer`
 
@@ -524,7 +524,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/native-interop-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/native-interop-reviewer.md}}
 
 ## end agent: `native-interop-reviewer`
 
@@ -546,7 +546,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/servers-networking-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/servers-networking-reviewer.md}}
 
 ## end agent: `servers-networking-reviewer`
 
@@ -568,6 +568,6 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-pull-request-by-area/references/signalr-reviewer.md}}
+{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/signalr-reviewer.md}}
 
 ## end agent: `signalr-reviewer`

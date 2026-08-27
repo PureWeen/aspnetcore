@@ -2,7 +2,7 @@
 
 These dimensions apply to **every** ASP.NET Core change. The routing policy is explicit: this reviewer runs on **every** review, in addition to the routed domain reviewers (at most two), and it is **also** the primary reviewer for any `src` area that has no dedicated reference. It is never a fallback used only when no domain reviewer matched.
 
-This file is reference material. It is loaded on demand by the `review-pull-request-by-area` skill, or supplied to the matching reviewer subagent by the `aspnetcore-pr-review` workflow. Evaluate the dimensions below yourself, in one pass; do not spawn a subagent per dimension.
+This file is reference material. It is loaded on demand by the `review-aspnetcore-pull-request` skill, or supplied to the matching reviewer subagent by the `aspnetcore-pr-review` workflow. Evaluate the dimensions below yourself, in one pass; do not spawn a subagent per dimension.
 
 #### Overarching principles
 
