@@ -2,7 +2,7 @@
 
 Review `src/Http/**` and `src/OpenApi/**` changes for correctness at the boundary between runtime endpoint behavior and generated OpenAPI contracts. Prefer findings with a concrete endpoint shape, generated document delta, or user-visible compatibility impact.
 
-This file is reference material. It is loaded on demand by the `review-aspnetcore-pull-request` skill, or supplied to the matching reviewer subagent by the `aspnetcore-pr-review` workflow. Evaluate the dimensions below yourself, in one pass; do not spawn a subagent per dimension.
+This file is reference material. It is loaded on demand by the `review-pull-request` skill, or supplied to the matching reviewer subagent by the `aspnetcore-pr-review` workflow. Evaluate the dimensions below yourself, in one pass; do not spawn a subagent per dimension.
 
 #### Overarching principles
 

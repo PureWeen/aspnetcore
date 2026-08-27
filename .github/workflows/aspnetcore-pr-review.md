@@ -4,35 +4,32 @@
 if: ${{ github.event.repository.fork == false }}
 
 on:
+  # Direct dispatch (gh-aw's default). This workflow listens to the comment events itself rather
+  # than routing through a shared `agentic_commands.yml`. That removes the router entirely, and
+  # with it the router's own writes — its reaction, its activation/status comment, and its builtin
+  # `/help` comment handler — so there is no shared job holding `issues: write` on this command's
+  # behalf.
   slash_command:
-    strategy: centralized
     name: review
     events: [pull_request_comment, pull_request_review_comment]
 
   roles: [admin, maintainer, write]
 
-  # Staged mode suppresses safe outputs, but the centralized router's own reaction and
-  # activation/status comments are separate writes that would still land on the pull request.
-  # Turn both off so a staged run is genuinely side-effect-free on GitHub.
-  #
-  # The third router write is the builtin `/help` handler, which centralized routing enables by
-  # default and which posts a comment listing available commands. It is disabled repo-wide via
-  # `.github/workflows/aw.json` (`"help_command": false`); the generated router then carries
-  # `GH_AW_HELP_COMMAND_ENABLED: 'false'`.
-  #
-  # With reaction, status comment, and help all off, the only write this command causes through
-  # the router is the `workflow_dispatch` itself (`actions: write`). Note that the *shared*
-  # generated router job still statically declares `issues: write` and `pull-requests: write` —
-  # that is compiler-controlled for `agentic_commands.yml` and is not exercised by this route.
+  # Belt and braces: even with no router, the workflow itself would otherwise react to the
+  # triggering comment and post an activation/status comment. Both are writes that
+  # `safe-outputs.staged` does not suppress, so turn them off explicitly.
   reaction: none
   status-comment: false
 
-  # Residual limitation: the generated centralized router listens to `created` AND `edited`
-  # comment events by compiler design, and its event types cannot be narrowed from here.
-  # Editing a comment that contains `/review` therefore re-triggers the workflow. This is not a
-  # privilege escalation — the role gate above is evaluated against the event sender, i.e. the
-  # user who performed the edit — and re-runs are bounded by the PR-scoped concurrency group and
-  # `user-rate-limit` below.
+  # How a non-maintainer comment is actually stopped. The compiled listeners are `issue_comment`
+  # and `pull_request_review_comment` (created and edited), so GitHub delivers every comment on
+  # every issue and pull request. Nothing runs on that alone: a generated job-level predicate
+  # first requires the body to match `/review` and the item to be a pull request, then the
+  # `pre_activation` job resolves the event sender's permission against
+  # `admin, maintainer, write` and gates on `is_team_member && rate_limit_ok &&
+  # command_position_ok`. The agent job runs only if all three hold. On an `edited` event the
+  # sender is whoever performed the edit, so editing `/review` into a comment is checked against
+  # that user, not the original author.
 
 description: >
   Maintainer-invoked, read-only domain-expert review of a pull request. A maintainer types
@@ -44,7 +41,7 @@ description: >
 
 # This review is advisory. It exists to gather wider maintainer feedback on whether domain-scoped
 # automated review is useful on real pull requests. Developers can run the same review locally
-# through the `review-aspnetcore-pull-request` skill: the inline agents below import that skill's
+# through the `review-pull-request` skill: the inline agents below import that skill's
 # domain reference bodies verbatim, so hosted and local review apply the *same domain criteria*.
 # The surrounding routing, validation, and publication logic is stated separately in each place
 # and can diverge — only the domain references are single-sourced. Findings are suggestions for a
@@ -56,12 +53,12 @@ permissions:
   pull-requests: read
 
 concurrency:
-  # Scope to one pull request. Under centralized slash-command routing this workflow is invoked
-  # as `workflow_dispatch`, so `github.event.pull_request` / `github.event.issue` are empty and
-  # the number has to come out of the router's `aw_context` payload. Without the `item_number`
-  # term every pull request would collapse into one repository-wide group and queued reviews
+  # Scope to one pull request. Under direct dispatch the triggering event is `issue_comment` or
+  # `pull_request_review_comment`, so the number is available natively: `issue.number` for a
+  # pull request conversation comment, `pull_request.number` for a review comment. Without a
+  # per-pull-request term every review would share one repository-wide group and queued runs
   # would replace each other.
-  group: aspnetcore-pr-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number || fromJSON(github.event.inputs.aw_context || '{}').item_number }}
+  group: aspnetcore-pr-review-${{ github.repository }}-${{ github.event.issue.number || github.event.pull_request.number }}
   # Never cancel a review that is already running: a maintainer asked for it, and killing the
   # agent mid-run wastes the credits already spent and leaves no result.
   cancel-in-progress: false
@@ -72,13 +69,11 @@ timeout-minutes: 25
 max-turns: 60
 max-ai-credits: 600
 
-# Per-user throttle. `max-daily-ai-credits` is deliberately NOT used here: gh-aw skips that
-# guardrail for `workflow_dispatch` runs carrying `aw_context` metadata, which is exactly how
-# centralized slash-command routing invokes this workflow, so it would be inert. `user-rate-limit`
-# does apply to `workflow_dispatch`. `ignored-roles: []` is required — the default exempts
-# admin/maintain/write, which is every role allowed to trigger this workflow, so leaving the
-# default would make the limit inert too. gh-aw flags rate limiting as experimental; drop this
-# block if that is not acceptable, but then `max-ai-credits` per run is the only live ceiling.
+# Per-user throttle, enforced in `pre_activation` before the agent job starts.
+# `ignored-roles: []` is required: the default exempts admin/maintain/write, which is every role
+# allowed to trigger this workflow, so leaving the default would make the limit inert.
+# gh-aw flags rate limiting as experimental; drop this block if that is not acceptable, but then
+# `max-ai-credits` per run is the only live ceiling.
 user-rate-limit:
   max-runs-per-window: 5
   window: 60
@@ -108,7 +103,7 @@ checkout: false
 # The analysis contract lives in this repository and is installed from the local path at
 # activation time. This is the only skill installed, and never from an external source.
 skills:
-  - .github/skills/review-aspnetcore-pull-request
+  - .github/skills/review-pull-request
 
 tools:
   startup-timeout: 5
@@ -124,6 +119,9 @@ tools:
     # the agent job holds read-only permissions, has no checkout of pull request head code, has
     # no mutation or network tools, and can only ever emit capped COMMENT-only safe outputs.
     min-integrity: none
+    # Untrusted pull request text must not be able to steer reads at another repository.
+    # `${{ github.repository }}` is required here; gh-aw v0.86.2 rejects the literal `current`.
+    allowed-repos: ${{ github.repository }}
     toolsets: [context, repos, issues, pull_requests]
 
 safe-outputs:
@@ -136,7 +134,14 @@ safe-outputs:
   # leaves no path by which any run outcome creates or edits an issue.
   report-failed-jobs: false
   # Start staged: runs render the intended review in the step summary instead of posting.
-  # Maintainers remove this line deliberately, after reviewing real previews.
+  #
+  # Do NOT remove this line yet. gh-aw v0.86.2 does not commit-pin safe-output publication for
+  # `issue_comment` / `pull_request_review_comment` triggers, so inline comments are attached to
+  # whatever the pull request head is when the safe-output job runs. The agent re-reads
+  # `head.sha` immediately before emitting, but that is best-effort in the agent job: a push can
+  # still land between that check and publication. Until there is a writer-side frozen-head gate
+  # or equivalent structural protection, unstaging risks anchoring comments to lines that were
+  # never reviewed.
   staged: true
   report-failure-as-issue: false
   noop:
@@ -147,6 +152,9 @@ safe-outputs:
     target: triggering
   submit-pull-request-review:
     max: 1
+    # Explicit rather than inherited: pin the review to the pull request that triggered this run.
+    # Defence in depth, not a new capability.
+    target: triggering
     # COMMENT only. APPROVE and REQUEST_CHANGES are deliberately unreachable so this
     # workflow can never gate or unblock a merge.
     allowed-events: [COMMENT]
@@ -227,8 +235,8 @@ Reviewing a fraction of a huge diff and presenting it as a review is worse than 
 
 ## Step 2 — Route to reviewer agents
 
-Apply the repository skill `review-aspnetcore-pull-request` (installed at
-`.github/skills/review-aspnetcore-pull-request`). It is the analysis contract for this task:
+Apply the repository skill `review-pull-request` (installed at
+`.github/skills/review-pull-request`). It is the analysis contract for this task:
 evidence freezing, routing, scope, untrusted-input handling, the validation gates every finding
 must pass, the test-boundary assessment, and the result format. Follow it.
 
@@ -370,7 +378,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/auth-security-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/auth-security-reviewer.md}}
 
 ## end agent: `auth-security-reviewer`
 
@@ -392,7 +400,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/blazor-components-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/blazor-components-reviewer.md}}
 
 ## end agent: `blazor-components-reviewer`
 
@@ -414,7 +422,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/cross-cutting-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/cross-cutting-reviewer.md}}
 
 ## end agent: `cross-cutting-reviewer`
 
@@ -436,7 +444,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/grpc-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/grpc-reviewer.md}}
 
 ## end agent: `grpc-reviewer`
 
@@ -458,7 +466,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/hosting-di-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/hosting-di-reviewer.md}}
 
 ## end agent: `hosting-di-reviewer`
 
@@ -480,7 +488,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/minimal-api-openapi-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/minimal-api-openapi-reviewer.md}}
 
 ## end agent: `minimal-api-openapi-reviewer`
 
@@ -502,7 +510,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/mvc-razor-routing-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/mvc-razor-routing-reviewer.md}}
 
 ## end agent: `mvc-razor-routing-reviewer`
 
@@ -524,7 +532,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/native-interop-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/native-interop-reviewer.md}}
 
 ## end agent: `native-interop-reviewer`
 
@@ -546,7 +554,7 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/servers-networking-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/servers-networking-reviewer.md}}
 
 ## end agent: `servers-networking-reviewer`
 
@@ -568,6 +576,6 @@ adds or modifies, a specific failing scenario (input, call sequence, or state), 
 consequence, and the source or primary contract you checked. No hypotheticals, style, naming,
 typos, or speculation. A finding with no `file:line` is not a finding.
 
-{{#runtime-import .github/skills/review-aspnetcore-pull-request/references/signalr-reviewer.md}}
+{{#runtime-import .github/skills/review-pull-request/references/signalr-reviewer.md}}
 
 ## end agent: `signalr-reviewer`

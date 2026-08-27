@@ -1,5 +1,5 @@
 ---
-name: review-aspnetcore-pull-request
+name: review-pull-request
 description: >-
   Review a specific dotnet/aspnetcore pull request on GitHub by routing its changed paths to the
   matching domain reviewer references, read-only, and report a small set of evidence-backed

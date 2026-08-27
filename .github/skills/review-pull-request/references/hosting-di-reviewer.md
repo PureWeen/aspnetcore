@@ -2,7 +2,7 @@
 
 Review only ASP.NET Core hosting/DI work in `src/Hosting/**` and `src/DefaultBuilder/**`: generic host, `HostApplicationBuilder`, `WebApplicationBuilder`, `IHostBuilder`, compatibility-only `WebHostBuilder`/`IWebHostBuilder`/`IWebHost`/`WebHost` surfaces, service registration, options, startup, configuration, hosted services, lifetimes, scopes, and tests. `src/Extensions` is HTTP feature infrastructure (`src/Extensions/Features`) and belongs to servers-networking-reviewer, never here.
 
-This file is reference material. It is loaded on demand by the `review-aspnetcore-pull-request` skill, or supplied to the matching reviewer subagent by the `aspnetcore-pr-review` workflow. Evaluate the dimensions below yourself, in one pass; do not spawn a subagent per dimension.
+This file is reference material. It is loaded on demand by the `review-pull-request` skill, or supplied to the matching reviewer subagent by the `aspnetcore-pr-review` workflow. Evaluate the dimensions below yourself, in one pass; do not spawn a subagent per dimension.
 
 #### Overarching principles
 
