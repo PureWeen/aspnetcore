@@ -1,5 +1,5 @@
 ---
-if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.fork }}
+if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.eval_case == 'none' || github.event.repository.fork)) || (github.event_name != 'workflow_dispatch' && !github.event.repository.fork) }}
 
 on:
   issues:
@@ -9,8 +9,26 @@ on:
     inputs:
       issue_number:
         description: "Issue number to triage"
-        required: true
+        required: false
         type: number
+      eval_case:
+        description: "Frozen replay case (forks only; all safe outputs are staged)"
+        required: false
+        type: choice
+        default: none
+        options:
+          - none
+          - 65910-type-subtype
+          - 67154-usable-control
+          - 67614-startup-failure
+          - 67666-failure-multi-area
+          - 67766-safety-blocked
+          - 67979-missing-data
+          - 68331-clean-control
+          - 68549-failure-multi-area
+          - 68678-partial-persistence
+          - 68724-automation-no-run
+          - 68801-current-control
       dry_run:
         description: "If true, post analysis as a comment without applying labels"
         required: false
@@ -21,7 +39,9 @@ on:
 
   # Force a pre_activation job to be created because pat_pool depends on it.
   # This will skip the job if there are no open issues.
-  skip-if-no-match: "is:issue is:open"
+  skip-if-no-match:
+    query: "repo:dotnet/aspnetcore is:issue is:open"
+    scope: none
 
 description: >
   Triage newly opened issues in dotnet/aspnetcore. Classifies the area label,
@@ -39,13 +59,49 @@ tools:
   github:
     min-integrity: none
 
+steps:
+  - name: Prepare frozen evaluation case
+    id: eval_context
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    env:
+      EVAL_CASE: ${{ github.event.inputs.eval_case }}
+      ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
+    run: |
+      if [ "$EVAL_CASE" = "none" ]; then
+        if [ -z "$ISSUE_NUMBER" ] || [ "$ISSUE_NUMBER" = "0" ]; then
+          echo "::error::issue_number is required when eval_case is none"
+          exit 1
+        fi
+        echo "enabled=false" >> "$GITHUB_OUTPUT"
+        exit 0
+      fi
+
+      case "$EVAL_CASE" in
+        65910-type-subtype|67154-usable-control|67614-startup-failure|67666-failure-multi-area|67766-safety-blocked|67979-missing-data|68331-clean-control|68549-failure-multi-area|68678-partial-persistence|68724-automation-no-run|68801-current-control)
+          ;;
+        *)
+          echo "::error::Unknown eval_case: $EVAL_CASE"
+          exit 1
+          ;;
+      esac
+
+      source_path=".github/workflows/issue-triage-eval/snapshots/$EVAL_CASE.json"
+      target_path="/tmp/gh-aw/agent/issue-triage-eval.json"
+      test -f "$source_path"
+      mkdir -p "$(dirname "$target_path")"
+      cp "$source_path" "$target_path"
+      echo "enabled=true" >> "$GITHUB_OUTPUT"
+      echo "path=$target_path" >> "$GITHUB_OUTPUT"
+
 safe-outputs:
+  staged: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.eval_case != 'none' }}
   report-failure-as-issue: false
   noop:
     report-as-issue: false
   set-issue-type:
     allowed: ["Bug", "Feature", "Task", "Epic"]
     max: 1
+    target: "*"
   add-labels:
     allowed:
       - area-auth
@@ -75,9 +131,11 @@ safe-outputs:
       - test-failure
       - performance
     max: 3
+    target: "*"
   remove-labels:
     allowed: [needs-area-label]
     max: 1
+    target: "*"
   add-comment:
     max: 1
     target: "*"
@@ -116,10 +174,23 @@ is to analyze a newly opened issue and perform four tasks:
 
 ## Issue to Triage
 
-Triage the issue that triggered this workflow.
+Determine the input mode before doing anything else:
 
-You **must** obtain the real issue title and body before doing anything else. Two
-sources are available — use whichever is populated:
+1. Run `cat /tmp/gh-aw/agent/issue-triage-eval.json 2>/dev/null`.
+2. If that command returns a JSON snapshot, this is a **frozen replay
+   evaluation**. It is staged and read-only: request the same safe outputs you
+   would request in production, but do not change your classification behavior
+   because the writes will be previewed rather than applied. Treat the
+   snapshot's `issue.title`, `issue.body`, `issue.initial_labels`, and
+   `issue.initial_type` values as the complete source of truth. Do not fetch
+   the current live issue, comments, labels, or type. Do not read
+   `.github/workflows/issue-triage-eval/cases.json` or any scoring output.
+   Looking at expected results invalidates the evaluation.
+3. If the command does not return a JSON snapshot, triage the issue that
+   triggered this workflow using the live-input instructions below.
+
+For live input, you **must** obtain the real issue title and body before doing
+anything else. Two sources are available — use whichever is populated:
 
 - **Number:** #${{ github.event.issue.number || github.event.inputs.issue_number }}
 - **Title (from payload):** ${{ steps.sanitized.outputs.title }}
@@ -282,6 +353,10 @@ Authentication, Authorization, OAuth, OIDC, Bearer tokens, cookie auth, JWT.
 ASP.NET Core Identity, user/role management, identity providers, scaffolding.
 **Code:** `src/Identity/` (Core, UI, Extensions.Core, Extensions.Stores, EntityFrameworkCore)
 **Namespaces:** `Microsoft.AspNetCore.Identity.*`, `Microsoft.Extensions.Identity.Core.*`, `Microsoft.Extensions.Identity.Stores.*`
+**Boundary:** Identity UI scaffolding and Identity template markup belong here,
+including `.razor` files under generated or project-template `Components/Account`
+pages. Use `area-blazor` only when the defect is in Blazor component/runtime
+behavior rather than the Identity template that consumes it.
 **Packages:** `Microsoft.AspNetCore.Identity`, `Microsoft.AspNetCore.Identity.UI`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.Extensions.Identity.Core`, `Microsoft.Extensions.Identity.Stores`
 **Key types:** `UserManager<TUser>`, `SignInManager<TUser>`, `RoleManager<TRole>`, `IdentityOptions`, `IdentityResult`, `IdentityError`, `IdentityUser`, `IdentityRole`, `IUserStore<T>`, `IRoleStore<T>`, `IPasswordHasher<T>`, `IUserClaimsPrincipalFactory<T>`, `ExternalLoginInfo`, `IEmailSender`, `SecurityStampValidator`, `IPasskeyHandler<T>`
 **Config:** `AddIdentity<TUser,TRole>()`, `AddDefaultIdentity<TUser>()`, `MapIdentityApi<TUser>()`
@@ -352,11 +427,17 @@ Host builder, WebApplication, startup, server configuration.
 
 #### `area-commandlinetools`
 CLI tools: dotnet-dev-certs, dotnet-user-jwts, dotnet-user-secrets, OpenAPI tooling.
-**Code:** `src/Tools/` (dotnet-dev-certs, dotnet-user-secrets, dotnet-user-jwts, dotnet-sql-cache, Extensions.ApiDescription.Server/Client), `src/OpenApi/Microsoft.dotnet-openapi/`, `src/ProjectTemplates/`, `src/Installers/`
+**Code:** `src/Tools/` (dotnet-dev-certs, dotnet-user-secrets, dotnet-user-jwts, dotnet-sql-cache, Extensions.ApiDescription.Server/Client), `src/OpenApi/Microsoft.dotnet-openapi/`, `src/ProjectTemplates/` (template infrastructure), `src/Installers/`
 **Namespaces:** `Microsoft.Extensions.SecretManager.*`, `Microsoft.AspNetCore.DeveloperCertificates.*`, `Microsoft.AspNetCore.Authentication.JwtBearer.Tools.*`
 **Packages:** `Microsoft.AspNetCore.DeveloperCertificates.XPlat`, `Microsoft.dotnet-openapi`, `Microsoft.Extensions.ApiDescription.Client`, `Microsoft.Extensions.ApiDescription.Server`
 **Key types:** `SecretsStore`, `JwtStore`, `UserSecretsIdAttribute`
 **Concepts:** `dotnet dev-certs https --trust`, `dotnet user-secrets`, `dotnet user-jwts`, `dotnet sql-cache`, `dotnet-openapi`, `secrets.json`, HTTPS dev certificate, user secrets ID
+**Boundary:** Use this area for template engine, packaging, installation, and
+scaffolding infrastructure. For content or assets emitted by a web template,
+choose the product area that owns the generated output. Shared layouts, CSS,
+JavaScript, and UI libraries used across Razor Pages, MVC, and Blazor templates
+belong to `area-ui-rendering`; Blazor-specific template behavior belongs to
+`area-blazor`.
 
 #### `area-grpc`
 gRPC wire-up, JSON transcoding, gRPC Swagger (main library is grpc/grpc-dotnet).
@@ -387,7 +468,7 @@ Security hardening, antiforgery, cookie policy, CSRF/XSRF protection.
 
 #### `area-ui-rendering`
 MVC Views, Razor Pages (rendering/templates), TagHelpers, view compilation.
-**Code:** `src/Razor/`, `src/Components/Forms/`, `src/Components/QuickGrid/`, `src/Components/CustomElements/`
+**Code:** `src/Razor/`, shared UI content/assets under `src/ProjectTemplates/Web.ProjectTemplates/`, `src/Components/Forms/`, `src/Components/QuickGrid/`, `src/Components/CustomElements/`
 **Namespaces:** `Microsoft.AspNetCore.Razor.*`, `Microsoft.AspNetCore.Html.*`
 **Packages:** `Microsoft.AspNetCore.Razor`, `Microsoft.AspNetCore.Razor.Runtime`, `Microsoft.AspNetCore.Html.Abstractions`
 **Key types:** `ViewResult`, `PartialViewResult`, `IHtmlHelper`, `ViewDataDictionary`, `TempDataDictionary`, `ViewComponent`, `ViewComponentResult`, `RazorPagesOptions`, `AnchorTagHelper`, `FormTagHelper`, `InputTagHelper`, `CacheTagHelper`, `EnvironmentTagHelper`, `ImageTagHelper`, `GlobbingUrlBuilder`
@@ -419,7 +500,8 @@ When multiple areas could match, use these priorities:
 - **`MapGet`/`MapPost`, `Results.*`, endpoint filters** → `area-minimal`
 - **`[ApiController]`, `Controller`, action filters** → `area-mvc`
 - **`[Authorize]`, authentication schemes, JWT, OAuth** → `area-auth`
-- **`UserManager`, `SignInManager`, Identity scaffolding** → `area-identity`
+- **`UserManager`, `SignInManager`, Identity scaffolding/template markup** → `area-identity` (even when the template is implemented with `.razor` components)
+- **Shared web-template layouts, Bootstrap/CSS/JS, and rendered UI assets** → `area-ui-rendering`, NOT `area-commandlinetools`
 - **`UseCors()`, `UseStaticFiles()`, `UseSession()`, response caching** → `area-middleware`
 - **Route templates, constraints, `LinkGenerator`** → `area-routing`
 - **`IDataProtector`, key management, protect/unprotect** → `area-dataprotection`
@@ -438,6 +520,14 @@ Classify the issue into one of these types:
 |-----------|-------------|
 | `Bug` | The report clearly identifies a behavior as a bug and it can be reproduced. Something is broken or behaving unexpectedly compared to its intended design. |
 | `Feature` | The report asks for a behavior that is not currently implemented. This may be a brand-new feature or an addition/enhancement to an existing feature. |
+| `Task` | The issue requests bounded maintenance or implementation work that does not add product behavior, such as a documentation-only update, test/infrastructure work, or refactoring. A request to update docs or guidance should be `Task`, not `Feature`, unless it also requires new product behavior. |
+| `Epic` | The issue is an umbrella or tracking item that intentionally coordinates multiple independently deliverable issues. Do not use this for a single feature request. |
+
+Do not choose `Task` merely because the fix is small or mechanical. If the
+current shipped product or generated output demonstrably violates an expected
+baseline, classify it as `Bug` even when the fix is a dependency/version bump.
+Reserve `Task` for planned cleanup or maintenance where current behavior is not
+itself the reported defect.
 
 ## Step 3: Additional Labels
 
@@ -450,6 +540,11 @@ Classify the issue using one of these labels, if applicable:
 | `api-proposal` | Formal API addition/change proposal. |
 | `test-failure` | CI/test infrastructure failure report. |
 | `performance` | Performance regression or optimization request. |
+
+If the requested deliverable is only a documentation or guidance update, apply
+`docs`. If the issue explicitly establishes that the root cause and required
+fix belong to an external tool or repository, apply `external` even when the
+symptom appears in an ASP.NET Core area.
 
 Apply the single best label (if applicable). If the issue template already indicates the type
 (e.g., filed via the bug report template), trust that signal but verify it matches
@@ -507,7 +602,7 @@ structure — no additional sections beyond what is listed below:
 ### Triage Summary
 
 **Area:** `area-xyz` (brief reason)
-**Type:** `Bug` | `Feature` (brief reason)
+**Type:** `Bug` | `Feature` | `Task` | `Epic` (brief reason)
 
 #### Regression Info
 - **Previously working version:** .NET x.y / ASP.NET Core x.y
@@ -645,22 +740,39 @@ no Notes section.
 
 Order of operations matters. Do these in this exact order:
 
-1. **Decide the labels and issue type** you will apply, based on Steps 1–5.
+1. **Decide the labels and issue type** you will apply, based on Steps 1–5,
+   then compare them with the issue's current labels and type. For a frozen
+   replay, `issue.initial_labels` and `issue.initial_type` are the current
+   state.
+
+   If the issue already has the chosen area, supported sub-type (if any), and
+   issue type; does not need `needs-area-label` removed; and has no newly
+   verified duplicate that the reporter did not already cite, call `noop` and
+   stop. A related issue or duplicate candidate already linked in the title or
+   body is not new triage information and does not prevent this no-op.
 
 2. **Apply the area label** and (if applicable from Step 3) one **additional
    sub-type label** using the `add-labels` safe output. The `add-labels`
    allowed list includes the area labels and the sub-type labels
    (`by-design`, `question`, `external`, `docs`, `api-proposal`,
-   `test-failure`, `performance`). It does **not** include `Bug` or
-   `Feature` — those are issue types, applied via `set-issue-type` in
-   step 3 below.
+   `test-failure`, `performance`). It does **not** include issue types
+   (`Bug`, `Feature`, `Task`, or `Epic`); apply those via `set-issue-type` in
+   step 3 below. Include `item_number` with the number of the issue being
+   triaged. For a frozen replay, use the issue number in the snapshot.
+   Otherwise, use `${{ github.event.issue.number }}` for `issues.opened` runs
+   or `${{ github.event.inputs.issue_number }}` for `workflow_dispatch` runs.
+   Do not request labels the issue already has. Skip `add-labels` if no chosen
+   labels are missing.
 
 3. **Apply the issue type** using `set-issue-type` with one of `Bug`,
-   `Feature`, `Task`, or `Epic` based on your Step 2 classification. Call
-   `set-issue-type` exactly once.
+   `Feature`, `Task`, or `Epic` based on your Step 2 classification. Include
+   `issue_number` with the same explicit issue number used for `add-labels`.
+   Call `set-issue-type` at most once, and only if the issue's current type is
+   missing or differs from the chosen type.
 
 4. If the issue currently has `needs-area-label` and you assigned an area,
-   **remove `needs-area-label`** using `remove-labels`.
+   **remove `needs-area-label`** using `remove-labels`. Include `item_number`
+   with the same explicit issue number used for `add-labels`.
 
 5. **Apply the vulnerability gate.** If the issue is a vulnerability report
    per "Vulnerability Reports: Apply Labels, But Post No Comment" above,
@@ -678,7 +790,8 @@ Order of operations matters. Do these in this exact order:
      exactly as it should appear on the issue.
    - `item_number`: the number of the issue you triaged. This safe output
      is configured with `target: "*"`, so you **must** name the target
-     issue explicitly rather than relying on a default. Use
+     issue explicitly rather than relying on a default. For a frozen replay,
+     use the issue number in the snapshot. Otherwise, use
      `${{ github.event.issue.number }}` for `issues.opened` runs and
      `${{ github.event.inputs.issue_number }}` for `workflow_dispatch`
      runs — whichever of the two is populated is the issue identified in
