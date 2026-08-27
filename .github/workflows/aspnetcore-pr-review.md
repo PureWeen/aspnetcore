@@ -14,6 +14,16 @@ on:
   # Staged mode suppresses safe outputs, but the centralized router's own reaction and
   # activation/status comments are separate writes that would still land on the pull request.
   # Turn both off so a staged run is genuinely side-effect-free on GitHub.
+  #
+  # The third router write is the builtin `/help` handler, which centralized routing enables by
+  # default and which posts a comment listing available commands. It is disabled repo-wide via
+  # `.github/workflows/aw.json` (`"help_command": false`); the generated router then carries
+  # `GH_AW_HELP_COMMAND_ENABLED: 'false'`.
+  #
+  # With reaction, status comment, and help all off, the only write this command causes through
+  # the router is the `workflow_dispatch` itself (`actions: write`). Note that the *shared*
+  # generated router job still statically declares `issues: write` and `pull-requests: write` —
+  # that is compiler-controlled for `agentic_commands.yml` and is not exercised by this route.
   reaction: none
   status-comment: false
 

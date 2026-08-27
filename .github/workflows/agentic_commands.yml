@@ -62,7 +62,7 @@ jobs:
           GH_AW_SLASH_ROUTING: '{"review":[{"workflow":"aspnetcore-pr-review","events":["pull_request_comment","pull_request_review_comment"]}]}'
           GH_AW_LABEL_ROUTING: '{}'
           GH_AW_HELP_COMMANDS: '[{"command":"review","description":"Maintainer-invoked, read-only domain-expert review of a pull request. A maintainer types `/review` in a pull request comment or review comment; the agent freezes the pull request head commit, reads the GitHub-authoritative diff, routes the changed paths to the matching domain reviewers plus always-on cross-cutting review, and posts at most five inline review comments plus a single COMMENT-only review. It never approves, never requests changes, never checks out or runs pull request code, and never mutates anything else.","centralized":true,"decentralized":false,"source_file":"aspnetcore-pr-review"}]'
-          GH_AW_HELP_COMMAND_ENABLED: 'true'
+          GH_AW_HELP_COMMAND_ENABLED: 'false'
           GH_AW_SLASH_COMMAND_DOCS_URL: 'https://github.github.com/gh-aw/reference/command-triggers/'
         with:
           script: |
