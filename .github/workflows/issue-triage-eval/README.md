@@ -26,15 +26,19 @@ and any follow-up maintainer record that was not already public at the snapshot 
 - `capture.mjs` reproduces the snapshots from GitHub issue and timeline APIs. It
   refuses issues with title/body edit events because the original content cannot
   be reconstructed reliably.
-- `score.mjs` scores a single exported `agent_output.json` against the frozen
-  contract.
+- `materialize-trial.mjs` creates a single-case, staged trial workflow with the
+  frozen snapshot embedded.
+- `score.mjs` scores agent output and optional persisted after-state evidence.
 - `aggregate.mjs` scores repeated result exports and reports per-case pass rates
   and decision variance.
 - `score.test.mjs` verifies the deterministic scoring contract and safety checks.
 
-This layer intentionally ships only the frozen public corpus and the offline
-scoring tools. Later stack layers will supply staged workflow execution and
-recorded evidence from the replay lane.
+This layer adds the fork-only staged replay execution lane on top of the
+frozen public corpus: the committed workflow accepts a bounded `eval_case`
+`workflow_dispatch` input, and `materialize-trial.mjs` builds a single-case
+trial workflow for `gh aw trial`. Both paths stage every safe output so
+replay runs never write to a real issue. A later stack layer records
+evidence from executing this lane.
 
 ## Run
 
@@ -43,6 +47,27 @@ Refresh the snapshots:
 ```bash
 node .github/workflows/issue-triage-eval/capture.mjs
 ```
+
+Compile the committed workflow:
+
+```bash
+gh aw compile issue-triage-agent
+```
+
+For a fork-only trial, materialize one case and run it in staged mode:
+
+```bash
+node .github/workflows/issue-triage-eval/materialize-trial.mjs \
+  67614-startup-failure \
+  .github/workflows/issue-triage-agent-eval-trial.md
+gh aw trial .github/workflows/issue-triage-agent-eval-trial.md \
+  --host-repo PureWeen/aspnetcore --yes --json
+```
+
+The committed workflow also exposes the same bounded cases through
+`workflow_dispatch`. Frozen replays are restricted to forks and set all safe
+outputs to staged mode. Trial and dispatch runs must not be used to infer
+persistence; staged previews prove the requested output contract only.
 
 Score an exported `agent_output.json`:
 

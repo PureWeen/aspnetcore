@@ -1,5 +1,5 @@
 ---
-if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.fork }}
+if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.eval_case == 'none' || github.event.repository.fork)) || (github.event_name != 'workflow_dispatch' && !github.event.repository.fork) }}
 
 on:
   issues:
@@ -9,8 +9,26 @@ on:
     inputs:
       issue_number:
         description: "Issue number to triage"
-        required: true
+        required: false
         type: number
+      eval_case:
+        description: "Frozen replay case (forks only; all safe outputs are staged)"
+        required: false
+        type: choice
+        default: none
+        options:
+          - none
+          - 65910-type-subtype
+          - 67154-usable-control
+          - 67614-startup-failure
+          - 67666-failure-multi-area
+          - 67766-safety-blocked
+          - 67979-missing-data
+          - 68331-clean-control
+          - 68549-failure-multi-area
+          - 68678-partial-persistence
+          - 68724-automation-no-run
+          - 68801-current-control
       dry_run:
         description: "If true, post analysis as a comment without applying labels"
         required: false
@@ -21,7 +39,9 @@ on:
 
   # Force a pre_activation job to be created because pat_pool depends on it.
   # This will skip the job if there are no open issues.
-  skip-if-no-match: "is:issue is:open"
+  skip-if-no-match:
+    query: "repo:dotnet/aspnetcore is:issue is:open"
+    scope: none
 
 description: >
   Triage newly opened issues in dotnet/aspnetcore. Classifies the area label,
@@ -39,7 +59,42 @@ tools:
   github:
     min-integrity: none
 
+steps:
+  - name: Prepare frozen evaluation case
+    id: eval_context
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    env:
+      EVAL_CASE: ${{ github.event.inputs.eval_case }}
+      ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
+    run: |
+      if [ "$EVAL_CASE" = "none" ]; then
+        if [ -z "$ISSUE_NUMBER" ] || [ "$ISSUE_NUMBER" = "0" ]; then
+          echo "::error::issue_number is required when eval_case is none"
+          exit 1
+        fi
+        echo "enabled=false" >> "$GITHUB_OUTPUT"
+        exit 0
+      fi
+
+      case "$EVAL_CASE" in
+        65910-type-subtype|67154-usable-control|67614-startup-failure|67666-failure-multi-area|67766-safety-blocked|67979-missing-data|68331-clean-control|68549-failure-multi-area|68678-partial-persistence|68724-automation-no-run|68801-current-control)
+          ;;
+        *)
+          echo "::error::Unknown eval_case: $EVAL_CASE"
+          exit 1
+          ;;
+      esac
+
+      source_path=".github/workflows/issue-triage-eval/snapshots/$EVAL_CASE.json"
+      target_path="/tmp/gh-aw/agent/issue-triage-eval.json"
+      test -f "$source_path"
+      mkdir -p "$(dirname "$target_path")"
+      cp "$source_path" "$target_path"
+      echo "enabled=true" >> "$GITHUB_OUTPUT"
+      echo "path=$target_path" >> "$GITHUB_OUTPUT"
+
 safe-outputs:
+  staged: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.eval_case != 'none' }}
   report-failure-as-issue: false
   noop:
     report-as-issue: false
@@ -119,10 +174,23 @@ is to analyze a newly opened issue and perform four tasks:
 
 ## Issue to Triage
 
-Triage the issue that triggered this workflow.
+Determine the input mode before doing anything else:
 
-You **must** obtain the real issue title and body before doing anything else. Two
-sources are available — use whichever is populated:
+1. Run `cat /tmp/gh-aw/agent/issue-triage-eval.json 2>/dev/null`.
+2. If that command returns a JSON snapshot, this is a **frozen replay
+   evaluation**. It is staged and read-only: request the same safe outputs you
+   would request in production, but do not change your classification behavior
+   because the writes will be previewed rather than applied. Treat the
+   snapshot's `issue.title`, `issue.body`, `issue.initial_labels`, and
+   `issue.initial_type` values as the complete source of truth. Do not fetch
+   the current live issue, comments, labels, or type. Do not read
+   `.github/workflows/issue-triage-eval/cases.json` or any scoring output.
+   Looking at expected results invalidates the evaluation.
+3. If the command does not return a JSON snapshot, triage the issue that
+   triggered this workflow using the live-input instructions below.
+
+For live input, you **must** obtain the real issue title and body before doing
+anything else. Two sources are available — use whichever is populated:
 
 - **Number:** #${{ github.event.issue.number || github.event.inputs.issue_number }}
 - **Title (from payload):** ${{ steps.sanitized.outputs.title }}
@@ -673,7 +741,9 @@ no Notes section.
 Order of operations matters. Do these in this exact order:
 
 1. **Decide the labels and issue type** you will apply, based on Steps 1–5,
-   then compare them with the issue's current labels and type.
+   then compare them with the issue's current labels and type. For a frozen
+   replay, `issue.initial_labels` and `issue.initial_type` are the current
+   state.
 
    If the issue already has the chosen area, supported sub-type (if any), and
    issue type; does not need `needs-area-label` removed; and has no newly
@@ -688,7 +758,8 @@ Order of operations matters. Do these in this exact order:
    `test-failure`, `performance`). It does **not** include issue types
    (`Bug`, `Feature`, `Task`, or `Epic`); apply those via `set-issue-type` in
    step 3 below. Include `item_number` with the number of the issue being
-   triaged: use `${{ github.event.issue.number }}` for `issues.opened` runs
+   triaged. For a frozen replay, use the issue number in the snapshot.
+   Otherwise, use `${{ github.event.issue.number }}` for `issues.opened` runs
    or `${{ github.event.inputs.issue_number }}` for `workflow_dispatch` runs.
    Do not request labels the issue already has. Skip `add-labels` if no chosen
    labels are missing.
@@ -719,7 +790,8 @@ Order of operations matters. Do these in this exact order:
      exactly as it should appear on the issue.
    - `item_number`: the number of the issue you triaged. This safe output
      is configured with `target: "*"`, so you **must** name the target
-     issue explicitly rather than relying on a default. Use
+     issue explicitly rather than relying on a default. For a frozen replay,
+     use the issue number in the snapshot. Otherwise, use
      `${{ github.event.issue.number }}` for `issues.opened` runs and
      `${{ github.event.inputs.issue_number }}` for `workflow_dispatch`
      runs — whichever of the two is populated is the issue identified in
