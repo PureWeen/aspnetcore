@@ -441,6 +441,14 @@ Classify the issue into one of these types:
 |-----------|-------------|
 | `Bug` | The report clearly identifies a behavior as a bug and it can be reproduced. Something is broken or behaving unexpectedly compared to its intended design. |
 | `Feature` | The report asks for a behavior that is not currently implemented. This may be a brand-new feature or an addition/enhancement to an existing feature. |
+| `Task` | The issue requests bounded maintenance or implementation work that does not add product behavior, such as a documentation-only update, test/infrastructure work, or refactoring. A request to update docs or guidance should be `Task`, not `Feature`, unless it also requires new product behavior. |
+| `Epic` | The issue is an umbrella or tracking item that intentionally coordinates multiple independently deliverable issues. Do not use this for a single feature request. |
+
+Do not choose `Task` merely because the fix is small or mechanical. If the
+current shipped product or generated output demonstrably violates an expected
+baseline, classify it as `Bug` even when the fix is a dependency/version bump.
+Reserve `Task` for planned cleanup or maintenance where current behavior is not
+itself the reported defect.
 
 ## Step 3: Additional Labels
 
@@ -453,6 +461,11 @@ Classify the issue using one of these labels, if applicable:
 | `api-proposal` | Formal API addition/change proposal. |
 | `test-failure` | CI/test infrastructure failure report. |
 | `performance` | Performance regression or optimization request. |
+
+If the requested deliverable is only a documentation or guidance update, apply
+`docs`. If the issue explicitly establishes that the root cause and required
+fix belong to an external tool or repository, apply `external` even when the
+symptom appears in an ASP.NET Core area.
 
 Apply the single best label (if applicable). If the issue template already indicates the type
 (e.g., filed via the bug report template), trust that signal but verify it matches
@@ -510,7 +523,7 @@ structure — no additional sections beyond what is listed below:
 ### Triage Summary
 
 **Area:** `area-xyz` (brief reason)
-**Type:** `Bug` | `Feature` (brief reason)
+**Type:** `Bug` | `Feature` | `Task` | `Epic` (brief reason)
 
 #### Regression Info
 - **Previously working version:** .NET x.y / ASP.NET Core x.y
