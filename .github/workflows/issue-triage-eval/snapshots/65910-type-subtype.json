@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "case_id": "65910-type-subtype",
+  "source": {
+    "repository": "dotnet/aspnetcore",
+    "issue_number": 65910,
+    "issue_url": "https://github.com/dotnet/aspnetcore/issues/65910",
+    "created_at": "2026-03-23T08:41:09Z",
+    "snapshot_cutoff": "2026-08-26T00:00:00Z",
+    "frozen_at": "2026-08-26T17:36:50Z",
+    "title_and_body_edited": false,
+    "body_sha256": "eb8f5a82a7570b97267568a6aead6a5a37c56fe85af96848b4661bd6e8530e4f"
+  },
+  "issue": {
+    "number": 65910,
+    "title": "Update Multiple Hosted WebAssembly documentation to new 8.0+ model with App.razor",
+    "body": "Not sure if this is a feature request or documentation issue. \n\nThis page automatically reverts to the 7.0 version:\nhttps://learn.microsoft.com/en-us/aspnet/core/blazor/host-and-deploy/webassembly/multiple-hosted-webassembly \n\nCan you please update the documentation and or guidance to get multiple hosted Blazor WebAssembly clients working with the new App.razor model, static asset fingerprinting and Static Server Side Rendering (SSR)?\n\n",
+    "initial_labels": [
+      "needs-area-label"
+    ],
+    "initial_type": null
+  }
+}
