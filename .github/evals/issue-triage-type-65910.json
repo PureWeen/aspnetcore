@@ -1,0 +1,18 @@
+{
+  "_comment": "Frozen pre-triage content for dotnet/aspnetcore#65910, used to evaluate type/subtype classification. Public data only.",
+  "source": "https://github.com/dotnet/aspnetcore/issues/65910",
+  "captured_at": "2026-08-27T17:00:00Z",
+  "content_sha256": "frozen-snapshot-of-public-issue-body",
+  "issue": {
+    "number": 65910,
+    "title": "Update Multiple Hosted WebAssembly documentation to new 8.0+ model with App.razor",
+    "body": "Not sure if this is a feature request or documentation issue. \n\nThis page automatically reverts to the 7.0 version:\nhttps://learn.microsoft.com/en-us/aspnet/core/blazor/host-and-deploy/webassembly/multiple-hosted-webassembly \n\nCan you please update the documentation and or guidance to get multiple hosted Blazor WebAssembly clients working with the new App.razor model, static asset fingerprinting and Static Server Side Rendering (SSR)?\n\n",
+    "labels_at_capture": ["Docs", "area-blazor", "needs-area-label"]
+  },
+  "expected": {
+    "issue_type": "Task",
+    "subtype_label": "docs",
+    "area_label": "area-blazor",
+    "rationale": "Issue requests documentation update for existing functionality (multiple hosted WASM with 8.0+ App.razor model). No broken current behavior is reported — the feature works, but docs are outdated. This is bounded maintenance/documentation work (Task), not a Bug (nothing is broken) and not a Feature (no new behavior requested). The docs subtype label applies because the deliverable is documentation-only."
+  }
+}

@@ -436,8 +436,10 @@ Classify the issue into one of these types:
 
 | Type | When to use |
 |-----------|-------------|
-| `Bug` | The report clearly identifies a behavior as a bug and it can be reproduced. Something is broken or behaving unexpectedly compared to its intended design. |
+| `Bug` | The report clearly identifies a behavior as a bug and it can be reproduced. Something is broken or behaving unexpectedly compared to its intended design. A small or mechanical fix to broken shipped behavior is still a Bug — the deciding factor is that current behavior is broken, not the size of the fix. |
 | `Feature` | The report asks for a behavior that is not currently implemented. This may be a brand-new feature or an addition/enhancement to an existing feature. |
+| `Task` | Bounded maintenance, documentation, test, infrastructure, or refactoring work where current behavior is not broken. A docs-only deliverable gets the existing `docs` sub-type label alongside this type. |
+| `Epic` | A large, cross-cutting effort that will be broken into multiple issues. |
 
 ## Step 3: Additional Labels
 
@@ -507,7 +509,7 @@ structure — no additional sections beyond what is listed below:
 ### Triage Summary
 
 **Area:** `area-xyz` (brief reason)
-**Type:** `Bug` | `Feature` (brief reason)
+**Type:** `Bug` | `Feature` | `Task` | `Epic` (brief reason)
 
 #### Regression Info
 - **Previously working version:** .NET x.y / ASP.NET Core x.y
