@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "case_id": "68678-partial-persistence",
+  "source": {
+    "repository": "dotnet/aspnetcore",
+    "issue_number": 68678,
+    "issue_url": "https://github.com/dotnet/aspnetcore/issues/68678",
+    "created_at": "2026-08-21T07:02:08Z",
+    "snapshot_cutoff": "2026-08-26T00:00:00Z",
+    "frozen_at": "2026-08-26T17:36:50Z",
+    "title_and_body_edited": false,
+    "body_sha256": "7579ac9eced38232f43f285ddf5387c6ab68746637214b75d8478d67c4e9196c"
+  },
+  "issue": {
+    "number": 68678,
+    "title": "Browser Link triggers \"Permissions policy violation: unload is not allowed in this document\" in Edge during Blazor Web App debugging",
+    "body": "### Is there an existing issue for this?\n\n- [x] I have searched the existing issues\n\n### Describe the bug\n\nWhen running a default .NET 11 Blazor Web App in Visual Studio and launching it in Microsoft Edge, the browser console displays the following error:\n\n`Permissions policy violation: unload is not allowed in this document`\n\nInvestigation indicates that the error originates from Visual Studio's Browser Link integration:\n\n`/_vs/browserLink`\n\nrather than from the Blazor Web App itself.\n\nThe issue occurs even when Content Security Policy (CSP) is not enabled and affects all Blazor Web App render modes:\n\n- Static SSR\n- Interactive Server\n- Interactive WebAssembly\n- Interactive Auto\n\nThe behavior appears to be specific to Microsoft Edge and local debugging scenarios.\n\n### Expected Behavior\n\nA default Blazor Web App project created from the Visual Studio template should launch in Microsoft Edge without producing browser console errors.\n\nIf Browser Link is using functionality that is restricted by modern browser permissions policies, it should avoid triggering console violations during debugging.\n\n### Steps To Reproduce\n\n1. Create a new default Blazor Web App.\n2. Select any render mode:\n> - Static SSR\n> - Interactive Server\n> - Interactive WebAssembly\n> - Interactive Auto\n4. Run the application in Debug mode from Visual Studio.\n5. Launch using Microsoft Edge.\n6. Open browser Developer Tools.\n7. Observe the Console tab.\n\n**Actual Result**\nThe console reports: `Permissions policy violation: unload is not allowed in this document`\n\n**Additional Observations**\n\n1. Reproducible with CSP disabled.\n2. Reproducible across all Blazor render modes.\n3. Appears to originate from localhost:<port>/_vs/browserLink.\n4. Not observed when running the published application.\n5. Not observed in Google Chrome.\n\n### Exceptions (if any)\n\nNo application exceptions are thrown.\n\nBrowser console output: `Permissions policy violation: unload is not allowed in this document`\n\n### .NET Version\n\n11.0.100-preview.7.26381.103\n\n### Anything else?\n\n**Environment**\n\n- VS 2026 Insiders [12023.133] professional\n- Microsoft Edge\n- Local Debug configuration\n\n**Additional Context**\n\nThe issue was discovered while validating CSP scenarios, but the behavior reproduces even when CSP is completely disabled, suggesting Browser Link or Visual Studio debugging integration as the source of the console violation rather than ASP.NET Core application code.\n\n**Repro Repository**\n\nSample App: https://github.com/BharatRamsf3693/BlazorCspValidation/tree/main\nEvidence: https://github.com/BharatRamsf3693/BlazorCspValidation/tree/main/Evidence",
+    "initial_labels": [],
+    "initial_type": "Bug"
+  }
+}

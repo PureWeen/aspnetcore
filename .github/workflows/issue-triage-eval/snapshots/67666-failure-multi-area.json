@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "case_id": "67666-failure-multi-area",
+  "source": {
+    "repository": "dotnet/aspnetcore",
+    "issue_number": 67666,
+    "issue_url": "https://github.com/dotnet/aspnetcore/issues/67666",
+    "created_at": "2026-07-08T09:24:43Z",
+    "snapshot_cutoff": "2026-08-26T00:00:00Z",
+    "frozen_at": "2026-08-26T17:36:50Z",
+    "title_and_body_edited": false,
+    "body_sha256": "431740c10a952798c8da15b7a88e77550ada1a0f3da4db36c18425f5bcd82a4b"
+  },
+  "issue": {
+    "number": 67666,
+    "title": "Update Bootstrap in project templates from 5.3.3 to latest 5.x (5.3.8)",
+    "body": "### Summary\r\n\r\nThe ASP.NET Core project templates ship Bootstrap **5.3.3**, which is several patch releases behind the current upstream release, **5.3.8** (released 2025-08-25). The templates should be updated to the latest 5.x so newly scaffolded apps get the current Bootstrap CSS/JS and its bug/security fixes.\r\n\r\n### Where it is pinned\r\n\r\n- `src/ProjectTemplates/Web.ProjectTemplates/package.json` pins `\"bootstrap\": \"^5.3.3\"`.\r\n- The vendored copies live under each template's `wwwroot/lib/bootstrap/dist/` (for example `content/BlazorWeb-CSharp/BlazorWebCSharp.1/wwwroot/lib/bootstrap/dist/`), which currently carry the 5.3.3 build (the `bootstrap.min.css` banner reads `Bootstrap v5.3.3`).\r\n\r\n### Expected\r\n\r\n`dotnet new` web templates (Razor Pages, MVC, Blazor Web, etc.) ship the latest Bootstrap 5.x (currently 5.3.8), with the vendored `dist` assets and their subresource-integrity hashes regenerated to match.\r\n\r\n### Actual\r\n\r\nTemplates ship Bootstrap 5.3.3.\r\n\r\n### How this was found\r\n\r\nAn end-to-end validation harness that scaffolds real templates from nightly builds asserts the shipped Bootstrap version against the latest upstream 5.x (via the npm registry) and verifies every subresource-integrity hash on the page matches the served bytes. The version assertion currently fails:\r\n\r\n```\r\nBootstrap is behind: shipped 5.3.3, expected 5.3.8.\r\nExpected: \"5.3.8\"\r\nBut was:  \"5.3.3\"\r\n```\r\n\r\n### Notes\r\n\r\n- Latest upstream: https://github.com/twbs/bootstrap/releases/tag/v5.3.8\r\n- When updating, regenerate the SRI `integrity` attributes referenced from the template layouts so they match the new asset bytes.\r\n",
+    "initial_labels": [],
+    "initial_type": null
+  }
+}

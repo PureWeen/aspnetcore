@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "case_id": "68801-current-control",
+  "source": {
+    "repository": "dotnet/aspnetcore",
+    "issue_number": 68801,
+    "issue_url": "https://github.com/dotnet/aspnetcore/issues/68801",
+    "created_at": "2026-08-26T11:52:00Z",
+    "snapshot_cutoff": "2026-08-26T11:52:00Z",
+    "frozen_at": "2026-08-26T17:36:50Z",
+    "title_and_body_edited": false,
+    "body_sha256": "4c5693ebf07c3840468796633392940e9317241f9b59784a4ccb12d15cf1b927"
+  },
+  "issue": {
+    "number": 68801,
+    "title": "Remove the Blazor WebAssembly Service Defaults OTLP export workaround after OpenTelemetry supports async export",
+    "body": "### Description\r\n\r\nThe Blazor WebAssembly Service Defaults template currently uses `BackgroundExportHandler` to work around synchronous OTLP export on single-threaded WebAssembly.\r\n\r\nOpenTelemetry's OTLP exporter calls:\r\n\r\n```csharp\r\nHttpClient.SendAsync(...).GetAwaiter().GetResult()\r\n```\r\n\r\nThis can stall when the HTTP pipeline performs asynchronous work. The template handler avoids that stall by capturing the request, immediately returning a synthetic successful response, and sending the real request asynchronously through a Polly resilience pipeline.\r\n\r\nOpenTelemetry added task-based batch and metric workers for single-threaded WebAssembly in open-telemetry/opentelemetry-dotnet#6379, but the worker still invokes the synchronous exporter contract. The remaining limitation is tracked by open-telemetry/opentelemetry-dotnet#7708.\r\n\r\nOnce that issue is resolved and the fix is available in a stable OpenTelemetry release, remove the template workaround and use the standard OTLP exporter implementation.\r\n\r\n### Proposed changes\r\n\r\n- Update the Blazor WebAssembly Service Defaults OpenTelemetry dependencies to a stable version containing the fix for open-telemetry/opentelemetry-dotnet#7708.\r\n- Delete `BackgroundExportHandler.cs`.\r\n- Remove the custom `IPostConfigureOptions<OtlpExporterOptions>` configuration that supplies `BackgroundExportHandler`.\r\n- Remove the custom `ResiliencePipelineBuilder<HttpResponseMessage>` configuration.\r\n- Remove the `Microsoft.Extensions.Http.Resilience` dependency if it is no longer otherwise needed.\r\n- Configure logs, traces, and metrics using the standard `AddOtlpExporter` APIs.\r\n- Allow OTLP exporters to use the normal HTTP client integration without bypassing globally configured asynchronous handlers such as service discovery.\r\n\r\n### Validation\r\n\r\nAdd or update browser integration coverage to verify that, in single-threaded Blazor WebAssembly:\r\n\r\n- Logs, traces, and metrics are exported successfully over OTLP/HTTP.\r\n- Export works when `IHttpClientFactory` includes an asynchronous delegating handler, including the globally configured service-discovery handler used by the template.\r\n- Export requests are not reported as successful before the HTTP operation completes.\r\n- Export failures are surfaced through normal OpenTelemetry diagnostics.\r\n- Retry, timeout, flush, and shutdown behavior use OpenTelemetry's standard semantics without fire-and-forget requests.\r\n- No provider must be manually resolved to initialize OpenTelemetry; normal `IHostedService` startup remains sufficient.\r\n\r\n### Dependencies\r\n\r\nBlocked by:\r\n\r\n- open-telemetry/opentelemetry-dotnet#7708\r\n\r\nRelated:\r\n\r\n- #64574\r\n- #64890\r\n- #67259\r\n- #67267\r\n",
+    "initial_labels": [],
+    "initial_type": null
+  }
+}

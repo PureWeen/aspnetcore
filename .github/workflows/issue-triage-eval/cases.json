@@ -1,0 +1,397 @@
+{
+  "schema_version": 1,
+  "repository": "dotnet/aspnetcore",
+  "snapshot_cutoff": "2026-08-26T00:00:00Z",
+  "frozen_at": "2026-08-26T17:36:50Z",
+  "contract": {
+    "area_labels": [
+      "area-auth",
+      "area-blazor",
+      "area-commandlinetools",
+      "area-dataprotection",
+      "area-grpc",
+      "area-healthchecks",
+      "area-hosting",
+      "area-identity",
+      "area-infrastructure",
+      "area-middleware",
+      "area-minimal",
+      "area-mvc",
+      "area-networking",
+      "area-perf",
+      "area-routing",
+      "area-security",
+      "area-signalr",
+      "area-ui-rendering",
+      "area-unified-build"
+    ],
+    "issue_types": [
+      "Bug",
+      "Feature",
+      "Task",
+      "Epic"
+    ],
+    "subtype_labels": [
+      "by-design",
+      "question",
+      "external",
+      "docs",
+      "api-proposal",
+      "test-failure",
+      "performance"
+    ],
+    "removable_labels": [
+      "needs-area-label"
+    ],
+    "excluded_decisions": [
+      "affected count",
+      "closure",
+      "feature-family labels",
+      "milestones",
+      "multiple-area ownership beyond the top choice",
+      "resolution",
+      "servicing",
+      "severity"
+    ]
+  },
+  "cases": [
+    {
+      "id": "65910-type-subtype",
+      "issue_number": 65910,
+      "historical_outcome": "success-with-no-visible-output",
+      "expected": {
+        "accepted_areas": [
+          "area-blazor"
+        ],
+        "score_area": true,
+        "issue_type": "Task",
+        "score_type": true,
+        "subtype": "docs",
+        "score_subtype": true,
+        "remove_labels": [
+          "needs-area-label"
+        ],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30029869434,
+          "timestamp": "2026-08-26T08:18:13Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30029869434"
+        },
+        {
+          "event_id": 30029882686,
+          "timestamp": "2026-08-26T08:18:29Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30029882686"
+        },
+        {
+          "event_id": 30029886512,
+          "timestamp": "2026-08-26T08:18:34Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30029886512"
+        }
+      ]
+    },
+    {
+      "id": "67154-usable-control",
+      "issue_number": 67154,
+      "historical_outcome": "usable-classification",
+      "expected": {
+        "accepted_areas": [
+          "area-mvc"
+        ],
+        "score_area": true,
+        "issue_type": "Feature",
+        "score_type": true,
+        "subtype": "api-proposal",
+        "score_subtype": true,
+        "remove_labels": [],
+        "abstain": true,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 26634769938,
+          "timestamp": "2026-06-11T15:58:00Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/26634769938"
+        },
+        {
+          "timestamp": "2026-06-11T15:56:00Z",
+          "url": "https://github.com/dotnet/aspnetcore/issues/60008"
+        }
+      ]
+    },
+    {
+      "id": "67614-startup-failure",
+      "issue_number": 67614,
+      "historical_outcome": "startup-failure",
+      "expected": {
+        "accepted_areas": [
+          "area-identity"
+        ],
+        "score_area": true,
+        "issue_type": "Bug",
+        "score_type": true,
+        "subtype": null,
+        "score_subtype": false,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30028602517,
+          "timestamp": "2026-08-26T07:52:34Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30028602517"
+        },
+        {
+          "event_id": 30028608556,
+          "timestamp": "2026-08-26T07:52:42Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30028608556"
+        }
+      ]
+    },
+    {
+      "id": "67666-failure-multi-area",
+      "issue_number": 67666,
+      "historical_outcome": "failure",
+      "expected": {
+        "accepted_areas": [
+          "area-blazor",
+          "area-ui-rendering"
+        ],
+        "score_area": true,
+        "issue_type": "Bug",
+        "score_type": true,
+        "subtype": null,
+        "score_subtype": false,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30030031939,
+          "timestamp": "2026-08-26T08:21:38Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30030031939"
+        },
+        {
+          "event_id": 30030032044,
+          "timestamp": "2026-08-26T08:21:38Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30030032044"
+        },
+        {
+          "event_id": 30030039211,
+          "timestamp": "2026-08-26T08:21:48Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30030039211"
+        }
+      ]
+    },
+    {
+      "id": "67766-safety-blocked",
+      "issue_number": 67766,
+      "historical_outcome": "safety-blocked",
+      "expected": {
+        "accepted_areas": [
+          "area-blazor"
+        ],
+        "score_area": true,
+        "issue_type": "Bug",
+        "score_type": true,
+        "subtype": null,
+        "score_subtype": false,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30024235326,
+          "timestamp": "2026-08-26T06:08:55Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30024235326"
+        }
+      ]
+    },
+    {
+      "id": "67979-missing-data",
+      "issue_number": 67979,
+      "historical_outcome": "missing-data-abstention",
+      "expected": {
+        "accepted_areas": [
+          "area-blazor"
+        ],
+        "score_area": true,
+        "issue_type": "Bug",
+        "score_type": true,
+        "subtype": null,
+        "score_subtype": false,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30024939696,
+          "timestamp": "2026-08-26T06:27:27Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30024939696"
+        }
+      ]
+    },
+    {
+      "id": "68331-clean-control",
+      "issue_number": 68331,
+      "historical_outcome": "already-classified-control",
+      "expected": {
+        "accepted_areas": [
+          "area-minimal"
+        ],
+        "score_area": true,
+        "issue_type": "Feature",
+        "score_type": true,
+        "subtype": "api-proposal",
+        "score_subtype": true,
+        "remove_labels": [],
+        "abstain": true,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 29267661833,
+          "timestamp": "2026-08-11T08:15:46Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/29267661833"
+        }
+      ]
+    },
+    {
+      "id": "68549-failure-multi-area",
+      "issue_number": 68549,
+      "historical_outcome": "failure",
+      "expected": {
+        "accepted_areas": [
+          "area-auth",
+          "area-blazor"
+        ],
+        "score_area": true,
+        "issue_type": "Bug",
+        "score_type": true,
+        "subtype": null,
+        "score_subtype": false,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30026137935,
+          "timestamp": "2026-08-26T06:58:05Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30026137935"
+        },
+        {
+          "event_id": 30026138063,
+          "timestamp": "2026-08-26T06:58:05Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30026138063"
+        }
+      ]
+    },
+    {
+      "id": "68678-partial-persistence",
+      "issue_number": 68678,
+      "historical_outcome": "partial-safe-output-materialization",
+      "expected": {
+        "accepted_areas": [],
+        "score_area": false,
+        "issue_type": "Bug",
+        "score_type": true,
+        "subtype": "external",
+        "score_subtype": true,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30026068884,
+          "timestamp": "2026-08-26T06:56:24Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30026068884"
+        }
+      ]
+    },
+    {
+      "id": "68724-automation-no-run",
+      "issue_number": 68724,
+      "historical_outcome": "no-run-github-token-created",
+      "expected": {
+        "accepted_areas": [
+          "area-blazor"
+        ],
+        "score_area": true,
+        "issue_type": null,
+        "score_type": false,
+        "subtype": "test-failure",
+        "score_subtype": true,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30027925643,
+          "timestamp": "2026-08-26T07:38:03Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30027925643"
+        }
+      ]
+    },
+    {
+      "id": "68801-current-control",
+      "issue_number": 68801,
+      "snapshot_cutoff": "2026-08-26T11:52:00Z",
+      "historical_outcome": "usable-classification",
+      "expected": {
+        "accepted_areas": [
+          "area-blazor"
+        ],
+        "score_area": true,
+        "issue_type": "Task",
+        "score_type": true,
+        "subtype": null,
+        "score_subtype": false,
+        "remove_labels": [],
+        "abstain": false,
+        "score_abstention": true,
+        "allowed_duplicate_issue_numbers": [],
+        "score_duplicates": false
+      },
+      "evidence": [
+        {
+          "event_id": 30040237967,
+          "timestamp": "2026-08-26T11:52:01Z",
+          "url": "https://api.github.com/repos/dotnet/aspnetcore/issues/events/30040237967"
+        },
+        {
+          "timestamp": "2026-08-26T11:56:36Z",
+          "url": "https://github.com/dotnet/aspnetcore/actions/runs/32965522777"
+        }
+      ]
+    }
+  ]
+}
