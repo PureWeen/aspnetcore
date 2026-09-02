@@ -2,7 +2,8 @@
 
 Review only the ASP.NET Core auth/security area in `src/Security/**`, `src/Identity/**`, `src/DataProtection/**`, `src/Antiforgery/**`, and `src/WebEncoders/**`: authentication and authorization middleware, OAuth/OIDC, cookies, JWT bearer, Identity, DataProtection, antiforgery, claims, and encoding.
 
-This file is reference material. It is loaded on demand by the `review-pull-request` skill, or supplied to the matching reviewer subagent by the `pull-request-review` workflow. Evaluate the dimensions below yourself, in one pass; do not spawn a subagent per dimension.
+This file is reference material. The `review-pull-request` skill and `pull-request-review` workflow
+give each dimension below an independent, single-dimension pass.
 
 #### Overarching principles
 

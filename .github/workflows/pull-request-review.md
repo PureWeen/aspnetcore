@@ -32,13 +32,13 @@ on:
   # that user, not the original author.
 
 description: >
-  Maintainer-invoked, read-only domain-expert review of a pull request. A maintainer types
-  `/review` in a pull request comment or review comment; the agent freezes the pull request head
-  commit, reads the GitHub-authoritative diff, routes the changed paths to the matching domain
-  reviewers plus always-on cross-cutting review, and produces at most five inline review comments
-  plus a single COMMENT-only review. While `safe-outputs.staged` is set, those are rendered in the
-  workflow run summary and nothing is posted to the pull request. It never approves, never requests
-  changes, never checks out or runs pull request code, and never mutates anything else.
+  Maintainer-invoked, read-only expert-panel review of a pull request. A maintainer types `/review`
+  in a pull request comment or review comment; the agent freezes the pull request head commit, reads
+  the GitHub-authoritative diff, routes it to every matching domain, and invokes a fresh reviewer
+  for each applicable expert dimension. It produces at most five inline review comments plus a
+  single COMMENT-only review. While `safe-outputs.staged` is set, those are rendered in the workflow
+  run summary and nothing is posted to the pull request. It never approves, never requests changes,
+  never checks out or runs pull request code, and never mutates anything else.
 
 # This review is advisory. It exists to gather wider maintainer feedback on whether domain-scoped
 # automated review is useful on real pull requests. Developers can run the same review locally
@@ -64,15 +64,13 @@ concurrency:
   # agent mid-run wastes the credits already spent and leaves no result.
   cancel-in-progress: false
 
-# Cost and blast-radius bounds. Routing is capped at cross-cutting plus at most two domain
-# reviewers, one level deep, so fan-out cannot grow with the size of the pull request.
-# Risk-gated tiers: most reviews stay at three agent invocations. Analyzer, lifecycle, concurrency,
-# interop, serialization, and compatibility changes add up to two focused single-dimension passes
-# and one adversarial check of their discards, for a ceiling of six. These bounds cover that worst
-# case, not a full per-dimension panel.
-timeout-minutes: 30
-max-turns: 80
-max-ai-credits: 800
+# This is a manually requested full expert panel. Each applicable cross-cutting and domain dimension
+# gets a fresh, one-level-deep reviewer instance, so a Components change, for example, runs 27
+# independent passes (14 cross-cutting and 13 Components). The limits remain finite to stop a
+# runaway run, but are deliberately sized for the complete panel rather than a reduced sample.
+timeout-minutes: 120
+max-turns: 400
+max-ai-credits: 5000
 
 # Per-user throttle, enforced in `pre_activation` before the agent job starts.
 # `ignored-roles: []` is required: the default exempts admin/maintain/write, which is every role
@@ -253,10 +251,9 @@ Also record the diff size: number of changed files, additions, and deletions.
 If the pull request is closed, merged, or a draft the maintainer has not asked you to look at,
 call `noop` and stop.
 
-**Fail closed on an oversized diff.** Fan-out is bounded at cross-cutting plus two domain reviewers,
-so a very large pull request cannot be covered honestly in one bounded run. If the pull request
-changes **more than 75 files** or **more than 3000 lines** (additions + deletions), call `noop`
-stating that the change exceeds the bounded-review envelope and needs human review, and stop.
+**Fail closed on an oversized diff.** The full expert panel needs a coherent briefing pack. If the
+pull request changes **more than 75 files** or **more than 3000 lines** (additions + deletions),
+call `noop` stating that the change exceeds the review envelope and needs human review, and stop.
 Reviewing a fraction of a huge diff and presenting it as a review is worse than declining.
 
 ## Step 2 — Route to reviewer agents
@@ -281,37 +278,24 @@ Map the changed paths to reviewer agents and invoke them as subagents:
 | `src/Servers/IIS`, `src/Installers` | `native-interop-reviewer` |
 | **every change** | `cross-cutting-reviewer` — always |
 
-Rules for the fan-out, which exist to bound cost:
+`src/Http` and `src/Servers` are shared paths. Route each to **both** matching domain agents:
+`minimal-api-openapi-reviewer` as well as `servers-networking-reviewer` for `src/Http`, and
+`native-interop-reviewer` as well as `servers-networking-reviewer` for `src/Servers`.
+
+Run the full expert panel:
 
 - **Always invoke `cross-cutting-reviewer`.** It is also the primary reviewer for any area with no
   dedicated agent.
-- **Invoke at most two domain agents in addition.** If more than two domains are materially
-  changed, choose the two owning the **highest-risk production changes** and record the rest as a
-  coverage limitation. Never imply an area was reviewed when its agent was not invoked.
-- **Delegation is one level deep.** Agents never spawn agents. You dispatch every agent yourself.
-- **Add a focused second pass only when the change is high-risk.** A broad pass spreads a small
-  finding budget across a dozen dimensions, so a defect sitting inside one dimension's specific
-  invariant is easy to skim past. When the diff touches analyzers or source generators, lifecycle
-  or state machines, concurrency and shared state, native interop, serialization or wire formats,
-  or a compatibility boundary, re-invoke **at most two** of the same agents, each asked to evaluate
-  **one named dimension only** against the diff. Still one level deep, so the ceiling is five agent
-  invocations. On a routine change this pass does not happen at all.
-- **Select the dimension that owns the defect, not the one matching the subject.** A change to an
-  analyzer is not automatically a question about the analyzer dimension — if it maps a formal
-  parameter position onto an argument collection index, that is a correctness-invariant question.
-  Ask what invariant the change could break, then name the dimension that owns it.
-- Report which dimensions got a focused pass, so a reader can tell "no defect found in this
-  dimension" apart from "this dimension was never examined closely."
-- **Challenge the discards from that focused pass.** When a focused pass runs and rejects a
-  candidate on the basis that existing code already handles it, re-invoke one agent with a single
-  job: **try to falsify that rejection.** Give it the discarded candidate, the stated reason, and
-  the diff, and ask it to find the exact line in the changed code that reaches the helper claimed to
-  handle it. If it cannot find that call edge, the discard does not hold and the candidate returns
-  as a finding with `proof: unverified`. Do not perform this check yourself — you formed the
-  reasoning being tested, and you will tend to confirm it. That raises the ceiling to six agent
-  invocations on a high-risk change, and none on a routine one.
-- Give every agent the same briefing: the frozen head SHA, the changed-file list, the diff, and
-  which other agents are running, so they stay in their lane and do not duplicate each other.
+- **Route every materially changed domain.** Do not omit a mapped domain to reduce work and then
+  imply it was reviewed.
+- **Run one fresh subagent instance per review dimension** in each routed reference. A Components
+  pull request, for example, runs the 14 cross-cutting dimensions and 13 Components dimensions as
+  27 independent passes. Give each instance one named dimension, the frozen briefing pack, and the
+  coverage map of all routed agents and dimensions. Its scope is that one dimension only.
+- **Delegation is one level deep.** The workflow router dispatches every fresh instance; an instance
+  never spawns another agent.
+- A fresh instance means separate context, not a second prompt in the same context. Do not claim
+  independence when subagent support is unavailable.
 
 For changes that are not mapped source areas:
 
@@ -392,18 +376,18 @@ contain:
 
 - the frozen head SHA and the pull request number;
 - a one-line summary of the change;
-- which reviewer agents ran, which dimensions received a focused pass, and any materially changed
-  area **not** covered;
+- which reviewer agents and dimensions ran, and any materially changed area without a matching
+  reference;
 - the test-boundary assessment from the skill (false-pass risk, ownership, coverage);
 - the proof basis of each finding, using the skill's labels — `source`, `primary-contract`, or
   `unverified` — and, for anything not settled by reading, the experiment that would settle it.
   A reader must be able to tell at a glance which findings follow from the code, which follow from
   an external contract, and which still need someone to run something;
 - limitations, including the **actual** review topology, reported honestly: write
-  `independence: subagent-per-reference (n=<number of reviewer agents that actually ran>)` when
-  you invoked the reviewer agents as subagents, and `independence: single-orchestrator (no
-  independent second opinion)` only if subagents were unavailable and you performed the passes
-  yourself in this context. Never overclaim independence — and never deny it when it happened;
+  `independence: subagent-per-dimension (n=<number of fresh reviewer instances>)` when you invoked
+  the reviewer agents as subagents, and `independence: single-orchestrator (no independent second
+  opinion)` only if subagents were unavailable and you performed the passes yourself in this
+  context. Never overclaim independence — and never deny it when it happened;
 - this exact caveat: **"This is an advisory source-level review of the frozen commit. It is not
   runtime proof: no pull request code was checked out, built, or executed."**
 
@@ -421,10 +405,10 @@ model: inherited
 ---
 You are the auth-security reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -443,10 +427,10 @@ model: inherited
 ---
 You are the blazor-components reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -465,10 +449,10 @@ model: inherited
 ---
 You are the cross-cutting reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -487,10 +471,10 @@ model: inherited
 ---
 You are the grpc reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -509,10 +493,10 @@ model: inherited
 ---
 You are the hosting-di reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -531,10 +515,10 @@ model: inherited
 ---
 You are the minimal-api-openapi reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -553,10 +537,10 @@ model: inherited
 ---
 You are the mvc-razor-routing reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -575,10 +559,10 @@ model: inherited
 ---
 You are the native-interop reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -597,10 +581,10 @@ model: inherited
 ---
 You are the servers-networking reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
@@ -619,10 +603,10 @@ model: inherited
 ---
 You are the signalr reviewer for a read-only ASP.NET Core pull request review.
 
-You receive a frozen head SHA, the GitHub-authoritative changed-file list, and the pull request
-diff. Apply the dimensions below to the changed lines only. Never check out, build, run, or test
-the pull request's code, never write tests, and never post or mutate anything: return findings to
-the orchestrator as text.
+You receive a frozen head SHA, the GitHub-authoritative changed-file list, the pull request diff,
+and one named review dimension. Apply only that named dimension to the changed lines. Never check
+out, build, run, or test the pull request's code, never write tests, and never post or mutate
+anything: return findings to the orchestrator as text.
 
 Return either `LGTM` or concrete findings. Every finding needs an exact `file:line` that the diff
 adds or modifies, a specific failing scenario (input, call sequence, or state), the material
