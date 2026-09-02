@@ -1,7 +1,7 @@
 ---
-# Never run in forks of this repository. Written as an equality rather than `!...` so the
-# compiled `if:` expression cannot start with `!`, which YAML would parse as a tag.
-if: ${{ github.event.repository.fork == false }}
+# Fork-only validation copy. This branch exists solely to exercise the staged reviewer in
+# PureWeen/aspnetcore and must never be proposed to dotnet/aspnetcore.
+if: ${{ github.repository == 'PureWeen/aspnetcore' }}
 
 on:
   # Direct dispatch (gh-aw's default). This workflow listens to the comment events itself rather
@@ -78,6 +78,7 @@ concurrency:
 # gets a fresh, one-level-deep reviewer instance, so a Components change, for example, runs 27
 # independent passes (14 cross-cutting and 13 Components). The limits remain finite to stop a
 # runaway run, but are deliberately sized for the complete panel rather than a reduced sample.
+runs-on: ubuntu-latest
 timeout-minutes: 120
 max-turns: 400
 max-ai-credits: 5000
@@ -106,6 +107,12 @@ user-rate-limit:
 # Re-check both after editing an agent block or a reference.
 checkout: false
 
+sandbox:
+  agent:
+    # Temporary fork validation requires runtime evidence from the strict gVisor profile.
+    runtime: gvisor
+    memory: 6g
+
 # The analysis contract lives in this repository and is installed from the local path at
 # activation time. This is the only skill installed, and never from an external source.
 skills:
@@ -133,8 +140,10 @@ tools:
     # safe outputs.
     min-integrity: none
     # Untrusted pull request text must not be able to steer reads at another repository.
-    # `${{ github.repository }}` is required here; gh-aw v0.87.10 rejects the literal `current`.
-    allowed-repos: ${{ github.repository }}
+    # Use the repository-list form so MCP Gateway v0.4.14 preserves the exact fork scope when it
+    # applies its public-repository visibility policy. The string form only accepts `all` or
+    # `public` at runtime.
+    allowed-repos: [pureween/aspnetcore]
     toolsets: [context, repos, issues, pull_requests]
 
 safe-outputs:
@@ -234,6 +243,9 @@ environment: copilot-pat-pool
 
 engine:
   id: copilot
+  # Copilot CLI 1.0.80 aborts during Node ESM startup under gVisor. Use the latest stable CLI
+  # available to gh-aw v0.87.10 for this temporary runtime validation.
+  version: "1.0.82"
   env:
     COPILOT_GITHUB_TOKEN: ${{ case(needs.pat_pool.outputs.pat_number == '0', secrets.COPILOT_PAT_0, needs.pat_pool.outputs.pat_number == '1', secrets.COPILOT_PAT_1, needs.pat_pool.outputs.pat_number == '2', secrets.COPILOT_PAT_2, needs.pat_pool.outputs.pat_number == '3', secrets.COPILOT_PAT_3, needs.pat_pool.outputs.pat_number == '4', secrets.COPILOT_PAT_4, needs.pat_pool.outputs.pat_number == '5', secrets.COPILOT_PAT_5, needs.pat_pool.outputs.pat_number == '6', secrets.COPILOT_PAT_6, needs.pat_pool.outputs.pat_number == '7', secrets.COPILOT_PAT_7, needs.pat_pool.outputs.pat_number == '8', secrets.COPILOT_PAT_8, needs.pat_pool.outputs.pat_number == '9', secrets.COPILOT_PAT_9, 'NO COPILOT PAT AVAILABLE') }}
 ---
@@ -398,6 +410,21 @@ and repository build script. Before running `dotnet`, activate the repository SD
 Establish causality with a red/green comparison when execution is the evidence; a passing test at
 the PR head alone is not proof. Do not modify the proposed production change except temporarily to
 establish the minimal control, and never commit or publish validation edits.
+
+For this temporary fork validation, the empirical proof must exercise the supported ASP.NET Core
+repository path from the cloned repository root. Run `source activate.sh` and `./restore.sh --ci`.
+The targeted analyzer project pulls the aggregate Assets project into its build even though its
+test does not consume the Components JavaScript bundles. The fork runner cannot authenticate to
+the private npm mirror, so create empty disposable placeholders for
+`blazor.web.js`, `blazor.web.js.map`, `blazor.server.js`, and `blazor.server.js.map` under
+`src/Components/Web.JS/dist/Debug/_framework`, then invoke
+`./src/Components/build.sh --test --no-restore --no-build-nodejs --no-build-native --no-build-java
+--no-build-installers` with `--projects` set to the absolute path of
+`src/Components/Analyzers/test/Microsoft.AspNetCore.Components.Analyzers.Tests.csproj`. Do not
+replace the repository build script with a direct `dotnet build` or `dotnet test` command. A
+targeted failing test that faithfully proves the defect is an expected empirical result; report
+the individual test result rather than treating that intentional red case as infrastructure
+failure.
 
 Then compare each survivor against **all existing feedback** — every inline review comment
 (resolved and unresolved), review body, and previous run of this workflow. Drop anything already
