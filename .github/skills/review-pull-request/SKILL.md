@@ -237,6 +237,8 @@ FINDINGS: <0-5>
    trigger: <the concrete input/ordering/config that reaches it>
    consequence: <the material outcome>
    evidence: <the source you read or contract you checked, named specifically>
+   proof: <source | primary-contract | unverified>
+   settled-by: <the experiment that would move this to empirically proven, or "n/a">
    confidence: <high|medium>
 ...
 
@@ -256,12 +258,42 @@ LIMITATIONS:
 If nothing survives Step 5, emit `NO_FINDINGS` after `HEAD_SHA`, still followed by `TEST_BOUNDARY`
 and `LIMITATIONS`. That is a correct, expected outcome.
 
+`NO_FINDINGS` means **no source-provable defect survived the gates**. It does not mean the change is
+correct, and it must never be reported as though it were. Whole classes of defect — races, ordering,
+lifetime, performance, anything that only appears when the code runs — are invisible to a reader and
+so cannot be ruled out here. If you considered such a risk and could not settle it, say so in
+`LIMITATIONS` rather than letting `NO_FINDINGS` imply you cleared it.
+
 Keep each finding concise and code-heavy: the claim in one line, the smallest consumer-code repro
 that reaches it, what goes wrong in a line or two, and a fix as a snippet where possible. Do not
 paste the framework code at the anchor — the diff already shows it.
 
 **Five is a ceiling, not a target.** One validated finding beats five speculative ones. Order by
 severity, then confidence. Every finding is about the frozen head SHA.
+
+### Proof basis
+
+`confidence` says how sure you are of your reasoning. `proof` says what that reasoning rests on, and
+the two are not the same — a finding can be high-confidence and still unproven. Label every finding:
+
+- **`source`** — you read the code that makes it true, in this repository, and the defect follows
+  from that code alone.
+- **`primary-contract`** — it follows from an authoritative external contract: a specification, the
+  documented semantics of a framework or BCL type, a wire format, or an interface being implemented.
+  Name the contract in `evidence`.
+- **`unverified`** — the mechanism is plausible and anchored to a changed line, but resolving it
+  needs behavior you cannot observe by reading. Keep these only when the trigger and consequence are
+  still concrete; otherwise Step 5 should have dropped it.
+
+**You can never emit `empirically proven`.** That label belongs to a separate stage that actually
+runs something, and nothing in this contract runs anything. `settled-by` is where you name the
+experiment that *would* earn it — "a red/green run of `<test>` with the change reverted", "compiling
+the analyzer against a differently-cased parameter", "loading the page and asserting the thrown
+`DOMException`". Be specific enough that a human could execute it without re-deriving your analysis.
+
+A `primary-contract` finding whose downstream effect you could not trace stays `primary-contract`
+with the untraced part named in `settled-by`. Do not promote it to `source` because the contract is
+authoritative; the contract proves the rule, not this code's behaviour under it.
 
 ## Not runtime proof
 

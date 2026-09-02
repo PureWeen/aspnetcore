@@ -357,6 +357,8 @@ For each finding, create one inline review comment with `create-pull-request-rev
   is a line that the frozen diff actually adds or modifies on the `RIGHT` side. GitHub rejects
   comments on lines outside the diff, so verify against the hunk headers rather than guessing.
 - State the frozen head SHA in the comment body, so a reader can tell which commit you analyzed.
+- State the finding's proof basis. Never present an `unverified` mechanism as though the behaviour
+  were established; say what would settle it instead.
 - Keep it concise and code-heavy: the claim in one line, the smallest consumer-code repro that
   reaches it, what goes wrong in a line or two, and a fix as a snippet where possible. Do not paste
   the framework code at the anchor — the diff already shows it.
@@ -368,6 +370,10 @@ contain:
 - a one-line summary of the change;
 - which reviewer agents ran, and any materially changed area **not** covered;
 - the test-boundary assessment from the skill (false-pass risk, ownership, coverage);
+- the proof basis of each finding, using the skill's labels — `source`, `primary-contract`, or
+  `unverified` — and, for anything not settled by reading, the experiment that would settle it.
+  A reader must be able to tell at a glance which findings follow from the code, which follow from
+  an external contract, and which still need someone to run something;
 - limitations, including the **actual** review topology, reported honestly: write
   `independence: subagent-per-reference (n=<number of reviewer agents that actually ran>)` when
   you invoked the reviewer agents as subagents, and `independence: single-orchestrator (no
