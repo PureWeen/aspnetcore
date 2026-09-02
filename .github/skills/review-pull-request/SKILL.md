@@ -185,6 +185,36 @@ If independent subagents are unavailable, work each loaded reference yourself, o
 **not** independence — successive passes in one context share the same blind spots. Say which path you
 used and never imply a second opinion you did not get.
 
+### A focused second pass for high-risk changes
+
+A broad pass over a whole reference has to spread a small finding budget across a dozen unrelated
+dimensions, so a defect that lives inside one dimension's specific invariant is easy to skim past.
+When the change carries one of the risks below, take a **second pass that is deliberately narrow**.
+
+Trigger it when the changed files involve any of:
+
+- analyzers, source generators, or anything that reads or rewrites syntax or symbols;
+- lifecycle or state machines — ordering, reentrancy, or a defined sequence of transitions;
+- concurrency and shared mutable state;
+- native interop or marshalling;
+- serialization, wire formats, or protocol framing;
+- a compatibility boundary: public API, a shipped default, or a persisted or transmitted format.
+
+Then pick **at most two dimensions**, from any loaded reference, and give each its own pass that
+evaluates that dimension alone against the diff. Where independent subagents are available, one
+subagent per selected dimension, still **one level deep**. This is a small, risk-gated addition —
+never the whole panel, and never on a routine change.
+
+**Choose the dimension that owns the defect, not the one that matches the subject.** These come
+apart more often than they look. A change to an analyzer is not automatically a question about the
+analyzer dimension: if the analyzer maps a formal parameter position onto an argument collection
+index, the defect lives in correctness invariants, because that is where index-and-identity mapping
+is checked. Ask what invariant the change could break, then select the dimension that owns *that*
+invariant. Picking by subject matter is how a defect stays hidden while appearing reviewed.
+
+Record which dimensions you focused on. A reader needs to distinguish "no defect in this dimension"
+from "this dimension was never examined closely."
+
 ## Step 5 — Validate every candidate
 
 Discard any candidate failing **any** gate:
@@ -226,6 +256,7 @@ Return exactly this, and publish nothing:
 HEAD_SHA: <exact 40-char head SHA>
 PR: <owner/repo>#<number>
 REFERENCES: <the references you loaded>
+FOCUSED: <dimensions given a dedicated narrow pass, or "none — no high-risk signal">
 UNCOVERED: <materially changed areas you did not load, or "none">
 PATH: <subagent-per-reference (n=<1-3>) | single-orchestrator>
 

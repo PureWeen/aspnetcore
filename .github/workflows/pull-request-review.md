@@ -66,9 +66,12 @@ concurrency:
 
 # Cost and blast-radius bounds. Routing is capped at cross-cutting plus at most two domain
 # reviewers, one level deep, so fan-out cannot grow with the size of the pull request.
-timeout-minutes: 25
-max-turns: 60
-max-ai-credits: 600
+# The focused second pass is risk-gated: most reviews stay at three agent invocations, and only
+# analyzer, lifecycle, concurrency, interop, serialization, and compatibility changes reach the
+# ceiling of five. These bounds cover that worst case, not a full per-dimension panel.
+timeout-minutes: 30
+max-turns: 80
+max-ai-credits: 800
 
 # Per-user throttle, enforced in `pre_activation` before the agent job starts.
 # `ignored-roles: []` is required: the default exempts admin/maintain/write, which is every role
@@ -284,8 +287,20 @@ Rules for the fan-out, which exist to bound cost:
 - **Invoke at most two domain agents in addition.** If more than two domains are materially
   changed, choose the two owning the **highest-risk production changes** and record the rest as a
   coverage limitation. Never imply an area was reviewed when its agent was not invoked.
-- **Delegation is one level deep.** Agents do not spawn agents, and there is no per-dimension
-  fan-out — each agent evaluates all of its own dimensions in a single pass.
+- **Delegation is one level deep.** Agents never spawn agents. You dispatch every agent yourself.
+- **Add a focused second pass only when the change is high-risk.** A broad pass spreads a small
+  finding budget across a dozen dimensions, so a defect sitting inside one dimension's specific
+  invariant is easy to skim past. When the diff touches analyzers or source generators, lifecycle
+  or state machines, concurrency and shared state, native interop, serialization or wire formats,
+  or a compatibility boundary, re-invoke **at most two** of the same agents, each asked to evaluate
+  **one named dimension only** against the diff. Still one level deep, so the ceiling is five agent
+  invocations. On a routine change this pass does not happen at all.
+- **Select the dimension that owns the defect, not the one matching the subject.** A change to an
+  analyzer is not automatically a question about the analyzer dimension — if it maps a formal
+  parameter position onto an argument collection index, that is a correctness-invariant question.
+  Ask what invariant the change could break, then name the dimension that owns it.
+- Report which dimensions got a focused pass, so a reader can tell "no defect found in this
+  dimension" apart from "this dimension was never examined closely."
 - Give every agent the same briefing: the frozen head SHA, the changed-file list, the diff, and
   which other agents are running, so they stay in their lane and do not duplicate each other.
 
@@ -368,7 +383,8 @@ contain:
 
 - the frozen head SHA and the pull request number;
 - a one-line summary of the change;
-- which reviewer agents ran, and any materially changed area **not** covered;
+- which reviewer agents ran, which dimensions received a focused pass, and any materially changed
+  area **not** covered;
 - the test-boundary assessment from the skill (false-pass risk, ownership, coverage);
 - the proof basis of each finding, using the skill's labels — `source`, `primary-contract`, or
   `unverified` — and, for anything not settled by reading, the experiment that would settle it.
