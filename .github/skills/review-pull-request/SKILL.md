@@ -236,6 +236,34 @@ Discard any candidate failing **any** gate:
 
 Ambiguity is not a finding. If two readings are defensible, drop it.
 
+### Discarding is also a claim
+
+Every gate above removes candidates, so it is tempting to treat rejection as the safe direction. It
+is not. A wrong finding is visible and gets argued down; a wrong discard is a defect you had in hand
+and let go, and nothing downstream will look at it again. **Hold a discard to the same evidence
+standard as a finding**, and be most suspicious of a discard that arrives quickly.
+
+The dangerous shape is rejecting a candidate because the code "already handles this."
+
+- **Cite the call edge, not the neighbourhood.** Name the line in the changed code that actually
+  reaches the correcting helper. *Proximity is not invocation.* A helper in the same file, with the
+  right logic and an inviting name, is not counterevidence unless the changed line calls it. Code
+  that does the right thing somewhere else is exactly what a real defect of this kind looks like.
+- **Beware two helpers that resolve the same idea differently.** Where one takes a formal ordinal
+  and another takes a collection index, or one resolves an identity while another assumes position,
+  those are different functions no matter how alike they read. Confirm **which one the changed line
+  calls**, by name, before concluding the value is resolved correctly.
+- **Follow the value-producing expression.** For any claim about arguments, indexes, ordinals, keys,
+  or identity, quote the expression at the changed line and trace it. If that line indexes a
+  collection directly, a sibling that resolves the same value properly does not repair it.
+- **Say what you read.** A discard names the line that rules the candidate out, exactly as a finding
+  names the line it rests on.
+
+**If you cannot produce the call edge, the candidate is not discarded.** It survives as a finding
+with `proof: unverified`, and `settled-by` names the trace that would settle it. Reporting an
+uncertain mechanism and saying so costs a reader a minute; discarding a real defect on an assumed
+call path costs them the defect. When the two are in tension, prefer being visibly unsure.
+
 **Test-boundary assessment (always report, even with no findings):**
 
 - **Can the tests false-pass?** Would a new or changed test still pass with the production change

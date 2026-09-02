@@ -66,9 +66,10 @@ concurrency:
 
 # Cost and blast-radius bounds. Routing is capped at cross-cutting plus at most two domain
 # reviewers, one level deep, so fan-out cannot grow with the size of the pull request.
-# The focused second pass is risk-gated: most reviews stay at three agent invocations, and only
-# analyzer, lifecycle, concurrency, interop, serialization, and compatibility changes reach the
-# ceiling of five. These bounds cover that worst case, not a full per-dimension panel.
+# Risk-gated tiers: most reviews stay at three agent invocations. Analyzer, lifecycle, concurrency,
+# interop, serialization, and compatibility changes add up to two focused single-dimension passes
+# and one adversarial check of their discards, for a ceiling of six. These bounds cover that worst
+# case, not a full per-dimension panel.
 timeout-minutes: 30
 max-turns: 80
 max-ai-credits: 800
@@ -301,6 +302,14 @@ Rules for the fan-out, which exist to bound cost:
   Ask what invariant the change could break, then name the dimension that owns it.
 - Report which dimensions got a focused pass, so a reader can tell "no defect found in this
   dimension" apart from "this dimension was never examined closely."
+- **Challenge the discards from that focused pass.** When a focused pass runs and rejects a
+  candidate on the basis that existing code already handles it, re-invoke one agent with a single
+  job: **try to falsify that rejection.** Give it the discarded candidate, the stated reason, and
+  the diff, and ask it to find the exact line in the changed code that reaches the helper claimed to
+  handle it. If it cannot find that call edge, the discard does not hold and the candidate returns
+  as a finding with `proof: unverified`. Do not perform this check yourself — you formed the
+  reasoning being tested, and you will tend to confirm it. That raises the ceiling to six agent
+  invocations on a high-risk change, and none on a routine one.
 - Give every agent the same briefing: the frozen head SHA, the changed-file list, the diff, and
   which other agents are running, so they stay in their lane and do not duplicate each other.
 
