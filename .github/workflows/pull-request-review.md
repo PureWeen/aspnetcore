@@ -78,6 +78,7 @@ concurrency:
 # gets a fresh, one-level-deep reviewer instance, so a Components change, for example, runs 27
 # independent passes (14 cross-cutting and 13 Components). The limits remain finite to stop a
 # runaway run, but are deliberately sized for the complete panel rather than a reduced sample.
+runs-on: ubuntu-latest
 timeout-minutes: 120
 max-turns: 400
 max-ai-credits: 5000
@@ -110,6 +111,7 @@ sandbox:
   agent:
     # Temporary fork validation requires runtime evidence from the strict gVisor profile.
     runtime: gvisor
+    memory: 6g
 
 # The analysis contract lives in this repository and is installed from the local path at
 # activation time. This is the only skill installed, and never from an external source.
