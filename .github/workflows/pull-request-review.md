@@ -48,6 +48,16 @@ description: >
 # and can diverge — only the domain references are single-sourced. Findings are suggestions for a
 # human reviewer, never a merge gate.
 
+# gh-aw v0.87.10 otherwise injects the organization-wide OTLP endpoint and secret-bearing header
+# aggregate into the agent environment. This workflow executes contributor-controlled build and
+# test hooks, so disable inherited telemetry until the runtime excludes those credentials from the
+# sandbox. The empty endpoint list also prevents exporter attempts.
+env:
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  OTEL_EXPORTER_OTLP_HEADERS: ""
+  GH_AW_OTLP_ENDPOINTS: "[]"
+  GH_AW_OTLP_IF_MISSING: ignore
+
 permissions:
   contents: read
   issues: read
@@ -128,6 +138,9 @@ tools:
     toolsets: [context, repos, issues, pull_requests]
 
 safe-outputs:
+  # The publisher must consume the same trusted SHA that gates the agent job. Without this
+  # dependency, a later push could race publication after the agent's final live-head check.
+  needs: [freeze_pr_head]
   # gh-aw auto-enables incomplete-reporting whenever any safe output exists, which would add
   # `create_report_incomplete_issue` / `report_incomplete` handlers that can create an issue.
   # This workflow promises no issue mutation, so turn it off explicitly.
@@ -159,14 +172,54 @@ safe-outputs:
     max: 5
     side: RIGHT
     target: triggering
+    commit-id: ${{ needs.freeze_pr_head.outputs.head_sha }}
   submit-pull-request-review:
     max: 1
     # Explicit rather than inherited: pin the review to the pull request that triggered this run.
     # Defence in depth, not a new capability.
     target: triggering
+    commit-id: ${{ needs.freeze_pr_head.outputs.head_sha }}
     # COMMENT only. APPROVE and REQUEST_CHANGES are deliberately unreachable so this
     # workflow can never gate or unblock a merge.
     allowed-events: [COMMENT]
+
+jobs:
+  freeze_pr_head:
+    needs: [pre_activation]
+    if: needs.pre_activation.outputs.activated == 'true'
+    runs-on: ubuntu-slim
+    permissions:
+      pull-requests: read
+    outputs:
+      head_sha: ${{ steps.get_head.outputs.head_sha }}
+    steps:
+      - name: Freeze pull request head
+        id: get_head
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const pullNumber = context.payload.issue?.number ?? context.payload.pull_request?.number;
+            if (!Number.isInteger(pullNumber)) {
+              core.setFailed("The triggering comment does not identify a pull request.");
+              return;
+            }
+
+            const { data } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+
+            if (!/^[0-9a-f]{40}$/.test(data.head.sha)) {
+              core.setFailed("GitHub returned an invalid pull request head SHA.");
+              return;
+            }
+
+            core.setOutput("head_sha", data.head.sha);
+
+  agent:
+    needs: [freeze_pr_head]
 
 # ###############################################################
 # Select a PAT from the pool and override COPILOT_GITHUB_TOKEN.
@@ -228,7 +281,13 @@ an unidentified pull request.
 
 Then, using the GitHub tools, capture and hold fixed for the rest of the run:
 
-1. the **exact head SHA** (`head.sha`) of that pull request — the frozen commit ID;
+The trusted activation job captured `${{ needs.freeze_pr_head.outputs.head_sha }}` as the exact pull
+request head. Treat that value as the frozen commit ID. Re-read `head.sha` through GitHub and stop
+with `noop` unless it equals the trusted value.
+
+Then capture:
+
+1. the **exact head SHA** (`head.sha`) after verifying it equals the trusted frozen commit ID;
 2. the **exact base SHA** (`base.sha`) of that pull request — the authoritative-document ref;
 3. the **changed-file list from GitHub** for that pull request;
 4. the **pull request diff** against the merge base, with new-file line numbers per hunk;
