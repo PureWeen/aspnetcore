@@ -410,11 +410,19 @@ the PR head alone is not proof. Do not modify the proposed production change exc
 establish the minimal control, and never commit or publish validation edits.
 
 For this temporary fork validation, the empirical proof must exercise the supported ASP.NET Core
-repository path from the cloned repository root: run `source activate.sh`, then invoke
-`./src/Components/build.sh --test` with `--projects` set to the absolute path of
-`src/Components/Analyzers/test/Microsoft.AspNetCore.Components.Analyzers.Tests.csproj`. You may add
-the smallest test filter or no-build flags that preserve this analyzer test boundary, but do not
-replace the repository build script with a direct `dotnet build` or `dotnet test` command.
+repository path from the cloned repository root. Run `source activate.sh` and `./restore.sh --ci`.
+The targeted analyzer project pulls the aggregate Assets project into its build even though its
+test does not consume the Components JavaScript bundles. The fork runner cannot authenticate to
+the private npm mirror, so create empty disposable placeholders for
+`blazor.web.js`, `blazor.web.js.map`, `blazor.server.js`, and `blazor.server.js.map` under
+`src/Components/Web.JS/dist/Debug/_framework`, then invoke
+`./src/Components/build.sh --test --no-restore --no-build-nodejs --no-build-native --no-build-java
+--no-build-installers` with `--projects` set to the absolute path of
+`src/Components/Analyzers/test/Microsoft.AspNetCore.Components.Analyzers.Tests.csproj`. Do not
+replace the repository build script with a direct `dotnet build` or `dotnet test` command. A
+targeted failing test that faithfully proves the defect is an expected empirical result; report
+the individual test result rather than treating that intentional red case as infrastructure
+failure.
 
 Then compare each survivor against **all existing feedback** — every inline review comment
 (resolved and unresolved), review body, and previous run of this workflow. Drop anything already
