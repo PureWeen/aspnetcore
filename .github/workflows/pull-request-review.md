@@ -151,13 +151,10 @@ safe-outputs:
   report-failed-jobs: false
   # Start staged: runs render the intended review in the step summary instead of posting.
   #
-  # Do NOT remove this line yet. gh-aw v0.87.10 does not commit-pin safe-output publication for
-  # `issue_comment` / `pull_request_review_comment` triggers, so inline comments are attached to
-  # whatever the pull request head is when the safe-output job runs. The agent re-reads
-  # `head.sha` immediately before emitting, but that is best-effort in the agent job: a push can
-  # still land between that check and publication. Until there is a writer-side frozen-head gate
-  # or equivalent structural protection, unstaging risks anchoring comments to lines that were
-  # never reviewed.
+  # Do NOT remove this line until maintainers have reviewed representative staged runs and
+  # deliberately approve publication. Both review handlers are already pinned below to the
+  # trusted SHA captured by `freeze_pr_head`; staged mode is now an adoption gate, not a
+  # substitute for commit pinning.
   staged: true
   report-failure-as-issue: false
   noop:
