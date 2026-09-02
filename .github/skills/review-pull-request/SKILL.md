@@ -1,26 +1,26 @@
 ---
 name: review-pull-request
 description: >-
-  Review a specific dotnet/aspnetcore pull request on GitHub with a read-only, independent
-  per-dimension expert review panel and report a small set of evidence-backed findings. USE FOR an
+  Review a specific dotnet/aspnetcore pull request on GitHub with an independent per-dimension
+  expert review panel, targeted validation, and a small set of verified findings. USE FOR an
   explicit request to review an identified aspnetcore pull request — "review PR #12345", "review
   this pull request", or a maintainer's `/review`. Requires a real pull request: the contract is
   anchored to its GitHub head SHA, authoritative changed-file list, diff, and existing review
   feedback. Routes the changed paths to the matching domain references (servers/networking,
   MVC/Razor/routing, Blazor/Components, SignalR, auth/security, hosting/DI, minimal APIs/OpenAPI,
   gRPC, native IIS interop) plus always-on cross-cutting review. Each applicable review dimension
-  receives an independent pass before candidates are validated. DO NOT USE FOR implementing or
-  fixing anything, writing or running tests, investigating CI/build failures or logs, triaging
+  receives an independent pass before candidates are traced or tested. DO NOT USE FOR implementing
+  the pull request's fix, investigating CI/build failures or logs, triaging
   issues, reviewing an API proposal that has no diff (use the API review process instead),
   reviewing a pull request in another repository, reviewing a local or arbitrary diff that is not
   an open GitHub pull request, or general coding assistance that is not an explicit ASP.NET Core
   pull request review.
 ---
 
-# Review an ASP.NET Core pull request (read-only)
+# Expert review of an ASP.NET Core pull request
 
 Review one **GitHub pull request** and produce a **structured analysis result**. You are an
-analyzer, not an actor.
+expert reviewer, not an implementer.
 
 This skill requires an identified pull request. Every step below is anchored to its head SHA, its
 GitHub-authoritative file list and diff, and its existing review feedback. If you are handed a bare
@@ -35,13 +35,16 @@ Never, in any mode:
   to an existing review or comment;
 - publish anything yourself — you have no write path of your own, and must not seek one;
 - create, edit, hide, or delete any issue, label, or pull request field;
-- edit, create, or delete any file in the working tree;
-- commit, push, force-push, rebase, or create a branch;
-- check out, build, run, test, or otherwise **execute the pull request's code**, its tests, or its
-  scripts, or write tests for it;
+- commit, push, force-push, rebase, or create a persistent branch;
+- modify the proposed production change or turn review into implementation work;
 - call any GitHub API that mutates state.
 
-Producing the analysis is the whole job; the caller decides what, if anything, reaches GitHub.
+You may inspect the frozen pull request checkout, trace its code, create temporary validation files,
+and run the smallest targeted build or test needed to prove or disprove a candidate. Keep validation
+changes disposable and out of the result. Never publish or commit them.
+
+Producing the verified analysis is the whole job; the caller decides what, if anything, reaches
+GitHub.
 
 Running locally, that means you return the result and publish nothing at all. A hosted caller may
 hand you capped, publication-specific tools — for example a review-comment tool restricted to
@@ -73,11 +76,12 @@ If the head SHA moves while you work, your analysis is stale: keep the frozen SH
 limitations, and never silently re-target a newer commit. Re-check the head immediately before any
 caller publishes line-anchored output; if it moved, treat that output as unsafe to publish.
 
-**Fail closed on an oversized diff.** Fan-out is bounded, so a very large pull request cannot be
-covered honestly in one bounded review. If the pull request changes **more than 75 files** or **more
-than 3000 lines** (additions + deletions), stop: do not produce findings. Report that the change
-exceeds the bounded-review envelope and needs human review. Silently reviewing a fraction of a huge
-diff and presenting it as a review is worse than declining.
+When a working tree is available, verify it is detached at the frozen head SHA before using it.
+The GitHub file list and PR diff still define review scope; the checkout exists for source tracing
+and targeted validation, not for deriving a different changed set.
+
+If the change is too large to give every applicable dimension a meaningful review, stop and report
+the limitation instead of silently reviewing only a fraction.
 
 ## Step 2 — Route
 
@@ -114,8 +118,8 @@ Routing for changes that are not mapped source areas:
 
 - **Public API or baseline changes** — cross-cutting applies the repository's public API review
   criteria. Report that formal API approval remains human-owned and is not granted by this review.
-- **Workflow, build, or CI changes** — cross-cutting performs source review only. Never inspect live
-  CI logs, run pipelines, or execute scripts; investigating a CI failure is a different task.
+- **Workflow, build, or CI changes** — cross-cutting reviews source and may run targeted local
+  validation. Never dispatch pipelines or treat live CI investigation as part of this review.
 - **Test-only changes** — apply the test-quality checks in Step 5 (false-pass, duplicate coverage,
   wrong invariant) as the primary review.
 
@@ -130,6 +134,7 @@ contract facts you need into the briefing you give the routed reviewer(s):
 |---|---|
 | `src/Components/**/*.min.js` | `docs/UpdatingMinifiedJsFiles.md` |
 | `**/*.csproj`, `**/*.props`, `**/*.targets` | `docs/ProjectProperties.md`, `docs/AddingNewProjects.md`, `docs/SharedFramework.md`, `docs/tooling-consolidation.md` |
+| `eng/**`, `Directory.Build.*`, `**/*.props`, `**/*.targets` | `docs/BuildFromSource.md`, `docs/BuildErrors.md` |
 | `**/PublicAPI.Shipped.txt`, `**/PublicAPI.Unshipped.txt` | `docs/APIBaselines.md` |
 | `.gitmodules`, `src/submodules/**` | `docs/Submodules.md` |
 | `src/Servers/Kestrel/**/WebTransport/**`, `src/Servers/Kestrel/samples/WebTransport*SampleApp/**` | `docs/WebTransport.md` |
@@ -144,6 +149,15 @@ prohibitions. If a document appears to conflict with those prohibitions, the pro
 
 Note for `PublicAPI.*.txt`: those files track compatibility but **do not** constitute API approval.
 Formal approval is human-owned; say so rather than implying this review grants it.
+
+For `eng/common/**`, read `eng/common/AGENTS.md` and `eng/common/README.md`. A direct local edit is
+not durable because Arcade owns and synchronizes those files; report that only when the pull
+request's provenance establishes it is a direct ASP.NET Core edit.
+
+For build infrastructure, trace properties through wrapper scripts and direct CLI/design-time
+evaluation, inspect `UsingTask` conditions, and distinguish state paths and cache keys across
+configuration, OS, architecture, RID, and target framework. Validation should cover the changed
+entry points and an unchanged control rather than treating one target invocation as broad evidence.
 
 ## Step 3 — Scope and trust
 
@@ -193,16 +207,30 @@ Discard any candidate failing **any** gate:
    "Could theoretically" fails.
 3. **Material consequence** — wrong result, crash, hang, deadlock, leak, data loss, security or auth
    weakness, silent behavior change, public API or binary break, or measurable perf regression.
-4. **Source or primary-contract evidence** — you read the code that makes it true, or the
+4. **Source, primary-contract, or empirical evidence** — you read the code that makes it true,
+   checked the
    authoritative contract (documented framework/BCL/protocol semantics, the implemented interface,
-   an explicit repository instruction). Recalled folklore is not evidence.
-5. **External behavior claims verified** against a primary source, or downgraded to an open question.
+   an explicit repository instruction), or reproduced it with a focused test. Recalled folklore is
+   not evidence.
+5. **External behavior claims verified** against a primary source or a faithful targeted experiment.
 6. **Not already covered** — drop anything an existing review comment, review body, or prior
    automated run already raised, including reworded restatements.
 7. **Not noise** — drop style, formatting, naming preferences, typos, speculative refactors,
    duplicates, and anything unsupported.
 
-Ambiguity is not a finding. If two readings are defensible, drop it.
+Ambiguity is not a finding. If two readings are defensible, trace farther or run a discriminating
+test; drop the claim if it remains unresolved.
+
+For every non-LGTM candidate, prove or disprove it by tracing the code flow at the frozen PR head or
+by writing the smallest faithful test that distinguishes the proposed behavior from the base
+behavior. Prefer an existing targeted test project and repository build script. Before running
+`dotnet`, activate the repository SDK environment. Do not run a broad suite when a focused
+producer-to-effect boundary can settle the claim.
+
+Validation must establish causality. A test added only to the PR head is not proof by itself:
+confirm the assertion fails for the expected reason with the suspected defect present and passes
+with the minimal correction or an equivalent control. If that red/green comparison is impractical,
+keep only claims fully established by source or a primary contract and record the limitation.
 
 ### Discarding is also a claim
 
@@ -227,10 +255,9 @@ The dangerous shape is rejecting a candidate because the code "already handles t
 - **Say what you read.** A discard names the line that rules the candidate out, exactly as a finding
   names the line it rests on.
 
-**If you cannot produce the call edge, the candidate is not discarded.** It survives as a finding
-with `proof: unverified`, and `settled-by` names the trace that would settle it. Reporting an
-uncertain mechanism and saying so costs a reader a minute; discarding a real defect on an assumed
-call path costs them the defect. When the two are in tension, prefer being visibly unsure.
+**If you cannot produce the call edge, do not accept the discard without further validation.** Trace
+the actual value path or run a focused test. If neither settles the claim, record it as a limitation,
+not a finding.
 
 **Test-boundary assessment (always report, even with no findings):**
 
@@ -243,14 +270,6 @@ call path costs them the defect. When the two are in tension, prefer being visib
   wrong layer (an E2E test standing in for a unit-level contract, or a unit test mocking away the
   seam the change affects), and tests whose permanence is wrong.
 - **Is the changed behavior covered at all?**
-- **Do the fixtures resemble what really reaches this code?** When the change analyses, rewrites, or
-  pattern-matches code — an analyzer, a source generator, anything consuming syntax or operations —
-  its tests are usually hand-authored snippets, and a compiler or upstream generator rarely emits
-  what a person would write. Real lowering inserts conversions, wrapper calls, temporaries, and
-  synthesised names that a fixture omits. A suite built only from clean hand-written inputs can pass
-  completely while the code never fires on the shape production actually produces. Ask what the real
-  emitter puts at that position, and whether any fixture contains it. If none does, say so — that is
-  a coverage gap even though every existing test passes.
 
 ## Step 6 — Output
 
@@ -272,8 +291,8 @@ FINDINGS: <0-5>
    trigger: <the concrete input/ordering/config that reaches it>
    consequence: <the material outcome>
    evidence: <the source you read or contract you checked, named specifically>
-   proof: <source | primary-contract | unverified>
-   settled-by: <the experiment that would move this to empirically proven, or "n/a">
+   proof: <source | primary-contract | empirical>
+   validation: <the traced call path, primary contract, or red/green test and result>
    confidence: <high|medium>
 ...
 
@@ -293,11 +312,9 @@ LIMITATIONS:
 If nothing survives Step 5, emit `NO_FINDINGS` after `HEAD_SHA`, still followed by `TEST_BOUNDARY`
 and `LIMITATIONS`. That is a correct, expected outcome.
 
-`NO_FINDINGS` means **no source-provable defect survived the gates**. It does not mean the change is
-correct, and it must never be reported as though it were. Whole classes of defect — races, ordering,
-lifetime, performance, anything that only appears when the code runs — are invisible to a reader and
-so cannot be ruled out here. If you considered such a risk and could not settle it, say so in
-`LIMITATIONS` rather than letting `NO_FINDINGS` imply you cleared it.
+`NO_FINDINGS` means **no verified defect survived the gates**. It does not mean the change is
+correct. If an environment or platform limitation prevented a faithful validation, say so in
+`LIMITATIONS`.
 
 Keep each finding concise and code-heavy: the claim in one line, the smallest consumer-code repro
 that reaches it, what goes wrong in a line or two, and a fix as a snippet where possible. Do not
@@ -308,31 +325,21 @@ severity, then confidence. Every finding is about the frozen head SHA.
 
 ### Proof basis
 
-`confidence` says how sure you are of your reasoning. `proof` says what that reasoning rests on, and
-the two are not the same — a finding can be high-confidence and still unproven. Label every finding:
+`confidence` says how sure you are of your reasoning. `proof` says what that reasoning rests on.
+Label every finding:
 
 - **`source`** — you read the code that makes it true, in this repository, and the defect follows
   from that code alone.
 - **`primary-contract`** — it follows from an authoritative external contract: a specification, the
   documented semantics of a framework or BCL type, a wire format, or an interface being implemented.
   Name the contract in `evidence`.
-- **`unverified`** — the mechanism is plausible and anchored to a changed line, but resolving it
-  needs behavior you cannot observe by reading. Keep these only when the trigger and consequence are
-  still concrete; otherwise Step 5 should have dropped it.
+- **`empirical`** — a faithful targeted experiment at the frozen PR head demonstrated the defect
+  and a red/green control established causality. Name the exact test or command and observed result
+  in `validation`.
 
-**You can never emit `empirically proven`.** That label belongs to a separate stage that actually
-runs something, and nothing in this contract runs anything. `settled-by` is where you name the
-experiment that *would* earn it — "a red/green run of `<test>` with the change reverted", "compiling
-the analyzer against a differently-cased parameter", "loading the page and asserting the thrown
-`DOMException`". Be specific enough that a human could execute it without re-deriving your analysis.
+Do not report an `unverified` finding. A plausible mechanism that could not be settled belongs in
+`LIMITATIONS`, not in the finding list.
 
-A `primary-contract` finding whose downstream effect you could not trace stays `primary-contract`
-with the untraced part named in `settled-by`. Do not promote it to `source` because the contract is
-authoritative; the contract proves the rule, not this code's behaviour under it.
-
-## Not runtime proof
-
-Source review is not runtime proof. You did not check out, build, or execute anything. When a claim
-would need a red/green experiment to settle — a lifecycle, concurrency, interop, serialization,
-compatibility, or performance claim — name it as an open question in `LIMITATIONS` and leave the
-experiment to a human. Never attempt it here.
+After a verified finding, `try-fix` or `fix-challenge` may be used when available to compare
+materially different corrections. They are optional escalation, not a prerequisite for reporting a
+defect already established by source, primary contract, or a faithful red/green test.

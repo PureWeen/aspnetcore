@@ -13,19 +13,6 @@ give each dimension below an independent, single-dimension pass.
 - **Treat JS interop and browser state as availability- and lifetime-sensitive:** `IJSRuntime`, `IJSObjectReference`, `ElementReference`, DOM callbacks, and browser resources need render-mode guards and deterministic cleanup.
 - **Prove observable behavior in tests** — browser, renderer, routing, validation, serialization — not helper equivalence.
 
-#### Components framework rules
-
-- CHECK: `IHttpContextAccessor` is **forbidden** in framework components and framework services. A
-  component receives `HttpContext` through a cascading parameter; a service receives it as a method
-  parameter where applicable. Flag any new dependency on it.
-- CHECK: Never implement `IHandleEvent` in framework components. It overrides the default event
-  dispatch and rerender behavior that applications rely on.
-- CHECK: Do not add new dependencies to the Components libraries by default. A new dependency needs an
-  explicit justification and affects trimming, AOT, and the WebAssembly payload.
-- CHECK: A feature must register its required services through **render-mode-agnostic abstractions**
-  so it works across Server, WebAssembly, Auto, and static SSR, rather than registering per-render-mode
-  services that silently no-op in another mode.
-
 #### Review dimensions
 
 ##### Scope, layering, and public API shape
@@ -56,8 +43,8 @@ give each dimension below an independent, single-dimension pass.
 
 - CHECK: Distinguish `SetParametersAsync`, `OnInitialized{Async}`, `OnParametersSet{Async}`, and `OnAfterRender{Async}`; initialization, parameter-change handling, and DOM-dependent work must be in the correct lifecycle stage.
 - CHECK: Validate `ComponentBase` lifecycle changes against synchronous success, asynchronous success, cancellation, and exception paths, including `ErrorBoundary` wrapping and resulting `StateHasChanged` behavior.
-- CHECK: `Dispatcher.InvokeAsync` is **renderer and circuit infrastructure**, not a component API: use it only in renderer/circuit code that must marshal external work onto the dispatcher. Framework components must not call it — component lifecycle and event callbacks already run on the dispatcher. Avoid `ContinueWith`, sync-over-async, and background mutations that bypass the renderer context.
-- CHECK: Rendering is automatic. A framework component calls `StateHasChanged` only to render an intermediate state **between two awaits** in an async flow; after event callbacks, parameter changes, and lifecycle completion the framework already rerenders, so any additional call is redundant. Renderer/circuit infrastructure reacting to genuinely external updates is the separate case.
+- CHECK: Use `async`/`await` and renderer `Dispatcher.InvokeAsync` for continuations that touch component state; avoid `ContinueWith`, sync-over-async, and background mutations that bypass the renderer context.
+- CHECK: Do not call `StateHasChanged` redundantly after normal event callbacks when the framework already rerenders; call it explicitly for external updates that bypass parameter binding or event dispatch.
 - CHECK: Fire-and-forget work must have an owning lifetime, preserved exceptions or cancellation, and a documented reason it is safe not to await.
 
 ##### Parameters, cascading values, and binding
@@ -114,7 +101,7 @@ give each dimension below an independent, single-dimension pass.
 
 - CHECK: Treat interactive Server circuits as authenticated, stateful connections whose authentication changes, reconnects, JS callbacks, and persisted state require explicit synchronization or reload behavior.
 - CHECK: Do not override protocol-critical authentication settings at runtime; OIDC and remote-auth flows must honor configured security semantics.
-- CHECK: Defer OIDC, antiforgery, and Data Protection primitive changes to auth-security-reviewer; keep interactive Server circuit and component-state security review here.
+- CHECK: Defer OIDC, antiforgery, and Data Protection primitive changes to [auth-security-reviewer.md](auth-security-reviewer.md); keep interactive Server circuit and component-state security review here.
 - CHECK: Use `MarkupString` only for trusted content and ensure browser-deserialized event or form data cannot cross into privileged .NET code without intentional validation.
 - CHECK: Server-consumed component-state payloads embedded in HTML or transport data should be encrypted and integrity-protected; WebAssembly or Auto client-readable payloads must contain no secrets, and all modes should avoid exposing full type names or internal structure unless required for correctness.
 - CHECK: Browser features with security headers, such as multithreaded WebAssembly or `SharedArrayBuffer`, must set the required cross-origin policies when enabled.
@@ -133,4 +120,4 @@ give each dimension below an independent, single-dimension pass.
 - CHECK: Blazor async tests should be deterministic: use `TaskCompletionSource`, cancellation registration, explicit browser promises, and direct completion hooks rather than delays or timing-sensitive polling.
 - CHECK: Assert non-default observable values, browser console/network behavior, render output, route selection, validation messages, logs, and resource cleanup instead of mirroring helper implementation.
 - CHECK: Keep diagnostics actionable but not noisy: use existing .NET or browser logging channels, include recovery guidance for deployment or startup races, and avoid masking unexpected errors with console-only logging.
-- CHECK: For review findings, require only enough targeted validation to cover the changed contract; do not ask for full-suite runs. This review never builds or runs the change.
+- CHECK: Follow Components sample and E2E workflow guidance when implementing changes; for review-only findings, require enough targeted validation to cover the changed contract without asking for full-suite runs.

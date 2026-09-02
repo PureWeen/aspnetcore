@@ -18,7 +18,7 @@ give each dimension below an independent, single-dimension pass.
 
 ##### Cross-cutting scope and change shape
 
-- CHECK: Apply these dimensions to every change under review. When a domain reviewer also ran, stay in this lane — API/compat, async/cancellation, performance, disposal, diagnostics, security, nullability, options, trimming/AOT, and tests — and do not restate its area-specific findings.
+- CHECK: Use this reviewer only for `src` areas without a more specific agent; route Components, gRPC, Minimal API/OpenAPI, MVC/Razor/routing, servers/networking, hosting/DI, SignalR, native interop, auth/security, WebTransport, project-file-only, and public API baseline work to their dedicated instructions.
 - CHECK: Keep changes narrowly scoped to the affected product, tool, template, analyzer, or test utility; avoid unrelated file moves, generated-file churn, version churn, and broad refactors not required for the fix.
 - CHECK: Preserve ownership boundaries between product code, shared source, templates, test infrastructure, and build infrastructure; do not expose shared implementation details through public namespaces or packages.
 - CHECK: Prefer established shared helpers for process handling, retries, cancellation, file enumeration, CLI parsing, package metadata, and test hosting before adding one-off infrastructure.

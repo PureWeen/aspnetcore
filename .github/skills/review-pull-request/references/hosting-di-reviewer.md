@@ -18,13 +18,13 @@ give each dimension below an independent, single-dimension pass.
 
 ##### Scope, builder APIs, and compatibility
 
-- CHECK: Keep `src/Hosting` and `src/DefaultBuilder` focused on host, builder, configuration, DI, options, startup, and lifecycle behavior; `src/Extensions` HTTP feature infrastructure belongs to servers-networking-reviewer.
+- CHECK: Keep `src/Hosting`, `src/DefaultBuilder`, and hosting-related `src/Extensions` code focused on host, builder, configuration, DI, options, startup, and lifecycle behavior; defer `src/Extensions/Features` HTTP feature infrastructure to [servers-networking-reviewer](servers-networking-reviewer.md) unless the change is a hosting integration boundary.
 - CHECK: Public builder and service extension methods must keep conventional receiver types, chaining return values, overload naming, nullable annotations, XML docs, and API-review expectations.
 - CHECK: Treat `WebHostBuilder`, `IWebHostBuilder`, `IWebHost`, and `WebHost` as obsolete ASPDEPR008 compatibility-only surfaces; frame new guidance around generic host, `HostApplicationBuilder`, and `WebApplicationBuilder` while preserving documented legacy behavior.
 - CHECK: Maintain equivalent behavior between generic host, compatibility web host, minimal hosting, test host, default-builder, slim-builder, and empty-builder entry points when they expose the same setting, service, or lifecycle hook.
 - CHECK: Make intentional divergences explicit in the API shape, error message, or test name so users can tell whether behavior differs by builder type.
 - CHECK: Account for `CreateEmptyBuilder` and other empty-builder paths when comparing builder parity; deliberate exclusions such as server, routing, host filtering, and forwarded headers must remain explicit and covered by tests.
-- CHECK: Keep the shared server-registration boundary clear: hosting owns host, builder, and provider lifecycle; servers-networking-reviewer owns server and middleware feature registration plus required services.
+- CHECK: Keep the shared server-registration boundary clear: hosting owns host, builder, and provider lifecycle; [servers-networking-reviewer](servers-networking-reviewer.md) owns server and middleware feature registration plus required services.
 - CHECK: Prefer current builder/configuration abstractions over legacy settings bags or post-build feature mutation for common host configuration.
 - CHECK: Keep test-host and sample startup APIs as concise as production APIs; do not require users to add hidden default configuration or services for the common case.
 

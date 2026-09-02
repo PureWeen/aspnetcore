@@ -29,7 +29,7 @@ give each dimension below an independent, single-dimension pass.
 - CHECK: Action selection applies stable disambiguation across HTTP methods, action names, selector metadata, route values, defaults, overloads, and ambiguous candidates; preserve endpoint declaration or registration order only where routing/action-selection contracts use it.
 - CHECK: Action descriptors, controller models, page descriptors, and parameter descriptors stay plain data containers with deterministic metadata ordering and convention application.
 - CHECK: Action invocation supports sync and async actions, cancellation tokens, exceptions, nullable/default parameters, generic return types, and result-type mapping without hiding binding or execution failures.
-- CHECK: Runtime result mapping, API descriptions, ApiExplorer metadata, and analyzers agree about controller/action behavior so tooling doesn't report a different contract than the runtime uses; coordinate with minimal-api-openapi-reviewer when shared metadata affects Minimal API/OpenAPI parity.
+- CHECK: Runtime result mapping, API descriptions, ApiExplorer metadata, and analyzers agree about controller/action behavior so tooling doesn't report a different contract than the runtime uses; coordinate with [minimal-api-openapi-reviewer.md](minimal-api-openapi-reviewer.md) when shared metadata affects Minimal API/OpenAPI parity.
 
 ##### Model binding, value providers, and metadata
 
@@ -72,21 +72,15 @@ give each dimension below an independent, single-dimension pass.
 - CHECK: Link generation through endpoint routing, `IUrlHelper`, HTML helpers, tag helpers, and route-name APIs round-trips with matching constraints, encodes values correctly, and treats ambient values and nullable route names deliberately.
 - CHECK: Route and link-generation caches account for endpoint data-source changes, route names, templates, defaults, constraints, comparer semantics, and thread-safe invalidation.
 
-##### Razor view compilation integration (runtime contracts owned here)
+##### Razor compilation, code generation, and build integration
 
-- NOTE: The Razor parser, source generator, line pragmas, scoped-CSS rewriting, and the MSBuild/SDK
-  targets are **not implemented in this repository** — they live in the Razor compiler and SDK repos.
-  Do not review their internals here. Review only the contracts this repository owns and consumes.
-- CHECK: Compiled view discovery and `CompiledViewDescriptor` consumption stay correct when generated
-  output, attributes, or manifests change shape, and unrecognized or newly added metadata degrades
-  gracefully rather than throwing.
-- CHECK: View compilation and page-descriptor caches are thread-safe, invalidated by the correct file
-  or endpoint changes, and cache shared async compilation work as reusable `Task<CompiledViewDescriptor>`
-  values rather than non-reusable `ValueTask` instances.
-- CHECK: Runtime compilation and hot-reload paths handle missing, stale, or partially written compiled
-  assets deterministically, with actionable diagnostics instead of silent fallback.
-- CHECK: Behavior that depends on generated output is gated by supported target frameworks, language
-  versions, and compatibility switches rather than silently changing for existing apps.
+- CHECK: Razor parsing, directives, imports, generated C#, line pragmas, nullable annotations, tag helper binding, and design-time output preserve runtime semantics and debugging accuracy.
+- CHECK: Generated Razor output, baselines, manifests, scoped assets, and compiler arguments stay deterministic and incremental, updated only when the changed behavior requires it.
+- CHECK: Razor parsing, diagnostics, line pragmas, and source mapping handle CRLF, LF, CR, and mixed line endings consistently across developer, CI, and deployed environments.
+- CHECK: Scoped CSS selector rewriting preserves valid CSS across pseudo-classes, deep combinators, imports, IDs, globals, and package styles; verify browser-visible behavior plus exact build/publish artifacts such as compressed assets, cache-control headers, manifests, and scoped-CSS bundles.
+- CHECK: Razor build and runtime features are gated by supported target frameworks, language versions, and compatibility settings rather than silently changing behavior for existing apps.
+- CHECK: Razor compilation and page-descriptor caches are thread-safe, invalidated by the correct file or endpoint changes, and cache shared async compilation work as reusable `Task<CompiledViewDescriptor>` values rather than non-reusable `ValueTask` instances.
+- CHECK: Roslyn, response-file, MSBuild target, and SDK integration follow repository build conventions and avoid rewriting unchanged outputs that trigger downstream work.
 
 ##### Razor Pages, views, discovery, and rendering
 
@@ -120,4 +114,4 @@ give each dimension below an independent, single-dimension pass.
 - CHECK: Culture-sensitive parsing, formatting, casing, route values, validation messages, and localization options use invariant or current culture deliberately and are tested where behavior is observable.
 - CHECK: Logs and diagnostics include useful route, action, type, field, path, formatter, constraint, and exception context while avoiding noisy request hot-path logging.
 - CHECK: Add focused unit, functional, integration, or build tests at the lowest layer that proves the behavior; use server-hosted tests only when server integration is the contract being tested.
-- CHECK: Tests cover success, failure, ambiguity, edge values, culture, cache invalidation, route/link round-trips, generated HTML, generated Razor/build output, and ApiDescription/ApiExplorer controller parity shared with Minimal API/OpenAPI without relying on implementation-only assertions; see minimal-api-openapi-reviewer for the adjacent reviewer.
+- CHECK: Tests cover success, failure, ambiguity, edge values, culture, cache invalidation, route/link round-trips, generated HTML, generated Razor/build output, and ApiDescription/ApiExplorer controller parity shared with Minimal API/OpenAPI without relying on implementation-only assertions; see [minimal-api-openapi-reviewer.md](minimal-api-openapi-reviewer.md) for the adjacent reviewer.

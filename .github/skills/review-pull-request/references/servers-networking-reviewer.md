@@ -19,7 +19,7 @@ give each dimension below an independent, single-dimension pass.
 ##### Scope, ownership, and API shape
 
 - CHECK: Keep this agent focused on managed server/networking behavior; route native IIS C/C++, ANCM, installer, unmanaged marshaling, and low-level interop findings to the native interop reviewer.
-- CHECK: Cross-check hosting-di-reviewer when server or middleware required services, `IServer` registration, default builders, or service-provider ownership cross the shared boundary: hosting owns host, builder, and provider lifecycle; this agent owns server and middleware feature registration plus required services.
+- CHECK: Cross-check [hosting-di-reviewer](hosting-di-reviewer.md) when server or middleware required services, `IServer` registration, default builders, or service-provider ownership cross the shared boundary: hosting owns host, builder, and provider lifecycle; this agent owns server and middleware feature registration plus required services.
 - CHECK: Public APIs, options, features, middleware extensions, and abstractions must preserve source/binary compatibility, clear naming, XML documentation, nullability, and extension-point intent.
 - CHECK: Hide transport, parser, cache, pool, generated-code, and state-machine implementation details behind internal types unless the public scenario is deliberate and reviewed.
 - CHECK: Use `TryAdd`, `TryAddEnumerable`, named options, and friendly validation for framework services so repeated `Add*`/`Use*` calls compose with user registrations and slim builders.
