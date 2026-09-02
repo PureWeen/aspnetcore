@@ -82,7 +82,7 @@ user-rate-limit:
   window: 60
   ignored-roles: []
 
-# Strict gh-aw v0.86.2 forbids the built-in checkout for this comment-triggered workflow. The
+# Strict gh-aw v0.87.10 forbids the built-in checkout for this comment-triggered workflow. The
 # orchestrator instead clones the public repository inside the agent sandbox and detaches at the
 # frozen PR SHA. GitHub's file list and PR diff remain authoritative for review scope.
 #
@@ -123,7 +123,7 @@ tools:
     # safe outputs.
     min-integrity: none
     # Untrusted pull request text must not be able to steer reads at another repository.
-    # `${{ github.repository }}` is required here; gh-aw v0.86.2 rejects the literal `current`.
+    # `${{ github.repository }}` is required here; gh-aw v0.87.10 rejects the literal `current`.
     allowed-repos: ${{ github.repository }}
     toolsets: [context, repos, issues, pull_requests]
 
@@ -138,7 +138,7 @@ safe-outputs:
   report-failed-jobs: false
   # Start staged: runs render the intended review in the step summary instead of posting.
   #
-  # Do NOT remove this line yet. gh-aw v0.86.2 does not commit-pin safe-output publication for
+  # Do NOT remove this line yet. gh-aw v0.87.10 does not commit-pin safe-output publication for
   # `issue_comment` / `pull_request_review_comment` triggers, so inline comments are attached to
   # whatever the pull request head is when the safe-output job runs. The agent re-reads
   # `head.sha` immediately before emitting, but that is best-effort in the agent job: a push can
