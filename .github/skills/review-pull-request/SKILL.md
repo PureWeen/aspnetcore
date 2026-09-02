@@ -275,6 +275,14 @@ call path costs them the defect. When the two are in tension, prefer being visib
   wrong layer (an E2E test standing in for a unit-level contract, or a unit test mocking away the
   seam the change affects), and tests whose permanence is wrong.
 - **Is the changed behavior covered at all?**
+- **Do the fixtures resemble what really reaches this code?** When the change analyses, rewrites, or
+  pattern-matches code — an analyzer, a source generator, anything consuming syntax or operations —
+  its tests are usually hand-authored snippets, and a compiler or upstream generator rarely emits
+  what a person would write. Real lowering inserts conversions, wrapper calls, temporaries, and
+  synthesised names that a fixture omits. A suite built only from clean hand-written inputs can pass
+  completely while the code never fires on the shape production actually produces. Ask what the real
+  emitter puts at that position, and whether any fixture contains it. If none does, say so — that is
+  a coverage gap even though every existing test passes.
 
 ## Step 6 — Output
 
