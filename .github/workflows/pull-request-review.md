@@ -133,8 +133,10 @@ tools:
     # safe outputs.
     min-integrity: none
     # Untrusted pull request text must not be able to steer reads at another repository.
-    # `${{ github.repository }}` is required here; gh-aw v0.87.10 rejects the literal `current`.
-    allowed-repos: ${{ github.repository }}
+    # Use the repository-list form so MCP Gateway v0.4.14 preserves the exact fork scope when it
+    # applies its public-repository visibility policy. The string form only accepts `all` or
+    # `public` at runtime.
+    allowed-repos: [pureween/aspnetcore]
     toolsets: [context, repos, issues, pull_requests]
 
 safe-outputs:
