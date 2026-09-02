@@ -1,7 +1,7 @@
 ---
-# Never run in forks of this repository. Written as an equality rather than `!...` so the
-# compiled `if:` expression cannot start with `!`, which YAML would parse as a tag.
-if: ${{ github.event.repository.fork == false }}
+# Fork-only validation copy. This branch exists solely to exercise the staged reviewer in
+# PureWeen/aspnetcore and must never be proposed to dotnet/aspnetcore.
+if: ${{ github.repository == 'PureWeen/aspnetcore' }}
 
 on:
   # Direct dispatch (gh-aw's default). This workflow listens to the comment events itself rather
