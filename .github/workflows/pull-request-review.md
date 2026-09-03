@@ -136,11 +136,15 @@ tools:
     # safe outputs.
     min-integrity: none
     # Untrusted pull request text must not be able to steer reads at another repository.
-    # `${{ github.repository }}` is required here; gh-aw v0.87.10 rejects the literal `current`.
-    # The list form is also required: a scalar compiles to a bare string, and MCP Gateway
-    # v0.4.14 rejects any scalar guard policy that is not `all` or `public`, which fails the
-    # run at gateway startup. Verified against a live staged run.
-    allowed-repos: ["${{ github.repository }}"]
+    # FORK-ONLY: hardcoded lowercase. Upstream uses `["${{ github.repository }}"]`, which is
+    # correct there because `dotnet/aspnetcore` is already lowercase. In this fork the same
+    # expression expands to `PureWeen/aspnetcore`, and MCP Gateway v0.4.14 rejects the uppercase
+    # scope at startup:
+    #   allow-only.repos scope "PureWeen/aspnetcore" is invalid;
+    #   expected public, owner/*, owner/repo, or owner/re*
+    # The list form is still required: a scalar compiles to a bare string, which the gateway also
+    # rejects unless it is `all` or `public`. Both verified against live staged runs.
+    allowed-repos: [pureween/aspnetcore]
     toolsets: [context, repos, issues, pull_requests]
 
 safe-outputs:
