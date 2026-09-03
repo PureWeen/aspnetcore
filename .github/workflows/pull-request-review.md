@@ -106,11 +106,6 @@ user-rate-limit:
 # Re-check both after editing an agent block or a reference.
 checkout: false
 
-sandbox:
-  agent:
-    # Temporary fork validation requires runtime evidence from the strict gVisor profile.
-    runtime: gvisor
-
 # The analysis contract lives in this repository and is installed from the local path at
 # activation time. This is the only skill installed, and never from an external source.
 skills:
@@ -405,13 +400,6 @@ and repository build script. Before running `dotnet`, activate the repository SD
 Establish causality with a red/green comparison when execution is the evidence; a passing test at
 the PR head alone is not proof. Do not modify the proposed production change except temporarily to
 establish the minimal control, and never commit or publish validation edits.
-
-For this temporary fork validation, the empirical proof must exercise the supported ASP.NET Core
-repository path from the cloned repository root: run `source activate.sh`, then invoke
-`./src/Components/build.sh --test` with `--projects` set to the absolute path of
-`src/Components/Analyzers/test/Microsoft.AspNetCore.Components.Analyzers.Tests.csproj`. You may add
-the smallest test filter or no-build flags that preserve this analyzer test boundary, but do not
-replace the repository build script with a direct `dotnet build` or `dotnet test` command.
 
 Then compare each survivor against **all existing feedback** — every inline review comment
 (resolved and unresolved), review body, and previous run of this workflow. Drop anything already
