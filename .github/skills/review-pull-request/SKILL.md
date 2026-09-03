@@ -183,13 +183,21 @@ Expert Reviewer topology: each dimension gets a separate, narrow pass rather tha
 the rest of its reference for attention. For example, a Components pull request receives the 14
 cross-cutting dimensions and 13 Blazor Components dimensions as 27 independent passes.
 
-When the `task` tool is available, call it explicitly to run **one fresh subagent instance per
-applicable dimension**. Do not rely on automatic delegation, do not invoke a domain agent that
-aggregates several dimensions, and do not substitute one worker per routed reference. Give every
-instance the frozen SHA, changed-file list, diff, its reference, and the single named dimension it
-owns. It must evaluate only that dimension and return candidates to the orchestrator; it must not
-inspect sibling dimensions or spawn another agent. A fresh instance means separate context, not a
-second prompt in the same context.
+When the `task` tool is available, call it explicitly to run **one fresh subagent instance for every
+dimension in every routed reference**. Once a reference is routed, all of its level-5 (`#####`)
+headings under `Review dimensions` are mandatory; do not filter them based on perceived relevance
+to the diff. `CHECK` items belong to their containing dimension and do not create additional
+workers. For example, routing cross-cutting and Blazor Components requires exactly 27 initial
+workers: 14 cross-cutting plus 13 Components.
+
+Before dispatch, create a dimension manifest containing one row per routed reference and dimension.
+Record the reviewer name, exact dimension heading, and unique task name for each row. The manifest
+count is the required initial dispatch count. Do not rely on automatic delegation, do not invoke a
+domain agent that aggregates several dimensions, and do not substitute one worker per routed
+reference. Give every instance the frozen SHA, changed-file list, diff, its reference, and the
+single named dimension it owns. It must evaluate only that dimension and return candidates to the
+orchestrator; it must not inspect sibling dimensions or spawn another agent. A fresh instance means
+separate context, not a second prompt in the same context.
 
 Dispatch the initial dimension workers before tracing candidates or running tests in the
 orchestrator context. Use `general-purpose` workers so the task model is explicit and does not
@@ -201,7 +209,7 @@ task(
   description="<reviewer-name>: <single named dimension>",
   agent_type="general-purpose",
   mode="background",
-  model="claude-sonnet-5",
+  model="gpt-5.6-sol",
   prompt="Read `.github/skills/review-pull-request/references/<reviewer-name>.md`.
           Frozen head SHA: <sha>
           Changed files: <authoritative list>
@@ -216,8 +224,11 @@ task(
 
 Give every task a unique name. Dispatch all initial workers in one response turn when the runtime
 permits; if it caps tool calls per turn, use deterministic parallel batches and do not begin
-synthesis until every dimension has returned. Then apply Step 5 to deduplicate and validate the
-collected candidates.
+synthesis until every manifest row has returned. Before applying Step 5, compare the manifest
+against the launched task names and returned results. Dispatch any missing manifest row before
+synthesis. Report `subagent-per-dimension` only when the launched-plus-failed dimension count equals
+the manifest count; otherwise the topology is incomplete and must be reported as `degraded-panel`.
+Then apply Step 5 to deduplicate and validate the collected candidates.
 
 If independent subagents are unavailable, work every applicable dimension yourself, one at a time.
 That is **not** independence — successive passes in one context share the same blind spots. Say
