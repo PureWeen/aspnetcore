@@ -118,8 +118,8 @@ post-steps:
       log=/tmp/gh-aw/agent-stdio.log
       test -f "$log"
 
-      components_count=$(grep -cE 'Blazor-components-reviewer\(large\)' "$log" || true)
-      cross_cutting_count=$(grep -cE 'Cross-cutting-reviewer\(large\)' "$log" || true)
+      components_count=$(grep -cE 'Blazor-components-reviewer\(claude-sonnet-5\)' "$log" || true)
+      cross_cutting_count=$(grep -cE 'Cross-cutting-reviewer\(claude-sonnet-5\)' "$log" || true)
 
       echo "Components reviewer dispatches: $components_count"
       echo "Cross-cutting reviewer dispatches: $cross_cutting_count"
@@ -240,6 +240,11 @@ jobs:
 
   agent:
     needs: [freeze_pr_head]
+  safe_outputs:
+    # The generated safe-output condition normally runs after an agent failure so it can report
+    # partial results. For this panel experiment, publication is allowed only when the post-step
+    # dispatch-count gate leaves the agent job successful.
+    if: needs.agent.result == 'success'
 
 # ###############################################################
 # Select a PAT from the pool and override COPILOT_GITHUB_TOKEN.
@@ -499,7 +504,7 @@ Finding nothing is a correct outcome; five is a ceiling, not a target.
 ---
 description: >-
   Reviews ASP.NET Core authentication, authorization, OAuth/OIDC, cookies, JWT bearer, Identity, DataProtection key ring, antiforgery, claims, and WebEncoders changes. Use when a PR changes src/Security, src/Identity, src/DataProtection, src/Antiforgery, or src/WebEncoders, including scheme forwarding, remote authentication, token validation, key management, cookie policy, redirects, or security diagnostics.
-model: large
+model: claude-sonnet-5
 ---
 You are the auth-security reviewer for a read-only ASP.NET Core pull request review.
 
@@ -521,7 +526,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core Blazor and Razor Components changes in src/Components and src/JSInterop. Use when a PR changes render mode behavior (Server, WebAssembly, Auto, static SSR), RenderTreeBuilder rendering/diffing, component lifecycle, StateHasChanged, JS interop through IJSRuntime, enhanced navigation, forms, EditContext, prerendering, parameters, IDisposable/IAsyncDisposable cleanup, virtualization, sections, WebAssembly boot, or interactive Server circuit security.
-model: large
+model: claude-sonnet-5
 ---
 You are the blazor-components reviewer for a read-only ASP.NET Core pull request review.
 
@@ -543,7 +548,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Cross-cutting reviewer whose dimensions apply to EVERY ASP.NET Core change, in addition to the matched area reviewer: API design, backwards compatibility, public API surface, async/await, cancellation, performance, allocations, disposal, diagnostics/logging, security/trust boundaries, nullability, options, trimming/AOT, and tests. Also the primary reviewer for `src` areas without a dedicated domain agent (caching, localization, object pool, file providers, validation, configuration, analyzers, shared framework, templates, testing, tools, and similar).
-model: large
+model: claude-sonnet-5
 ---
 You are the cross-cutting reviewer for a read-only ASP.NET Core pull request review.
 
@@ -565,7 +570,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core gRPC integration changes under src/Grpc. Use when a PR changes AddJsonTranscoding, service or interceptor registration, GrpcJsonSettings, descriptor binding, protobuf JSON converters, HTTP route pattern adaptation, OpenAPI-compatible metadata for transcoding, interop tests, gRPC templates, buffering, performance, build integration, or Helix test assets. Focuses on protocol compatibility, ASP.NET Core conventions, diagnostics, tests, and repo integration.
-model: large
+model: claude-sonnet-5
 ---
 You are the grpc reviewer for a read-only ASP.NET Core pull request review.
 
@@ -587,7 +592,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core hosting and dependency injection changes in src/Hosting and src/DefaultBuilder: generic host, WebApplicationBuilder, service registration, options, startup, configuration, hosted services, lifetimes, and scopes. src/Extensions HTTP feature infrastructure belongs to servers-networking-reviewer, not here.
-model: large
+model: claude-sonnet-5
 ---
 You are the hosting-di reviewer for a read-only ASP.NET Core pull request review.
 
@@ -609,7 +614,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core Minimal API and OpenAPI changes in src/Http and src/OpenApi for endpoint routing, parameter binding, result metadata, endpoint filters, request delegate generation, OpenAPI documents, schemas, transformers, XML comments, AOT/trimming, and compatibility. Use when a PR changes minimal API hosting/routing/results or OpenAPI generation behavior.
-model: large
+model: claude-sonnet-5
 ---
 You are the minimal-api-openapi reviewer for a read-only ASP.NET Core pull request review.
 
@@ -631,7 +636,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core MVC, Razor, and routing changes for controllers, actions, model binding, model validation, action filters, result filters, output/input formatters, ApiController, Razor Pages, Razor view compilation, tag helpers, view components, endpoint routing, route templates, route constraints, link generation, IUrlHelper, CORS, and localization. Use when a PR changes src/Mvc, src/Razor, src/Html.Abstractions, MVC endpoint routing integration, Razor rendering/compilation, or MVC/Razor tests.
-model: large
+model: claude-sonnet-5
 ---
 You are the mvc-razor-routing reviewer for a read-only ASP.NET Core pull request review.
 
@@ -653,7 +658,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core native interop changes for ANCM, the IIS native module, IIS in- proc/out-of-proc hosting, P/Invoke, SafeHandle, marshaling, unmanaged memory/lifetime, IIS- native request semantics, Windows installers, and HRESULT propagation. Use when a PR changes src/Servers/IIS, src/Installers, native C/C++ request handlers, forwarders, shim/hostfxr loading, managed interop layers, or IIS/ANCM cross-process tests.
-model: large
+model: claude-sonnet-5
 ---
 You are the native-interop reviewer for a read-only ASP.NET Core pull request review.
 
@@ -675,7 +680,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core managed servers and networking changes across src/Servers, src/Http, src/Middleware, src/HttpClientFactory, src/HealthChecks, and src/Extensions (HTTP feature infrastructure, notably src/Extensions/Features): Kestrel, HttpSys, HTTP abstractions and features, middleware, request/response body I/O, response/output caching middleware, and health checks.
-model: large
+model: claude-sonnet-5
 ---
 You are the servers-networking reviewer for a read-only ASP.NET Core pull request review.
 
@@ -697,7 +702,7 @@ typos, or speculation. A finding with no `file:line` is not a finding.
 ---
 description: >-
   Reviews ASP.NET Core SignalR changes under src/SignalR. Use when a PR changes SignalR hubs, hub protocol JSON/MessagePack framing, WebSockets, server-sent events, long polling, backplane, scaleout, Redis, streaming, reconnect, connection lifetime, hub filters, client proxy APIs, or TypeScript/Java/.NET clients. Focuses on protocol compatibility, transport fallback, async/concurrency, resource disposal, diagnostics, tests, and multi-client compatibility.
-model: large
+model: claude-sonnet-5
 ---
 You are the signalr reviewer for a read-only ASP.NET Core pull request review.
 
