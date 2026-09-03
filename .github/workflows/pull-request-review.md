@@ -106,6 +106,27 @@ user-rate-limit:
 # Re-check both after editing an agent block or a reference.
 checkout: false
 
+# Temporary fork validation of the only supported mechanical panel postcondition available in
+# gh-aw v0.87.10. Inline agents are engine-native helpers, so inspect the Copilot CLI's documented
+# AgentName(model) dispatch markers after execution. Failing this step fails the agent job, and the
+# compiler-generated safe_outputs job cannot run because it requires the agent job to succeed.
+post-steps:
+  - name: Require complete Components reviewer panel
+    shell: bash
+    run: |
+      set -euo pipefail
+      log=/tmp/gh-aw/agent-stdio.log
+      test -f "$log"
+
+      components_count=$(grep -cE 'Blazor-components-reviewer\(large\)' "$log" || true)
+      cross_cutting_count=$(grep -cE 'Cross-cutting-reviewer\(large\)' "$log" || true)
+
+      echo "Components reviewer dispatches: $components_count"
+      echo "Cross-cutting reviewer dispatches: $cross_cutting_count"
+
+      test "$components_count" -eq 13
+      test "$cross_cutting_count" -eq 14
+
 # The analysis contract lives in this repository and is installed from the local path at
 # activation time. This is the only skill installed, and never from an external source.
 skills:
