@@ -134,7 +134,10 @@ tools:
     min-integrity: none
     # Untrusted pull request text must not be able to steer reads at another repository.
     # `${{ github.repository }}` is required here; gh-aw v0.87.10 rejects the literal `current`.
-    allowed-repos: ${{ github.repository }}
+    # The list form is also required: a scalar compiles to a bare string, and MCP Gateway
+    # v0.4.14 rejects any scalar guard policy that is not `all` or `public`, which fails the
+    # run at gateway startup. Verified against a live staged run.
+    allowed-repos: ["${{ github.repository }}"]
     toolsets: [context, repos, issues, pull_requests]
 
 safe-outputs:
