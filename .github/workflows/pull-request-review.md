@@ -1,7 +1,10 @@
 ---
-# Never run in forks of this repository. Written as an equality rather than `!...` so the
-# compiled `if:` expression cannot start with `!`, which YAML would parse as a tag.
-if: ${{ github.event.repository.fork == false }}
+# FORK-ONLY VALIDATION BRANCH. The shipping workflow uses
+# `if: ${{ github.event.repository.fork == false }}` so it never runs in a fork. That gate makes
+# the workflow unrunnable in PureWeen/aspnetcore, which is a fork, so this branch pins execution
+# to the fork instead. This change exists solely to exercise the reviewer panel and must never be
+# proposed to dotnet/aspnetcore.
+if: ${{ github.repository == 'PureWeen/aspnetcore' }}
 
 on:
   # Direct dispatch (gh-aw's default). This workflow listens to the comment events itself rather
