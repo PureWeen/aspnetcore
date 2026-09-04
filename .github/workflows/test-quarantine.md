@@ -1229,6 +1229,111 @@ on:
             stream.write(f"eligible_test_names={eligible_json}\n")
         SCRIPT
 
+    - name: Replace evidence with controlled fork demonstration fixture
+      run: |
+        python3 << 'SCRIPT'
+        import hashlib
+        import json
+        import os
+        import pathlib
+        import subprocess
+
+        test_name = "AlwaysTestTests.SuccessfulTests.GuaranteedUnquarantinedTest"
+        marker = (
+            "SYNTHETIC FORK DEMONSTRATION ONLY; no ASP.NET Core CI failure "
+            "occurred. Marker 7f3c9d21."
+        )
+        part1 = {
+            "generated_utc": "2026-09-04T00:00:00Z",
+            "builds": {
+                "990000001": {
+                    "def": 83,
+                    "startedUtc": "2026-09-01T10:00:00Z",
+                    "finishedUtc": "2026-09-01T10:10:00Z",
+                    "sourceVersion": "synthetic-fork-demo-a",
+                    "pr": None,
+                },
+                "990000002": {
+                    "def": 83,
+                    "startedUtc": "2026-09-02T10:00:00Z",
+                    "finishedUtc": "2026-09-02T10:10:00Z",
+                    "sourceVersion": "synthetic-fork-demo-b",
+                    "pr": None,
+                },
+            },
+            "source_a": {
+                test_name: {
+                    "count": 2,
+                    "assembly": "Synthetic.Fork.Demo--not-a-real-test-run",
+                    "builds": [990000001, 990000002],
+                    "evidence_build": 990000002,
+                    "run_id": 991000002,
+                    "result_id": 992000002,
+                    "leg": "SYNTHETIC_FORK_DEMO",
+                    "error": marker,
+                    "stack": (
+                        "SYNTHETIC FORK DEMONSTRATION ONLY\n"
+                        "at AlwaysTestTests.SuccessfulTests."
+                        "GuaranteedUnquarantinedTest()"
+                    ),
+                    "is_consistent_regression": False,
+                },
+            },
+            "source_b": {},
+            "source_c": [],
+            "source_c_truncated": False,
+        }
+        part1_bytes = json.dumps(part1, separators=(",", ":")).encode()
+        history_commit = subprocess.check_output(
+            ["git", "rev-parse", "refs/remotes/origin/main"],
+            text=True,
+        ).strip()
+        receipt = {
+            "schema_version": 1,
+            "part1_sha256": hashlib.sha256(part1_bytes).hexdigest(),
+            "repository": os.environ["GITHUB_REPOSITORY"],
+            "ref": os.environ["GITHUB_REF"],
+            "commit": os.environ["GITHUB_SHA"],
+            "history_ref": "refs/remotes/origin/main",
+            "history_commit": history_commit,
+            "tests": {
+                test_name: {
+                    "status": "eligible",
+                    "originating_case": "case-a",
+                    "source_resolution": {
+                        "status": "exact",
+                        "path": "src/Shared/test/SuccessfulTests.cs",
+                        "type": "AlwaysTestTests.SuccessfulTests",
+                        "method": "GuaranteedUnquarantinedTest",
+                    },
+                    "current_quarantine_state": "not-quarantined",
+                    "latest_quarantine_transition": "none",
+                    "is_consistent_regression": False,
+                    "raw_failure_builds": [990000001, 990000002],
+                    "excluded_builds": [],
+                    "cutoff": {
+                        "utc": "2026-08-01T00:00:00Z",
+                        "reason": "synthetic-fork-demonstration",
+                        "commit": history_commit,
+                    },
+                    "eligible_failure_builds": [990000001, 990000002],
+                    "evidence": {
+                        "build": 990000002,
+                        "run_id": 991000002,
+                        "result_id": 992000002,
+                    },
+                    "reasons": [],
+                },
+            },
+        }
+        runner_temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+        (runner_temp / "test-quarantine-part1.json").write_bytes(part1_bytes)
+        (runner_temp / "test-quarantine-case-a-eligibility.json").write_text(
+            json.dumps(receipt, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        SCRIPT
+
     - name: Upload deterministic evidence for safe output validation
       uses: actions/upload-artifact@v7
       with:
@@ -1281,7 +1386,7 @@ safe-outputs:
   report-failure-as-issue: false
   concurrency-group: test-quarantine-safe-outputs-${{ github.repository }}
   env:
-    TEST_QUARANTINE_ENABLE_KBE: ${{ vars.TEST_QUARANTINE_ENABLE_KBE || 'false' }}
+    TEST_QUARANTINE_ENABLE_KBE: "false"
   steps:
     - name: Download deterministic quarantine evidence
       continue-on-error: true
@@ -1891,26 +1996,18 @@ safe-outputs:
         };
         // --- END quarantine-kbe-handler ---
   create-pull-request:
-    title-prefix: "[test-quarantine] "
+    title-prefix: "[test-quarantine] [synthetic fork demo] "
     labels: [test-failure]
-    draft: false
-    max: 10
-    base-branch: main
-    # Exclusive allowlist: a patch touching anything outside this list (eng/**, .azure/**,
-    # .github/**, build scripts, etc.) is mechanically refused, regardless of what the
-    # agent's diff contains. This is scoped to "any .cs file under src/" rather than a
-    # narrower test-only glob because test project directory naming is inconsistent across
-    # the repo (test/, Tests/, FunctionalTests/, IntegrationTests/, integrationtests/, etc.)
-    # and gh-aw's glob syntax has no case-insensitive/substring matching, so a narrower
-    # pattern risks silently rejecting legitimate quarantine/unquarantine patches. The
-    # agent's instructions restrict it to attribute-only edits, and blocking threat
-    # detection (below) plus mandatory human PR review provide additional layers against
-    # any patch that strays into production code.
+    draft: true
+    max: 1
+    base-branch: pureween-assess-quarantine-fix-workflow
+    # The demonstration may change only its designated synthetic test fixture.
+    # Any workflow, build, or unrelated source edit is mechanically refused.
     allowed-files:
-      - "src/**/*.cs"
+      - "src/Shared/test/SuccessfulTests.cs"
   add-comment:
     target: "*"
-    max: 10
+    max: 1
     discussions: false
   add-labels:
     allowed: [re-quarantine]
@@ -1969,6 +2066,38 @@ engine:
 ---
 
 # Daily Test Quarantine Management
+
+## Controlled live fork demonstration
+
+This workflow-dispatch run is a synthetic fork-only demonstration. Ignore all
+normal candidate-selection instructions below and perform exactly these actions
+in order:
+
+1. Call `create_quarantine_issue` for
+   `AlwaysTestTests.SuccessfulTests.GuaranteedUnquarantinedTest` with temporary
+   ID `aw_livedemo`, matcher kind `literal`, matcher
+   `SYNTHETIC FORK DEMONSTRATION ONLY; no ASP.NET Core CI failure occurred. Marker 7f3c9d21.`,
+   duplicate status `none`, duplicate summary
+   `Synthetic fork-only demonstration; this is not a real CI failure or DNCENG enrollment.`,
+   and log excerpt
+   `Synthetic evidence only. No test failed and no real build, run, or result is represented.`
+2. Call `add_comment` on `aw_livedemo` with:
+   `Synthetic fork-only demonstration completed. This comment verifies live temporary-ID resolution; it does not represent a real test investigation.`
+3. Add
+   `[QuarantinedTest("https://github.com/PureWeen/aspnetcore/issues/#aw_livedemo")]`
+   to `GuaranteedUnquarantinedTest` in
+   `src/Shared/test/SuccessfulTests.cs`, commit only that one-line change, and
+   call `create_pull_request` with branch
+   `test-quarantine/synthetic-fork-demo-aw-livedemo`, title
+   `Quarantine GuaranteedUnquarantinedTest for temporary-ID demonstration`,
+   and body:
+   `Synthetic fork-only demonstration. No real test failed and this PR must not be merged. Associated issue: #aw_livedemo`
+
+Do not investigate real failures, call any other safe-output tool, modify any
+other file, or create any other output. `TEST_QUARANTINE_ENABLE_KBE` is
+explicitly disabled: the issue must contain the validated four-key JSON but
+must have only the `test-failure` label. All writes must remain in
+`PureWeen/aspnetcore`.
 
 You are an automated workflow that manages flaky test quarantine in the dotnet/aspnetcore repository. You perform two tasks each day:
 
