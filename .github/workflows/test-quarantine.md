@@ -1230,6 +1230,7 @@ on:
         SCRIPT
 
     - name: Replace evidence with controlled fork demonstration fixture
+      id: demo_fixture
       run: |
         python3 << 'SCRIPT'
         import hashlib
@@ -1238,7 +1239,10 @@ on:
         import pathlib
         import subprocess
 
-        test_name = "AlwaysTestTests.SuccessfulTests.GuaranteedUnquarantinedTest"
+        test_name = (
+            "Microsoft.AspNetCore.Internal.Tests."
+            "AdaptiveCapacityDictionaryTests.DefaultCtor"
+        )
         marker = (
             "SYNTHETIC FORK DEMONSTRATION ONLY; no ASP.NET Core CI failure "
             "occurred. Marker 7f3c9d21."
@@ -1264,7 +1268,7 @@ on:
             "source_a": {
                 test_name: {
                     "count": 2,
-                    "assembly": "Synthetic.Fork.Demo--not-a-real-test-run",
+                    "assembly": "Shared.Tests--synthetic-fork-demo",
                     "builds": [990000001, 990000002],
                     "evidence_build": 990000002,
                     "run_id": 991000002,
@@ -1273,8 +1277,8 @@ on:
                     "error": marker,
                     "stack": (
                         "SYNTHETIC FORK DEMONSTRATION ONLY\n"
-                        "at AlwaysTestTests.SuccessfulTests."
-                        "GuaranteedUnquarantinedTest()"
+                        "at Microsoft.AspNetCore.Internal.Tests."
+                        "AdaptiveCapacityDictionaryTests.DefaultCtor()"
                     ),
                     "is_consistent_regression": False,
                 },
@@ -1302,9 +1306,15 @@ on:
                     "originating_case": "case-a",
                     "source_resolution": {
                         "status": "exact",
-                        "path": "src/Shared/test/SuccessfulTests.cs",
-                        "type": "AlwaysTestTests.SuccessfulTests",
-                        "method": "GuaranteedUnquarantinedTest",
+                        "path": (
+                            "src/Shared/test/Shared.Tests/"
+                            "AdaptiveCapacityDictionaryTests.cs"
+                        ),
+                        "type": (
+                            "Microsoft.AspNetCore.Internal.Tests."
+                            "AdaptiveCapacityDictionaryTests"
+                        ),
+                        "method": "DefaultCtor",
                     },
                     "current_quarantine_state": "not-quarantined",
                     "latest_quarantine_transition": "none",
@@ -1332,6 +1342,19 @@ on:
             json.dumps(receipt, separators=(",", ":")),
             encoding="utf-8",
         )
+        output_values = {
+            "requarantine_data": "[]",
+            "requarantine_issue_numbers": "[]",
+            "closed_quarantine_prs": "[]",
+            "source_b_build_ids": "[]",
+            "eligible_test_names": json.dumps([test_name], separators=(",", ":")),
+            "part1_data_0": part1_bytes.decode(),
+        }
+        for index in range(1, 16):
+            output_values[f"part1_data_{index}"] = ""
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            for name, value in output_values.items():
+                output.write(f"{name}={value}\n")
         SCRIPT
 
     - name: Upload deterministic evidence for safe output validation
@@ -1347,29 +1370,29 @@ on:
 jobs:
   pre_activation:
     outputs:
-      requarantine_data: ${{ steps.requarantine_prs.outputs.requarantine_data }}
-      requarantine_issue_numbers: ${{ steps.requarantine_issues.outputs.requarantine_issue_numbers }}
-      closed_quarantine_prs: ${{ steps.closed_quarantine_prs.outputs.closed_quarantine_prs }}
-      source_b_build_ids: ${{ steps.source_b_prs.outputs.source_b_build_ids }}
-      eligible_test_names: ${{ steps.case_a_eligibility.outputs.eligible_test_names }}
+      requarantine_data: ${{ steps.demo_fixture.outputs.requarantine_data }}
+      requarantine_issue_numbers: ${{ steps.demo_fixture.outputs.requarantine_issue_numbers }}
+      closed_quarantine_prs: ${{ steps.demo_fixture.outputs.closed_quarantine_prs }}
+      source_b_build_ids: ${{ steps.demo_fixture.outputs.source_b_build_ids }}
+      eligible_test_names: ${{ steps.demo_fixture.outputs.eligible_test_names }}
       # part1_data is chunked across fixed outputs to stay under the 131072-byte MAX_ARG_STRLEN
       # per-env-var limit (see write_part1_chunks above); the prompt concatenates them back.
-      part1_data_0: ${{ steps.part1_aggregate.outputs.part1_data_0 }}
-      part1_data_1: ${{ steps.part1_aggregate.outputs.part1_data_1 }}
-      part1_data_2: ${{ steps.part1_aggregate.outputs.part1_data_2 }}
-      part1_data_3: ${{ steps.part1_aggregate.outputs.part1_data_3 }}
-      part1_data_4: ${{ steps.part1_aggregate.outputs.part1_data_4 }}
-      part1_data_5: ${{ steps.part1_aggregate.outputs.part1_data_5 }}
-      part1_data_6: ${{ steps.part1_aggregate.outputs.part1_data_6 }}
-      part1_data_7: ${{ steps.part1_aggregate.outputs.part1_data_7 }}
-      part1_data_8: ${{ steps.part1_aggregate.outputs.part1_data_8 }}
-      part1_data_9: ${{ steps.part1_aggregate.outputs.part1_data_9 }}
-      part1_data_10: ${{ steps.part1_aggregate.outputs.part1_data_10 }}
-      part1_data_11: ${{ steps.part1_aggregate.outputs.part1_data_11 }}
-      part1_data_12: ${{ steps.part1_aggregate.outputs.part1_data_12 }}
-      part1_data_13: ${{ steps.part1_aggregate.outputs.part1_data_13 }}
-      part1_data_14: ${{ steps.part1_aggregate.outputs.part1_data_14 }}
-      part1_data_15: ${{ steps.part1_aggregate.outputs.part1_data_15 }}
+      part1_data_0: ${{ steps.demo_fixture.outputs.part1_data_0 }}
+      part1_data_1: ${{ steps.demo_fixture.outputs.part1_data_1 }}
+      part1_data_2: ${{ steps.demo_fixture.outputs.part1_data_2 }}
+      part1_data_3: ${{ steps.demo_fixture.outputs.part1_data_3 }}
+      part1_data_4: ${{ steps.demo_fixture.outputs.part1_data_4 }}
+      part1_data_5: ${{ steps.demo_fixture.outputs.part1_data_5 }}
+      part1_data_6: ${{ steps.demo_fixture.outputs.part1_data_6 }}
+      part1_data_7: ${{ steps.demo_fixture.outputs.part1_data_7 }}
+      part1_data_8: ${{ steps.demo_fixture.outputs.part1_data_8 }}
+      part1_data_9: ${{ steps.demo_fixture.outputs.part1_data_9 }}
+      part1_data_10: ${{ steps.demo_fixture.outputs.part1_data_10 }}
+      part1_data_11: ${{ steps.demo_fixture.outputs.part1_data_11 }}
+      part1_data_12: ${{ steps.demo_fixture.outputs.part1_data_12 }}
+      part1_data_13: ${{ steps.demo_fixture.outputs.part1_data_13 }}
+      part1_data_14: ${{ steps.demo_fixture.outputs.part1_data_14 }}
+      part1_data_15: ${{ steps.demo_fixture.outputs.part1_data_15 }}
 
 description: "Daily quarantine/unquarantine flaky tests based on Azure DevOps pipeline analytics"
 
@@ -2018,7 +2041,7 @@ safe-outputs:
     # The demonstration may change only its designated synthetic test fixture.
     # Any workflow, build, or unrelated source edit is mechanically refused.
     allowed-files:
-      - "src/Shared/test/SuccessfulTests.cs"
+      - "src/Shared/test/Shared.Tests/AdaptiveCapacityDictionaryTests.cs"
   add-comment:
     target: "*"
     max: 1
@@ -2081,37 +2104,18 @@ engine:
 
 # Daily Test Quarantine Management
 
-## Controlled live fork demonstration
+## Maintainer-authorized fork validation mode
 
-This workflow-dispatch run is a synthetic fork-only demonstration. Ignore all
-normal candidate-selection instructions below and perform exactly these actions
-in order:
-
-1. Call `create_quarantine_issue` for
-   `AlwaysTestTests.SuccessfulTests.GuaranteedUnquarantinedTest` with temporary
-   ID `aw_livedemo`, matcher kind `literal`, matcher
-   `SYNTHETIC FORK DEMONSTRATION ONLY; no ASP.NET Core CI failure occurred. Marker 7f3c9d21.`,
-   duplicate status `none`, duplicate summary
-   `Synthetic fork-only demonstration; this is not a real CI failure or DNCENG enrollment.`,
-   and log excerpt
-   `Synthetic evidence only. No test failed and no real build, run, or result is represented.`
-2. Call `add_comment` on `aw_livedemo` with:
-   `Synthetic fork-only demonstration completed. This comment verifies live temporary-ID resolution; it does not represent a real test investigation.`
-3. Add
-   `[QuarantinedTest("https://github.com/PureWeen/aspnetcore/issues/#aw_livedemo")]`
-   to `GuaranteedUnquarantinedTest` in
-   `src/Shared/test/SuccessfulTests.cs`, commit only that one-line change, and
-   call `create_pull_request` with branch
-   `test-quarantine/synthetic-fork-demo-aw-livedemo`, title
-   `Quarantine GuaranteedUnquarantinedTest for temporary-ID demonstration`,
-   and body:
-   `Synthetic fork-only demonstration. No real test failed and this PR must not be merged. Associated issue: #aw_livedemo`
-
-Do not investigate real failures, call any other safe-output tool, modify any
-other file, or create any other output. `TEST_QUARANTINE_ENABLE_KBE` is
-explicitly disabled: the issue must contain the validated four-key JSON but
-must have only the `test-failure` label. All writes must remain in
-`PureWeen/aspnetcore`.
+This activation supplies one synthetic Case A candidate through the normal
+deterministic Part 1 and eligibility inputs, with empty re-quarantine and
+unquarantine inputs. Process that candidate using the standard Case A procedure
+below. The marker states clearly that no real CI failure occurred, and every
+issue, comment, PR title, and PR body should retain that synthetic
+demonstration context. Repository-local issue links in the quarantine patch use
+`https://github.com/PureWeen/aspnetcore/issues/#<temporary_id>`. The safe-output
+policy limits the result to one issue, one comment, one draft PR, and one exact
+test file. Known Build Error labeling is explicitly disabled for this
+validation activation.
 
 You are an automated workflow that manages flaky test quarantine in the dotnet/aspnetcore repository. You perform two tasks each day:
 
