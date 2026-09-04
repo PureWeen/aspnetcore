@@ -2110,11 +2110,13 @@ deterministic Part 1 and eligibility inputs, with empty re-quarantine and
 unquarantine inputs. Process that candidate using the standard Case A procedure
 below. The marker states clearly that no real CI failure occurred, and every
 issue, comment, PR title, and PR body should retain that synthetic
-demonstration context. Repository-local issue links in the quarantine patch use
-`https://github.com/PureWeen/aspnetcore/issues/#<temporary_id>`. The safe-output
-policy limits the result to one issue, one comment, one draft PR, and one exact
-test file. Known Build Error labeling is explicitly disabled for this
-validation activation.
+demonstration context. For this validation activation, the Case A quarantine
+instructions below use
+`https://github.com/PureWeen/aspnetcore/issues/#<temporary_id>` in the patch;
+this fork-local URL overrides the normal upstream repository URL. The
+safe-output policy limits the result to one issue, one comment, one draft PR,
+and one exact test file. Known Build Error labeling is explicitly disabled for
+this validation activation.
 
 The synthetic fixture defines these validation parameters:
 
@@ -2545,7 +2547,7 @@ For re-quarantines, **reuse the original quarantine issue** instead of creating 
    - Do not include potentially sensitive information such as access tokens.
 
 3. **Create a PR** that:
-   - Adds `[QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/#{TEMPORARY_ID}")]` to the individual test method, where `{TEMPORARY_ID}` is the `temporary_id` you used when calling `create_quarantine_issue` in step 1 (e.g., `aw_http2ign`). The framework will resolve `#{TEMPORARY_ID}` to the actual numeric issue number before creating the PR. For example, if you called `create_quarantine_issue(temporary_id: "aw_http2ign", ...)`, use `[QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/#aw_http2ign")]`. **Never write a literal numeric issue number here** — the issue you just created does not have a number yet, and guessing or probing for one is forbidden. **Never** use placeholder text like `TODO`, `TBD`, or descriptive strings. **Before finishing, verify the token you wrote is `#` + the *exact* `temporary_id` from step 1 and that the id matches `^aw_[A-Za-z0-9_]{3,12}$`** — if it does not match this pattern the reference will not resolve and a broken placeholder will be committed.
+   - Adds `[QuarantinedTest("https://github.com/PureWeen/aspnetcore/issues/#{TEMPORARY_ID}")]` to the individual test method, where `{TEMPORARY_ID}` is the `temporary_id` you used when calling `create_quarantine_issue` in step 1 (e.g., `aw_http2ign`). The framework will resolve `#{TEMPORARY_ID}` to the actual numeric issue number before creating the PR. For example, if you called `create_quarantine_issue(temporary_id: "aw_http2ign", ...)`, use `[QuarantinedTest("https://github.com/PureWeen/aspnetcore/issues/#aw_http2ign")]`. **Never write a literal numeric issue number here** — the issue you just created does not have a number yet, and guessing or probing for one is forbidden. **Never** use placeholder text like `TODO`, `TBD`, or descriptive strings. **Before finishing, verify the token you wrote is `#` + the *exact* `temporary_id` from step 1 and that the id matches `^aw_[A-Za-z0-9_]{3,12}$`** — if it does not match this pattern the reference will not resolve and a broken placeholder will be committed.
    - Adds `using Microsoft.AspNetCore.InternalTesting;` if not already present in the file
    - References the issue in the PR body with `Associated issue: #{TEMPORARY_ID}` (using the same `temporary_id` from `create_quarantine_issue`, e.g., `Associated issue: #aw_http2ign`). Do **not** use the word `Fixes` or `Closes` — quarantine PRs open tracking issues, they do not fix them, and GitHub would auto-close the issue when the PR merges.
    - When referencing build IDs in the PR body, always use full clickable URLs: `https://dev.azure.com/dnceng-public/public/_build/results?buildId={BUILD_ID}&view=results`. Never reference build IDs as plain numbers.
