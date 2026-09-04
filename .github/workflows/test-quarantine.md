@@ -1388,6 +1388,20 @@ safe-outputs:
   env:
     TEST_QUARANTINE_ENABLE_KBE: "false"
   steps:
+    - name: Use isolated one-file patch transport for fork demonstration
+      run: |
+        python3 << 'SCRIPT'
+        import pathlib
+
+        bundles = list(pathlib.Path("/tmp/gh-aw").glob(
+            "aw-test-quarantine-*.bundle"
+        ))
+        if len(bundles) != 1:
+            raise SystemExit(
+                f"Expected exactly one quarantine agent bundle, found {len(bundles)}"
+            )
+        bundles[0].unlink()
+        SCRIPT
     - name: Download deterministic quarantine evidence
       continue-on-error: true
       uses: actions/download-artifact@v8
