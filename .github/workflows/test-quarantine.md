@@ -1416,14 +1416,13 @@ safe-outputs:
         python3 << 'SCRIPT'
         import pathlib
 
-        bundles = list(pathlib.Path("/tmp/gh-aw").glob(
-            "aw-test-quarantine-*.bundle"
-        ))
-        if len(bundles) != 1:
+        bundles = list(pathlib.Path("/tmp/gh-aw").glob("aw-*.bundle"))
+        if len(bundles) > 1:
             raise SystemExit(
-                f"Expected exactly one quarantine agent bundle, found {len(bundles)}"
+                f"Expected at most one quarantine agent bundle, found {len(bundles)}"
             )
-        bundles[0].unlink()
+        if bundles:
+            bundles[0].unlink()
         SCRIPT
     - name: Download deterministic quarantine evidence
       continue-on-error: true
