@@ -14,6 +14,7 @@ namespace Microsoft.AspNetCore.Internal.Tests;
 public class AdaptiveCapacityDictionaryTests
 {
     [Fact]
+    [QuarantinedTest("https://github.com/PureWeen/aspnetcore/issues/55")]
     public void DefaultCtor()
     {
         // Arrange
