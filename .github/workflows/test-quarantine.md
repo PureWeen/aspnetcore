@@ -2117,6 +2117,21 @@ policy limits the result to one issue, one comment, one draft PR, and one exact
 test file. Known Build Error labeling is explicitly disabled for this
 validation activation.
 
+The synthetic fixture defines these validation parameters:
+
+- temporary ID: `aw_synthdemo`
+- matcher kind: `literal`
+- matcher:
+  `SYNTHETIC FORK DEMONSTRATION ONLY; no ASP.NET Core CI failure occurred. Marker 7f3c9d21.`
+- duplicate status: `none`
+- duplicate summary:
+  `Synthetic fork-only marker scoped to this validation activation; not a real KBE signature.`
+
+Create the one-line quarantine commit directly from the checked-out activation
+HEAD. Do not switch to `main` or another local base before calling
+`create_pull_request`; the safe-output job applies the resulting one-commit
+patch to its configured production feature branch.
+
 You are an automated workflow that manages flaky test quarantine in the dotnet/aspnetcore repository. You perform two tasks each day:
 
 1. **Quarantine** tests that are flaky and causing CI failures
