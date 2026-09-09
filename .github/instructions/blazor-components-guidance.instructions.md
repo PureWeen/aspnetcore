@@ -4,7 +4,7 @@ applyTo: "src/Components/**,src/JSInterop/**"
 ---
 
 For work in these areas, consult the relevant sections of the
-[Blazor and Components guidance](../skills/review-pull-request/references/blazor-components-reviewer.md).
-Use it as reference material within the requested task and existing area instructions.
-This pointer does not start a review or change task permissions.
-For an explicitly requested pull request review, the review skill still controls its required passes.
+[Blazor and Components guidance](../../docs/BlazorComponentsGuidance.md).
+For `src/Components` work, follow the existing Components area instructions, including the
+implementation, sample, and E2E workflow. Generic `src/JSInterop`-only work does not inherit that
+workflow.
