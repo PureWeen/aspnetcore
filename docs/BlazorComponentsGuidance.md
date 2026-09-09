@@ -7,11 +7,10 @@ applicable repository and area instructions.
 
 ## Overarching principles
 
-- **Preserve behavior across hosting models:** Server, WebAssembly, Auto, static SSR, prerendered, streaming, and rehydrated flows stay coherent; no single renderer owns every scenario.
+- **Preserve coherent hosting and lifecycle boundaries:** no single renderer owns every scenario.
 - **Keep framework layers separated:** core Components abstractions must not absorb endpoint, hosting, browser, or circuit specifics unless intentionally general.
 - **Let the renderer own component state:** lifecycle continuations, events, disposal, and `StateHasChanged` go through the renderer dispatcher or circuit synchronization context.
 - **Treat JS interop and browser state as availability- and lifetime-sensitive:** `IJSRuntime`, `IJSObjectReference`, `ElementReference`, DOM callbacks, and browser resources need render-mode guards and deterministic cleanup.
-- **Prove observable behavior in tests** — browser, renderer, routing, validation, serialization — not helper equivalence.
 
 ## Topics
 
@@ -21,11 +20,11 @@ applicable repository and area instructions.
 - Public Components and JS interop APIs must have narrow names that describe the scenario, preserve existing overload compatibility, and expose only genuinely general extension points.
 - Use `Microsoft.Extensions.Options` and idempotent DI registration patterns for framework configuration; avoid duplicate registrations or hidden dependencies omitted by slim builders.
 - Keep source-generated or framework-only plumbing internal unless public generation contracts require access; expose strongly typed surfaces rather than untyped internal mechanisms.
-- New public APIs require XML documentation for consumer-observable behavior, not internal lifecycle narration.
+- For Components APIs, follow the [consumer-facing XML-documentation boundary](../src/Components/AGENTS.md#code-clarity-and-durable-knowledge); generic JSInterop APIs still require XML documentation for consumer-observable behavior, not internal lifecycle narration.
 
 ### Render modes and hosting boundaries
 
-- Review behavior separately for Server, WebAssembly, Auto, static SSR, prerendered, and non-prerendered flows; do not infer correctness from one render mode.
+- For changes crossing Components renderers, runtimes, or DI scopes, use the [cross-runtime design checkpoint](../src/Components/AGENTS.md#cross-runtime-design-checkpoint) to select relevant render-mode cells and exclusions. Retain explicit static SSR, streaming, and rehydration checks when affected; do not infer correctness from one render mode.
 - Root-component and render-mode APIs must carry only serializable parameters and required metadata across process or host boundaries, including parameter definitions needed for unmatched values.
 - Treat Auto as a per-activation renderer choice based on cache and runtime availability; once selected for a component activation, retain that assignment and test both cached and uncached paths.
 - If a host cannot understand a known render-mode marker or descriptor, ignore unsupported host-specific markers where safe instead of failing unrelated startup paths.
@@ -112,11 +111,11 @@ applicable repository and area instructions.
 - Boot manifests should include only runtime resource kinds the loader understands; unrelated static assets belong in static web asset manifests, not boot metadata.
 - Static web asset base paths, publish layouts, and hosted/standalone outputs must handle collisions explicitly and use segment-aware path rewrites.
 - Build tasks should avoid version-sensitive runtime dependencies that are unsafe in MSBuild task hosts and regenerate outputs only when meaningful inputs change.
-- AOT, trimming, lazy-loaded assemblies, and source-generated serialization changes need tests or annotations that survive publish, not local suppressions that disappear.
+- For publish-time trimming and Native AOT validation, follow [trimming behavior guidance](Trimming.md#validate-trimming-behavior). AOT, trimming, lazy-loaded assemblies, and source-generated serialization changes still need tests or annotations that survive publish, not local suppressions that disappear.
 
 ### Tests, diagnostics, and repo fit
 
-- Add focused unit, E2E, or browser tests for changed observable behavior across relevant render modes; include prerendering, interactivity, navigation, forms, serialization, cancellation, disposal, and error paths when affected.
+- Apply the [repository test requirements](../CONTRIBUTING.md#tests) and [faithful-validation requirements](../.github/copilot-instructions.md#running-tests) when validating changed behavior. Add focused unit, E2E, or browser tests across relevant render modes; include prerendering, interactivity, navigation, forms, serialization, cancellation, disposal, and error paths when affected. For Components E2E work, also follow [Components E2E guidance](../src/Components/AGENTS.md#creating-e2e-tests); generic JSInterop-only work does not inherit that workflow.
 - Blazor async tests should be deterministic: use `TaskCompletionSource`, cancellation registration, explicit browser promises, and direct completion hooks rather than delays or timing-sensitive polling.
 - Assert non-default observable values, browser console/network behavior, render output, route selection, validation messages, logs, and resource cleanup instead of mirroring helper implementation.
 - Keep diagnostics actionable but not noisy: use existing .NET or browser logging channels, include recovery guidance for deployment or startup races, and avoid masking unexpected errors with console-only logging.

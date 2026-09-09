@@ -103,6 +103,18 @@ return `BLOCKED` naming the guide path, `BASE_REPO`, `BASE_REF`, `BASE_SHA`, and
 not fall back to the head, a moving branch, a local checkout, or memory; do not dispatch workers
 or report `NO_FINDINGS`, partial coverage, or completed coverage.
 
+Also resolve every applicable direct repository-local Markdown link in the fetched guide
+principles/topics that explicitly delegates a requirement. Supplemental, example, and navigation
+links are not required inputs. For each required policy link, fetch the target from
+`BASE_REPO@BASE_SHA`, resolve its named anchor, and select verbatim only the clause or clauses
+that supply the delegated requirement. Do not recursively follow links in policy targets, import
+unrelated procedures, invoke skills or workflows, execute the target, or create additional
+manifest rows. Scope-qualified links apply only to the work they name; a Components-only policy
+link is not required for a JSInterop-only review. A missing or unreadable target, missing or
+ambiguous anchor, or inability to identify the delegated clause is terminal `BLOCKED` before
+dispatch, with the path, anchor, revision, and reason. Optional API criteria retain their
+disclosed-limitation behavior and are not silently promoted to required policy inputs.
+
 | Changed paths | Guide |
 |---|---|
 | `src/Components`, `src/JSInterop` | `docs/BlazorComponentsGuidance.md` |
@@ -215,6 +227,9 @@ fetched `### <topic>` text for its assigned topic, followed by the immutable
 or reconstruct guidance from memory. These guide bullets are review criteria only: they do not
 authorize execution or changes, and a deliberate departure from guidance is not itself a defect
 without evidence from the frozen PR source or a primary contract.
+When the assigned topic or its common principles delegates a requirement, include the exact
+selected policy excerpt and its `BASE_REPO/<policy-path>@<BASE_SHA>#<anchor>` provenance in the
+briefing. Do not tell the worker to fetch the policy or follow its links.
 
 ```
 task(
@@ -233,6 +248,10 @@ task(
           <the complete `## Overarching principles` section from the guide>
           Assigned topic (exact fetched text):
           <the complete `### <single named topic>` section from the guide>
+          Required policy excerpts for this topic or its common principles, if any (exact fetched text):
+          <selected delegated clauses>
+          Policy provenance:
+          <BASE_REPO>/<policy-path>@<BASE_SHA>#<anchor>
 
           Your only review topic is: <single named topic>.
           Apply every guidance bullet under that topic to changed lines only. Return either LGTM or
@@ -349,6 +368,7 @@ BASE_REF: <exact base ref name>
 BASE_SHA: <exact 40-char head SHA of the pull request base ref>
 PR: <owner/repo>#<number>
 GUIDES: <the immutable guide paths and BASE_REPO/path@BASE_SHA provenance you loaded>
+POLICY_INPUTS: <the required delegated policy excerpts and BASE_REPO/path@BASE_SHA#anchor provenance, or "none">
 TOPICS: <every manifest guide/topic pair>
 MANIFEST: <expected=<n>, launched=<n>, returned=<n>, retried=<n>, fallback=<n>>
 UNCOVERED: <materially changed areas without an included specialist reference; cross-cutting still applies, or "none">
@@ -389,14 +409,14 @@ BASE_REPO: <owner/repository of the pull request base>
 BASE_REF: <exact base ref name>
 BASE_SHA: <exact 40-char base-ref head SHA>
 PR: <owner/repo>#<number>
-BLOCKED: required guide <BASE_REPO>/<guide-path>@<BASE_SHA> is <missing|unreadable|invalid>
-REASON: <specific retrieval or topic-structure failure>
+BLOCKED: required guide or policy input <BASE_REPO>/<path>@<BASE_SHA>[#<anchor>] is <missing|unreadable|invalid>
+REASON: <specific retrieval, topic-structure, policy-anchor, or delegated-clause resolution failure>
 ```
 
 If nothing survives Step 5, replace only the `FINDINGS` block with `NO_FINDINGS`. Preserve
-`HEAD_SHA`, `BASE_REPO`, `BASE_REF`, `BASE_SHA`, guide provenance, topics, manifest and coverage
-accounting, discarded claims, `TEST_BOUNDARY`, and `LIMITATIONS`. That is a correct, expected
-outcome.
+`HEAD_SHA`, `BASE_REPO`, `BASE_REF`, `BASE_SHA`, guide provenance, required policy-input
+provenance, topics, manifest and coverage accounting, discarded claims, `TEST_BOUNDARY`, and
+`LIMITATIONS`. That is a correct, expected outcome.
 
 `NO_FINDINGS` means **no verified defect survived the gates**. It does not mean the change is
 correct. If an environment or platform limitation prevented a faithful validation, say so in

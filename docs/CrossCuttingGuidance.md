@@ -10,13 +10,12 @@ requested task and applicable repository and area instructions.
 - Treat nullability, validation, cancellation, disposal, and thread-safety annotations as executable design contracts, not comments.
 - Separate startup, build-time, analyzer-time, and hot-path runtime work. Per-request, per-diagnostic, file-watcher, and template paths need allocation, caching, and determinism scrutiny.
 - Treat filesystem paths, tool commands, configuration, generated output, logs, and package attribution as trust boundaries that can regress even when builds and tests pass.
-- Tests should prove observable behavior across success, failure, edge, platform, and regression paths without relying on timing, working directories, external services, or implementation mirrors.
 
 ## Topics
 
 ### Cross-cutting scope and change shape
 
-- Keep changes narrowly scoped to the affected product, tool, template, analyzer, or test utility; avoid unrelated file moves, generated-file churn, version churn, and broad refactors not required for the fix.
+- Apply the [contribution scope requirements](../CONTRIBUTING.md#before-submitting-the-pull-request) to product, tool, template, analyzer, and test-utility changes, including unrelated file moves, generated-file churn, version churn, and refactors beyond the affected scenario.
 - Preserve ownership boundaries between product code, shared source, templates, test infrastructure, and build infrastructure; do not expose shared implementation details through public namespaces or packages.
 - Prefer established shared helpers for process handling, retries, cancellation, file enumeration, CLI parsing, package metadata, and test hosting before adding one-off infrastructure.
 - Remove vestigial debug hooks, unused files, stale comments, obsolete workarounds, and duplicate conditional logic only once the scenario they protected is understood and still covered.
@@ -26,8 +25,8 @@ requested task and applicable repository and area instructions.
 - Minimize public surface area; keep speculative hooks, options, extension points, and constructor overloads internal until a demonstrated scenario and API review justify them.
 - Preserve public member names, constructor signatures, enum values, default option values, extension-method behavior, analyzer IDs, template identifiers, package identities, and shared-framework metadata unless the breaking change is deliberate and reviewed.
 - Use `[Obsolete]` with actionable migration guidance for deprecated APIs, and keep parallel or additive overloads when compatibility requires old members to remain.
-- Use applicable public API design criteria for changed public/protected APIs and shipped defaults/conventions. Verify any concern against source signatures and contracts rather than reporting a design preference as a defect.
-- Public XML docs must accurately describe purpose, parameters, return values, exceptions, defaults, lifecycle, and non-obvious examples for IntelliSense and generated docs.
+- Use applicable public API design criteria for changed public/protected APIs and shipped defaults/conventions. The [API review process](APIReviewProcess.md#process) governs that process; verify any concern against source signatures and contracts rather than reporting a design preference as a defect.
+- Public XML docs must accurately describe purpose, parameters, return values, exceptions, defaults, consumer-observable lifecycle, and non-obvious examples for IntelliSense and generated docs; follow the repository's [public XML-documentation requirement](../.github/copilot-instructions.md#formatting).
 
 ### Nullability, validation, and correctness invariants
 
@@ -106,7 +105,7 @@ requested task and applicable repository and area instructions.
 - Cache repeated Roslyn symbol, type, and syntax lookups; combine tree traversal with diagnostic construction when it avoids redundant reflection or compilation work.
 - Keep analyzer and code-fix packaging lean; avoid heavy workspace dependencies in analyzer assemblies unless necessary for the shipped scenario.
 - Prefer explicit reflection lookups, generic constraints, source-generated metadata, and annotated APIs over broad reflection scans that are fragile under trimming or AOT.
-- Shared framework and template changes must stay trimming- and AOT-friendly; validate source-generation, `PublishTrimmed`, or `PublishAot` paths when behavior depends on metadata availability.
+- For shared-framework or template changes whose behavior depends on metadata availability, use the repository's [publish-time trimming and Native AOT validation procedure](Trimming.md#validate-trimming-behavior), including source-generated metadata paths.
 
 ### Build, packaging, shared framework, and templates
 
@@ -119,7 +118,7 @@ requested task and applicable repository and area instructions.
 
 ### Tests, determinism, and test utilities
 
-- Add focused unit, integration, analyzer, template, or regression tests for changed behavior, covering success, failure, boundary, platform, and previously broken combinations.
+- Apply the [repository test requirements](../CONTRIBUTING.md#tests) and [faithful-validation requirements](../.github/copilot-instructions.md#running-tests). Add focused unit, integration, analyzer, template, or regression tests for changed behavior, covering success, failure, boundary, platform, and previously broken combinations.
 - Assert observable semantics — generated files, diagnostics, logs, configuration keys, exception messages, response headers, package metadata, and resource cleanup — rather than mirroring helper implementation details.
 - Keep tests deterministic: avoid timing-sensitive sleeps, current-working-directory assumptions, hard-coded ports, external service dependencies, order-sensitive output, and shared mutable state.
 - Test infrastructure should use shared helpers for unique paths, ports, retries, process execution, timeouts, output capture, Helix staging, and cleanup instead of duplicating per-test logic.
