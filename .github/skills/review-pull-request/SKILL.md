@@ -1,18 +1,9 @@
 ---
 name: review-pull-request
 description: >-
-  Review a specific dotnet/aspnetcore pull request on GitHub with an independent per-topic
-  expert panel, read-only source and contract validation, and a small set of verified findings. USE FOR an
-  explicit request to review an aspnetcore pull request — "review PR #12345", "review
-  this pull request", or a maintainer's `/review`. Requires a real pull request: the contract is
-  anchored to its GitHub head SHA, frozen base-ref head SHA, authoritative changed-file list, diff,
-  and existing review feedback. Routes changed paths to the included Blazor/Components guide where
-  applicable plus cross-cutting guidance, giving every topic in every routed guide an independent
-  pass before candidates are traced. Other domains still receive cross-cutting review and are
-  reported as missing specialist coverage because their guides are not included. DO NOT USE FOR
-  implementing the fix,
-  investigating CI failures, triaging issues, reviewing an API proposal with no diff, reviewing a
-  pull request in another repository, reviewing a local diff, or general coding help.
+  Review an identified dotnet/aspnetcore pull request with independent, source-only topic reviewers,
+  without publishing or executing PR code. Use for explicit PR-review requests, not implementation,
+  CI investigation, or local-diff review.
 ---
 
 # Expert review of an ASP.NET Core pull request
