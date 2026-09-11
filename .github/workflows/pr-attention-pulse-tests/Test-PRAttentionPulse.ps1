@@ -428,6 +428,9 @@ New-Item -ItemType Directory -Force $tempRoot | Out-Null
 
 try
 {
+    & node (Join-Path $testRoot "Test-PulsePublicationCommand.cjs") $collectorJsRoot $workflowPath $tempRoot
+    Assert-True ($LASTEXITCODE -eq 0) "The pinned CLI publication serialization must preserve the canonical body."
+
     $normal = Invoke-Sanitizer -FixtureName "normal-legacy.json"
     Assert-True ($normal.schemaVersion -eq "1.0.0") "The pulse envelope must be versioned."
     Assert-True ($normal.status -eq "complete") "A complete inventory must remain complete."
@@ -814,6 +817,8 @@ try
     Assert-True ($workflow.Contains('require(path.join(actionsDir, "sanitize_content.cjs"))')) "Trusted normalization must reuse the pinned gh-aw sanitizer."
     Assert-True ($workflow.Contains('GH_AW_SANITIZER_MODULE_PATH: ${{ runner.temp }}/gh-aw/actions/sanitize_content.cjs')) "Post-agent canonical verification must receive the same pinned sanitizer path."
     Assert-True ($workflow.Contains("-SanitizerModulePath `$env:GH_AW_SANITIZER_MODULE_PATH")) "Post-agent canonical verification must use the pinned sanitizer path."
+    Assert-True ($workflow.Contains('bash: ["cat"]')) "Publication must not expand the shell allowlist."
+    Assert-True ($workflow.Contains('Remove-Item .pr-attention-pulse/pulse-request.json')) "The serialized request must be removed after inference."
     Assert-True ($workflow.Contains("issue_number: 58")) "The emitted payload must use the fixed dashboard issue."
     Assert-True ($workflow.Contains('target: "58"')) "The safe-output handler must reject a different issue target."
     Assert-True ($workflow.Contains("operation: replace")) "The payload contract must replace the issue body."
@@ -885,6 +890,12 @@ try
     Assert-True (-not $normalizedLock.Contains('"create_issue"')) "The generated workflow must not expose issue creation."
     Assert-True ($lock.IndexOf("Remove-Item -Recurse -Force .github", [StringComparison]::Ordinal) -lt $agentStepStart) "Repository workflow sources and raw data must be removed before inference."
     $validatorStepIndex = $lock.IndexOf("name: Validate the sole publication payload", [StringComparison]::Ordinal)
+    $evidenceStepIndex = $lock.IndexOf("name: Upload validated Pulse publication evidence", [StringComparison]::Ordinal)
+    $cleanupStepIndex = $lock.IndexOf("name: Remove sanitized Pulse data", [StringComparison]::Ordinal)
+    Assert-True ($evidenceStepIndex -gt $validatorStepIndex -and $evidenceStepIndex -lt $cleanupStepIndex) "Canonical audit evidence must be retained only after validation and before cleanup."
+    $evidenceStep = $lock.Substring($evidenceStepIndex, $cleanupStepIndex - $evidenceStepIndex)
+    Assert-True ($evidenceStep.Contains('pr-attention-pulse-validator/pulse-input.json') -and $evidenceStep.Contains('pr-attention-pulse-validator/pulse-body.md')) "Publication evidence must use the private canonical copies, not model-visible files."
+    Assert-True (-not $lock.Contains("--allow-tool shell(jq)")) "Publication must not grant jq permission."
     $fallbackArtifactIndex = $lock.IndexOf("name: Upload agent output fallback artifact", [StringComparison]::Ordinal)
     Assert-True ($validatorStepIndex -gt $agentStepStart -and $validatorStepIndex -lt $fallbackArtifactIndex) "Trusted validation must run before either publication artifact is uploaded."
     Assert-True ($lock.Substring([Math]::Max(0, $validatorStepIndex - 40), [Math]::Min(120, $lock.Length - [Math]::Max(0, $validatorStepIndex - 40))).Contains("if: always()")) "Trusted validation must run after any earlier agent-job failure."
