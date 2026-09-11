@@ -685,6 +685,10 @@ try
     Assert-True (@($validOutput.items).Count -eq 1) "The pinned collector must emit exactly one update item."
     Assert-True ([string]::Equals($validOutput.items[0].body, $postIngestionBody, [StringComparison]::Ordinal)) "The pinned collector must preserve the trusted-normalized body byte-for-byte."
     Invoke-PublicationValidator -Pulse $normal -AgentOutput $validOutput -ExpectedBody $postIngestionBody
+    $publicationBodyPath = Join-Path $tempRoot "publication-body.md"
+    [IO.File]::WriteAllText($publicationBodyPath, $validOutput.items[0].body, [Text.UTF8Encoding]::new($false))
+    & node (Join-Path $testRoot "Test-PulseIssueUpdate.cjs") $collectorJsRoot $lockPath $publicationBodyPath
+    Assert-True ($LASTEXITCODE -eq 0) "The pinned issue handler must publish the validated body without mutation."
     Invoke-PublicationValidator -Pulse $zero -AgentOutput (New-ValidAgentOutput -Body $zeroBody) -ExpectedBody $zeroBody
 
     $failureEnvelopes = [ordered]@{
@@ -801,7 +805,7 @@ try
     $workflow = Get-Content -Raw $workflowPath
     Assert-True ($workflow.Contains("github.repository == 'PureWeen/aspnetcore'")) "The workflow must reject every repository except the fork."
     Assert-True ($workflow.Contains("checkout: false")) "The compiler-managed checkout must be disabled."
-    $preStepsIndex = $workflow.IndexOf("pre-steps:", [StringComparison]::Ordinal)
+    $preStepsIndex = [regex]::Match($workflow, "(?m)^pre-steps:").Index
     $stepsIndex = $workflow.IndexOf("steps:", $preStepsIndex + "pre-steps:".Length, [StringComparison]::Ordinal)
     $checkoutIndex = $workflow.IndexOf("uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", [StringComparison]::Ordinal)
     Assert-True ($preStepsIndex -ge 0 -and $checkoutIndex -gt $preStepsIndex -and $checkoutIndex -lt $stepsIndex) "The explicit trusted checkout must run only in top-level pre-steps."
@@ -871,6 +875,11 @@ try
     Assert-True (-not $detectorConfigLine.Contains("maxAiCredits")) "Detector credit budgeting must be absent to keep token steering disabled."
     Assert-True (-not $detectorConfigLine.Contains("modelFallback")) "Detector fallback is enforced behaviorally by the singleton post-rewrite model policy, not a literal field."
     Assert-True (-not $lock.Contains("GH_AW_EVALS_MODEL")) "No evaluation inference stage may be introduced."
+    $publicationPreparationIndex = $lock.IndexOf("name: Preserve canonical Pulse body on publication", [StringComparison]::Ordinal)
+    $publicationJobIndex = $lock.IndexOf("`n  safe_outputs:", [StringComparison]::Ordinal)
+    $publicationHandlerIndex = $lock.IndexOf("name: Process Safe Outputs", [StringComparison]::Ordinal)
+    Assert-True ($publicationPreparationIndex -gt $publicationJobIndex -and $publicationPreparationIndex -lt $publicationHandlerIndex) "Workflow-id decoration must be disabled only in the publication job before the real handler."
+    Assert-True ([regex]::Matches($lock, 'core\.exportVariable\("GH_AW_WORKFLOW_ID", ""\)').Count -eq 1) "Only one publication-scoped workflow-id override is allowed."
     Assert-True (-not $lock.Contains("Configure Git credentials")) "No generated git credential step may run without a checkout."
     Assert-True ([regex]::Matches($lock, "(?m)^  safe-outputs:").Count -eq 0) "The hyphenated job alias must not create a custom mutation-capable job."
     Assert-True ([regex]::Matches($lock, "(?m)^  safe_outputs:").Count -eq 1) "Exactly one built-in safe-output job must be generated."

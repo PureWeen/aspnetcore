@@ -26,6 +26,14 @@ checkout: false
 jobs:
   safe_outputs:
     if: "needs.agent.result == 'success'"
+    pre-steps:
+      - name: Preserve canonical Pulse body on publication
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          # footer:false still appends a workflow-id comment in gh-aw v0.88.7.
+          # Suppress only that decoration in this publication job; run identity
+          # and before/after state remain in the safe-output execution manifest.
+          script: core.exportVariable("GH_AW_WORKFLOW_ID", "");
   detection:
     if: "needs.agent.result == 'success'"
   conclusion:
@@ -339,3 +347,5 @@ on stdin. Use `cat` only for the required reads and the publication command abov
 still compares the accepted body to its private canonical copy; the request file is not trusted
 after inference. Successful validation retains only the sanitized input and canonical body as a
 short-lived Actions artifact for publication auditing.
+The publication handler's workflow-id decoration is disabled so the final issue body remains
+identical to the validated payload; run attribution is retained in the Actions execution manifest.
