@@ -40,7 +40,20 @@ function Add-PulseSection
         $Lines.Add("")
     }
 
-    $Lines.Add("### $Name")
+    $Lines.Add("## $Name")
+    $Lines.Add("")
+}
+
+function Format-PulseCodes
+{
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Codes)
+
+    if ($Codes.Count -eq 0)
+    {
+        return "None."
+    }
+
+    return (($Codes | ForEach-Object { "``$_``" }) -join ", ") + "."
 }
 
 function Add-PulseCandidateView
@@ -48,29 +61,41 @@ function Add-PulseCandidateView
     param(
         [AllowEmptyCollection()][AllowEmptyString()][Collections.Generic.List[string]]$Lines,
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Items,
-        [switch]$IncludeDiscussion
+        [Parameter(Mandatory)][int]$SourceTotal,
+        [switch]$IncludeDiscussion,
+        [switch]$IncludeScope
     )
 
+    $Lines.Add("")
     if ($Items.Count -eq 0)
     {
-        $Lines.Add("None in this complete inventory.")
-        return
-    }
-
-    foreach ($item in $Items)
-    {
-        $Lines.Add("$($item.rank). ``dotnet/aspnetcore#$($item.number)`` - $($item.title)")
-        $Lines.Add("   - Author: $($item.author)")
-        $Lines.Add("   - Next actor: $($item.nextActor)")
-        $reasons = if (@($item.reasonCodes).Count -eq 0)
+        if ($SourceTotal -eq 0)
         {
-            "None."
+            $Lines.Add("None in this complete inventory.")
         }
         else
         {
-            (@($item.reasonCodes) | ForEach-Object { "``$_``" }) -join ", "
+            $Lines.Add("No candidates shown in this view.")
         }
-        $Lines.Add("   - Stable reasons: $reasons")
+
+        return
+    }
+
+    if ($IncludeDiscussion)
+    {
+        $Lines.Add("| PR / Author | Title | Next actor / Age | Reasons / Blockers | Discussion / Comments | Threads |")
+    }
+    else
+    {
+        $Lines.Add("| PR | Title | Author | Next actor | Idle / Open | Reasons / Blockers |")
+    }
+    $Lines.Add("| --- | --- | --- | --- | --- | --- |")
+
+    foreach ($item in $Items)
+    {
+        $identity = "$($item.rank): ``dotnet/aspnetcore#$($item.number)``"
+        $ages = "$($item.idleDays)d idle / $($item.ageDays)d open"
+        $reasons = Format-PulseCodes -Codes @($item.reasonCodes)
         $blockers = if (@($item.blockers).Count -eq 0)
         {
             "None."
@@ -79,25 +104,24 @@ function Add-PulseCandidateView
         {
             @($item.blockers) -join "; "
         }
-        $Lines.Add("   - Blockers: $blockers")
-        $Lines.Add("   - Age and activity: $($item.ageDays) day(s) open; $($item.idleDays) day(s) idle.")
-        $Lines.Add("   - Scope match: $($item.scopeMatch)")
+        $reasonsAndBlockers = "**Reasons:** $reasons **Blockers:** $blockers"
+        if ($IncludeScope)
+        {
+            $reasonsAndBlockers += " **Scope match:** $($item.scopeMatch)."
+        }
 
         if ($IncludeDiscussion)
         {
             $assessment = $item.discussionAssessment
-            $signals = if (@($assessment.signals).Count -eq 0)
-            {
-                "None."
-            }
-            else
-            {
-                (@($assessment.signals) | ForEach-Object { "``$_``" }) -join ", "
-            }
-            $Lines.Add("   - Discussion assessment: state $($assessment.state); complete $($assessment.complete.ToString().ToLowerInvariant()); signals $signals")
-            $Lines.Add("   - Discussion comments: $($assessment.commentTotalCount) total; evidence truncated $($assessment.commentEvidenceTruncated.ToString().ToLowerInvariant()).")
+            $signals = Format-PulseCodes -Codes @($assessment.signals)
+            $discussion = "**State:** ``$($assessment.state)``; assessment complete: $($assessment.complete.ToString().ToLowerInvariant()). **Signals:** $signals **Comments:** $($assessment.commentTotalCount) total; evidence truncated: $($assessment.commentEvidenceTruncated.ToString().ToLowerInvariant())."
             $threads = $assessment.threads
-            $Lines.Add("   - Discussion threads: $($threads.returnedCount) of $($threads.totalCount) returned; complete $($threads.complete.ToString().ToLowerInvariant()); $($threads.unresolvedCount) unresolved; $($threads.outdatedUnresolvedCount) outdated unresolved.")
+            $threadCounts = "$($threads.returnedCount) of $($threads.totalCount) returned; complete: $($threads.complete.ToString().ToLowerInvariant()); $($threads.unresolvedCount) unresolved; $($threads.outdatedUnresolvedCount) outdated unresolved"
+            $Lines.Add("| $identity; **Author:** $($item.author) | $($item.title) | **Next:** $($item.nextActor); $ages | $reasonsAndBlockers | $discussion | $threadCounts |")
+        }
+        else
+        {
+            $Lines.Add("| $identity | $($item.title) | $($item.author) | $($item.nextActor) | $ages | $reasonsAndBlockers |")
         }
     }
 }
@@ -108,15 +132,28 @@ function ConvertTo-PRAttentionPulseBody
     param([Parameter(Mandatory)][object]$Pulse)
 
     $lines = [Collections.Generic.List[string]]::new()
+    $unavailable = [string]::Equals([string]$Pulse.status, "unavailable", [StringComparison]::Ordinal)
 
-    if ([string]::Equals([string]$Pulse.status, "unavailable", [StringComparison]::Ordinal))
+    if ($unavailable)
     {
         $lines.Add("> [!WARNING]")
         $lines.Add("> Attention data unavailable")
-        Add-PulseSection -Lines $lines -Name "Freshness and scope"
-        $lines.Add("- Attempted: ``$(Format-PulseTimestamp -Value $Pulse.attemptedAt)``")
-        $lines.Add("- Error category: ``$($Pulse.errorCategory)``")
-        $lines.Add("- Source repository: ``$($Pulse.source.repository)``")
+        $lines.Add("")
+    }
+    elseif (-not [string]::Equals([string]$Pulse.status, "complete", [StringComparison]::Ordinal))
+    {
+        throw "Unsupported Pulse status '$($Pulse.status)'."
+    }
+
+    $lines.Add("> [!IMPORTANT]")
+    $lines.Add("> These views identify pull requests worth inspecting. They do not certify readiness, prove that feedback was addressed, authorize merge or review, or reliably establish completion.")
+    $lines.Add("")
+    $lines.Add("> Auto-generated by PR Attention Pulse. Manual edits are replaced on the next manual run.")
+
+    if ($unavailable)
+    {
+        $lines.Add("> Attempted: ``$(Format-PulseTimestamp -Value $Pulse.attemptedAt)``.")
+        $lines.Add("> Source repository: ``$($Pulse.source.repository)``. Error category: ``$($Pulse.errorCategory)``.")
         Add-PulseSection -Lines $lines -Name "Summary counts"
         $lines.Add("Candidate counts unavailable.")
         foreach ($name in @(
@@ -134,41 +171,69 @@ function ConvertTo-PRAttentionPulseBody
         return $lines -join "`n"
     }
 
-    if (-not [string]::Equals([string]$Pulse.status, "complete", [StringComparison]::Ordinal))
+    $source = $Pulse.source
+    $displayed = @($Pulse.views.reviewNow) + @($Pulse.views.verifyDiscussionBeforeReview) + @($Pulse.views.needsRescue) + @($Pulse.views.readyToMerge)
+    $commonScope = $null
+    if ($displayed.Count -gt 0)
     {
-        throw "Unsupported Pulse status '$($Pulse.status)'."
+        $commonScope = $displayed[0].scopeMatch
+        foreach ($item in $displayed)
+        {
+            if (-not [string]::Equals($commonScope, $item.scopeMatch, [StringComparison]::Ordinal))
+            {
+                $commonScope = $null
+                break
+            }
+        }
+    }
+    $includeScope = $null -eq $commonScope
+
+    $lines.Add("> Source generated: ``$(Format-PulseTimestamp -Value $source.generatedAt)``; attempted: ``$(Format-PulseTimestamp -Value $Pulse.attemptedAt)``.")
+    $lines.Add("> Source: ``$($source.repository)``. $($source.filter.description); coverage ``$($source.filter.coverage)``; selection $($source.filter.selection).")
+    if ($null -ne $commonScope)
+    {
+        $lines.Add("> Scope match for all displayed candidates: $commonScope.")
+    }
+    if (@($source.warnings).Count -gt 0)
+    {
+        $lines.Add("")
+        $lines.Add("> [!WARNING]")
+        foreach ($warning in @($source.warnings))
+        {
+            $lines.Add("> $warning")
+        }
     }
 
-    $source = $Pulse.source
-    $lines.Add("> [!IMPORTANT]")
-    $lines.Add("> These views identify pull requests worth inspecting. They do not certify readiness, prove that feedback was addressed, authorize merge or review, or reliably establish completion.")
-    Add-PulseSection -Lines $lines -Name "Freshness and scope"
-    $lines.Add("- Attempted: ``$(Format-PulseTimestamp -Value $Pulse.attemptedAt)``")
-    $lines.Add("- Source generated: ``$(Format-PulseTimestamp -Value $source.generatedAt)``")
-    $lines.Add("- Source repository: ``$($source.repository)``")
-    $lines.Add("- Scope: $($source.filter.description); coverage ``$($source.filter.coverage)``; selection $($source.filter.selection).")
-
     Add-PulseSection -Lines $lines -Name "Summary counts"
-    $lines.Add("- Open pull requests: $($source.census.openPullRequests)")
-    $lines.Add("- Matched pull requests: $($source.census.matched)")
-    $lines.Add("- Review now candidates shown: $(@($Pulse.views.reviewNow).Count)")
-    $lines.Add("- Discussion verification candidates shown: $(@($Pulse.views.verifyDiscussionBeforeReview).Count)")
-    $lines.Add("- Needs rescue candidates shown: $(@($Pulse.views.needsRescue).Count)")
-    $lines.Add("- Ready to merge candidates shown: $(@($Pulse.views.readyToMerge).Count)")
-    $lines.Add("- Queue census: Review now $($source.census.byBucket.ReviewNow); Needs rescue $($source.census.byBucket.NeedsRescue); Ready to merge $($source.census.byBucket.ReadyToMerge); Waiting on author $($source.census.byBucket.WaitingOnAuthor); Waiting on CI $($source.census.byBucket.WaitingOnCI); Design decision $($source.census.byBucket.DesignDecision); Draft $($source.census.byBucket.Draft); Excluded $($source.census.byBucket.Excluded).")
+    $lines.Add("Open: $($source.census.openPullRequests). Matched: $($source.census.matched). Returned: $($source.query.returnedPullRequestCount) of $($source.query.openPullRequestCount); query complete: $($source.query.complete.ToString().ToLowerInvariant()).")
+    $lines.Add("")
+    $lines.Add("| View | Displayed | Source total |")
+    $lines.Add("| --- | ---: | --- |")
+    $lines.Add("| Review now | $(@($Pulse.views.reviewNow).Count) | $($source.census.byBucket.ReviewNow) in the ReviewNow inventory bucket, not $($source.census.byBucket.ReviewNow) cleared for review |")
+    $lines.Add("| Verify discussion before review | $(@($Pulse.views.verifyDiscussionBeforeReview).Count) | $($source.discussion.verificationNeededCount) assessed candidates need verification |")
+    $lines.Add("| Needs rescue | $(@($Pulse.views.needsRescue).Count) | $($source.census.byBucket.NeedsRescue) in the NeedsRescue inventory bucket |")
+    $lines.Add("| Ready to merge | $(@($Pulse.views.readyToMerge).Count) | $($source.census.byBucket.ReadyToMerge) in the ReadyToMerge inventory bucket |")
 
     Add-PulseSection -Lines $lines -Name "Review now"
-    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.reviewNow)
+    $lines.Add("Displaying $(@($Pulse.views.reviewNow).Count) candidates from a ReviewNow inventory of $($source.census.byBucket.ReviewNow). Legacy overflow: $($source.overflow.reviewNow).")
+    $lines.Add("The inventory includes discussion-verification and unassessed candidates; see coverage below.")
+    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.reviewNow) -SourceTotal $source.census.byBucket.ReviewNow -IncludeScope:$includeScope
     Add-PulseSection -Lines $lines -Name "Verify discussion before review"
-    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.verifyDiscussionBeforeReview) -IncludeDiscussion
+    $verificationShown = @($Pulse.views.verifyDiscussionBeforeReview).Count
+    $lines.Add("Displaying $verificationShown of $($source.discussion.verificationNeededCount) assessed candidates needing verification; $($source.discussion.verificationNeededCount - $verificationShown) are not displayed.")
+    $lines.Add("Assessment budget: $($source.discussion.candidateLimit) candidates, not a claim that $($source.discussion.candidateLimit) verification rows can be shown.")
+    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.verifyDiscussionBeforeReview) -SourceTotal $source.discussion.verificationNeededCount -IncludeDiscussion -IncludeScope:$includeScope
     Add-PulseSection -Lines $lines -Name "Needs rescue"
-    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.needsRescue)
+    $lines.Add("Displaying $(@($Pulse.views.needsRescue).Count) of $($source.census.byBucket.NeedsRescue) inventory candidates. Legacy overflow: $($source.overflow.needsRescue).")
+    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.needsRescue) -SourceTotal $source.census.byBucket.NeedsRescue -IncludeScope:$includeScope
     Add-PulseSection -Lines $lines -Name "Ready to merge"
-    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.readyToMerge)
+    $lines.Add("Displaying $(@($Pulse.views.readyToMerge).Count) of $($source.census.byBucket.ReadyToMerge) inventory candidates. Legacy overflow: $($source.overflow.readyToMerge).")
+    Add-PulseCandidateView -Lines $lines -Items @($Pulse.views.readyToMerge) -SourceTotal $source.census.byBucket.ReadyToMerge -IncludeScope:$includeScope
 
     Add-PulseSection -Lines $lines -Name "Coverage and data quality"
-    $lines.Add("- Query coverage: $($source.query.returnedPullRequestCount) of $($source.query.openPullRequestCount) open pull requests returned; complete true.")
+    $lines.Add("- Query coverage: $($source.query.returnedPullRequestCount) of $($source.query.openPullRequestCount) open pull requests returned; complete $($source.query.complete.ToString().ToLowerInvariant()).")
     $lines.Add("- Discussion coverage: $($source.discussion.assessedCandidateCount) of limit $($source.discussion.candidateLimit) assessed; $($source.discussion.verificationNeededCount) need verification; $($source.discussion.unassessedReviewNowCount) Review now candidates unassessed.")
+    $lines.Add("- Queue census: Review now $($source.census.byBucket.ReviewNow); Needs rescue $($source.census.byBucket.NeedsRescue); Ready to merge $($source.census.byBucket.ReadyToMerge); Waiting on author $($source.census.byBucket.WaitingOnAuthor); Waiting on CI $($source.census.byBucket.WaitingOnCI); Design decision $($source.census.byBucket.DesignDecision); Draft $($source.census.byBucket.Draft); Excluded $($source.census.byBucket.Excluded).")
     $lines.Add("- Scope census: $($source.census.labelOnly) label-only; $($source.census.pathOnly) path-only; $($source.census.labelAndPath) label-and-path; $($source.census.incidentalPathExcluded) incidental paths excluded; $($source.census.unresolvedMergeable) unresolved mergeability.")
     $lines.Add("- Overflow: Review now $($source.overflow.reviewNow); Needs rescue $($source.overflow.needsRescue); Ready to merge $($source.overflow.readyToMerge).")
     $lines.Add("- Caps: Review now $($source.caps.reviewNow); Review now per author $($source.caps.reviewNowPerAuthor); Needs rescue $($source.caps.needsRescue); Ready to merge $($source.caps.readyToMerge).")
