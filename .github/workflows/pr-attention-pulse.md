@@ -175,10 +175,16 @@ steps:
       Copy-Item .pr-attention-pulse/pulse-input.json $validatorRoot
       Copy-Item .pr-attention-pulse/pulse-body.md $validatorRoot
 
-      Remove-Item -Recurse -Force .github, .git -ErrorAction SilentlyContinue
-      if ((Test-Path -LiteralPath .github) -or (Test-Path -LiteralPath .git))
+      Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force |
+        Where-Object { -not [string]::Equals($_.Name, ".pr-attention-pulse", [StringComparison]::Ordinal) } |
+        Remove-Item -Recurse -Force
+      $unexpectedWorkspaceEntries = @(
+        Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force |
+          Where-Object { -not [string]::Equals($_.Name, ".pr-attention-pulse", [StringComparison]::Ordinal) }
+      )
+      if ($unexpectedWorkspaceEntries.Count -ne 0)
       {
-        throw "Repository or Git metadata survived trusted preparation."
+        throw "Repository data survived trusted preparation."
       }
 
 pre-agent-steps:

@@ -66,6 +66,13 @@ Invoke-Control "EffectiveModelVisibleBoundary" {
     $artifactDownload = $lock.IndexOf("name: Download activation artifact", [StringComparison]::Ordinal)
     $preAgentCleanup = $lock.IndexOf("name: Enforce model-visible Pulse boundary", [StringComparison]::Ordinal)
     Assert-True ($preAgentCleanup -gt $artifactDownload -and $preAgentCleanup -lt $agentStepStart) "The model-visible boundary must be enforced after artifact download and before inference."
+    $trustedCleanupStart = $lock.IndexOf("name: Protect canonical Pulse artifacts", [StringComparison]::Ordinal)
+    Assert-True ($trustedCleanupStart -ge 0 -and $trustedCleanupStart -lt $preAgentCleanup) "Trusted workspace cleanup must run before the pre-agent boundary check."
+    $trustedCleanupStep = $lock.Substring($trustedCleanupStart, $preAgentCleanup - $trustedCleanupStart)
+    Assert-True ($trustedCleanupStep.Contains('Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force')) "Trusted cleanup must enumerate every workspace root entry."
+    Assert-True ($trustedCleanupStep.Contains('$_.Name, \".pr-attention-pulse\"')) "Trusted cleanup must preserve only the bounded Pulse directory."
+    Assert-True ($trustedCleanupStep.Contains("Remove-Item -Recurse -Force")) "Trusted cleanup must delete every other workspace entry."
+    Assert-True (-not $trustedCleanupStep.Contains("Remove-Item -Recurse -Force .github, .git")) "Trusted cleanup must not delete only repository metadata while leaving other checkout files."
     $cleanupStep = $lock.Substring($preAgentCleanup, $agentStepStart - $preAgentCleanup)
     foreach ($requiredText in @(
         "/tmp/gh-aw/base",
