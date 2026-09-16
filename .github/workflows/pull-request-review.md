@@ -1,5 +1,6 @@
 ---
-if: ${{ github.event.repository.fork == false }}
+# TEST ONLY: restricted to the PureWeen fork; never publish this branch as the production reviewer.
+if: ${{ github.repository == 'PureWeen/aspnetcore' }}
 
 on:
   # Deliberately use direct slash commands: v0.88.2 centralized membership rejects community
