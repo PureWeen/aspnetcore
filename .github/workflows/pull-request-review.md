@@ -1,5 +1,6 @@
 ---
-if: ${{ github.event.repository.fork == false }}
+# TEST ONLY: restricted to the PureWeen fork; never publish this branch as the production reviewer.
+if: ${{ github.repository == 'PureWeen/aspnetcore' }}
 
 on:
   # Deliberately use direct slash commands: v0.88.2 centralized membership rejects community
@@ -68,7 +69,7 @@ tools:
     min-integrity: none
     # Production is intentionally scoped to the upstream repository. The MCP guard requires
     # lowercase scopes; fork validation must use its own exact scope on a test-only branch.
-    allowed-repos: [dotnet/aspnetcore]
+    allowed-repos: [pureween/aspnetcore]
     toolsets: [context, repos, issues, pull_requests]
 
 # Do not expose inherited telemetry credentials to a process reading untrusted pull request text.
