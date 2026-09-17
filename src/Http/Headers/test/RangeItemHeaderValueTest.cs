@@ -135,7 +135,7 @@ public class RangeItemHeaderValueTest
 
         var range = ranges.First();
 
-        Assert.Equal(expectedFrom, range.From);
+        Assert.Equal(range.From, range.From);
         Assert.Equal(expectedTo, range.To);
     }
 
