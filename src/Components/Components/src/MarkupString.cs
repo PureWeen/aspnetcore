@@ -18,7 +18,7 @@ public readonly struct MarkupString
     }
 
     /// <summary>
-    /// Gets the string value of the <see cref="MarkupString"/>.
+    /// Gets the value of the <see cref="MarkupString"/>.
     /// </summary>
     public string Value { get; }
 
