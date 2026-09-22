@@ -94,11 +94,9 @@ The coordinator alone loads criteria and passes their exact text to workers; nev
 working-tree criteria, a remote revision, or memory. Reuse captured text for excerpts.
 Local product changes do not alter the PR target. Do not read an unrouted guide.
 
-Each required guide is valid only when it contains exactly one nonempty `## Overarching principles`
-section and exactly one `## Topics` section, with at least one uniquely named `###` topic and
-nonempty bullets in every topic. Missing, duplicate, empty, or otherwise invalid structure is
-terminal. Discover every `###` topic under `## Topics`; guides are required
-review input, not optional evidence.
+Each guide requires exactly one nonempty `## Overarching principles` and one `## Topics` section,
+with at least one uniquely named `###` topic and nonempty bullets in every topic. Missing, duplicate, empty or
+invalid structure is terminal. Discover every `###` topic under `## Topics`; guides are required input.
 
 Also resolve every applicable direct repository-local Markdown link in the guide
 principles/topics that explicitly delegates a requirement. Supplemental, example, and navigation
@@ -238,6 +236,7 @@ task(
           Do not use shell, local Git, filesystem, local search, or code-intelligence tools.
           For additional target context, use read-only GitHub tools at the frozen HEAD_SHA or
           immutable diff old-side revision; binding target documents use BASE_REPO/BASE_SHA.
+          Do not use GitHub code search; discover paths with directory listings at the frozen revision.
           If product code is supplied by reference, read the referenced source before returning COMPLETE.
           Exception: for truncated successful immutable GitHub output, view only its exact tool-returned output file,
           not repository files. Use bounded ranges and forceReadLargeFiles if an encoded line still truncates.

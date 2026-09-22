@@ -180,7 +180,7 @@ environment: copilot-pat-pool
 model: gpt-5.6-sol
 engine:
   id: copilot
-  args: ["--excluded-tools=write_agent"]
+  args: ["--excluded-tools", "write_agent", "github-search_code"]
   # Pin the CLI, not the model: automatic selection of 1.0.83 breaks tool discovery with
   # stable gh-aw's bundled gateway (https://github.com/github/gh-aw-mcpg/issues/13196).
   # On gh-aw upgrades, retry without this pin once the gateway includes gh-aw-mcpg#13221.
@@ -262,6 +262,8 @@ Do not substitute source summaries or local repository access. Before dispatch, 
 with the retrieved text, preserving policy clauses and Markdown links.
 Workers may use read-only GitHub tools for additional target context
 at the frozen head or immutable diff old side, and binding documents at the frozen base.
+`github-search_code` is excluded because it cannot pin a revision; discover paths using GitHub
+directory listings at the frozen revision, not mutable default-branch search.
 Workers may page only the exact output artifact of their own successful immutable GitHub read.
 No worker shell, local Git, repository filesystem, local search, or code-intelligence reads are permitted.
 
