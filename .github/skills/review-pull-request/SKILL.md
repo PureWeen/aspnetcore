@@ -49,10 +49,10 @@ requesting changes, mutating issues or labels, or any GitHub API the caller did 
 
 ## Step 1 — Freeze the evidence
 
-At invocation start, before any GitHub retrieval, resolve the current repository root with
-`git rev-parse --show-toplevel` and freeze its full `HEAD` SHA as `LOCAL_SHA`.
-Use this fixed root and literal SHA for all criteria reads, even if `HEAD` advances.
-If the root or commit cannot be resolved, return `BLOCKED` with the reason and stop.
+Before any GitHub retrieval, resolve the repository root with `git rev-parse --show-toplevel`
+and freeze its full `HEAD` SHA as `LOCAL_SHA` with `git rev-parse HEAD`; keep both fixed throughout.
+If either fails, return `BLOCKED` with the reason and stop.
+Use only these commands and the pinned reads below for local repository access.
 
 Then, before reading any code, capture and record verbatim:
 
@@ -88,16 +88,16 @@ Only successful native invocation establishes native loading, not a registry ent
 Record actual loading/provenance; do not invent a revision or require a matching skill copy.
 
 The PR and review criteria are independent inputs. Use the root and `LOCAL_SHA` frozen in Step 1.
-Read routed guides and delegated policies with `git show <LOCAL_SHA>:<repository-relative-path>`
-from the original working directory. `SHA:path` is repository-root-relative even from subdirectories.
-Do not add global Git options, change directories, or re-resolve `HEAD`.
-Spell out the full SHA and path in each read command; do not use shell variables or `HEAD`.
+Read guides and policies with `git show <LOCAL_SHA>:<repository-relative-path>` from the original working directory.
+`SHA:path` is repository-root-relative even from subdirectories. Do not change directories or re-resolve `HEAD`.
+Use standalone reads with the full literal SHA and path: no variables, options, pipes, chaining, redirects, or filters.
+For truncated successful output, use read-only `view` with bounded ranges on only its exact tool-returned output file.
+This is the same committed output, not workspace input. Reuse it for excerpts; unavailable or incomplete paging is `BLOCKED`.
 Guidance changes must be committed, but need not be pushed. Ignore uncommitted edits; do not
 require a clean tree or a particular branch, fetch, check out, or match the installed skill's bytes.
 The coordinator alone loads criteria and passes their exact text to workers; workers do not
 reread local files. Never substitute the working tree, a remote revision, or memory.
-Local product changes do not alter the PR target.
-Do not read an unrouted guide.
+Local product changes do not alter the PR target. Do not read an unrouted guide.
 
 Each required guide is valid only when it contains exactly one nonempty `## Overarching principles`
 section and exactly one `## Topics` section, with at least one uniquely named `###` topic and
