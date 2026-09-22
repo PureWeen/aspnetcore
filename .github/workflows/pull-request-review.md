@@ -214,8 +214,9 @@ Wait for native invocation to succeed before retrieving PR content or dispatchin
 If invocation is unavailable or fails, record `BLOCKED` and the actual loading limitation, call
 `noop`, and stop. Reading a file is not a substitute for successful native invocation.
 
-The installed skill is the authoritative analysis contract. Follow all of its steps, including
-its exact structured result, without creating a second routing table or parallel methodology.
+The installed skill is the authoritative analysis contract. This trusted caller explicitly
+requests structured output, including full diagnostics, instead of the skill's concise default.
+Follow all steps without creating a second routing table or parallel methodology.
 This wrapper only identifies the hosted target and constrains the final safe-output adapter.
 
 ## Produce the skill's structured analysis
@@ -226,9 +227,9 @@ Before GitHub retrieval, use the skill's Step 1 to resolve the local repository 
 `${{ github.workspace }}`. Require the resolved root and `LOCAL_SHA` to match these values;
 otherwise record `BLOCKED`, call `noop`, and stop without repairing the checkout.
 Use `git rev-parse --show-toplevel` and `git rev-parse HEAD` once, then read criteria with
-`git show <literal-LOCAL_SHA>:<repository-relative-path>` from that root. Keep the coordinator
-and workers in this directory; do not change directories or re-resolve `HEAD`.
-Only these Git reads are permitted shell operations, including in delegated workers.
+`git show <literal-LOCAL_SHA>:<repository-relative-path>` from that root. The coordinator alone
+loads criteria; do not change directories or re-resolve `HEAD`. These are coordinator-only
+shell operations. Workers consume the supplied criteria and must not use local tools.
 
 Verify the GitHub head equals the trusted frozen SHA before analysis. Freeze the PR head, current
 base-ref head and repository/ref, authoritative complete changed-file list and merge-base diff,
@@ -246,17 +247,23 @@ branch imposes the same contract.
 Construct the complete topic manifest from every routed guide as the skill requires. Dispatch
 one fresh general-purpose `task` worker per manifest row, using the caller-selected
 `gpt-5.6-sol` model explicitly. No Anthropic model, automatic model substitution, nested panel,
-inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. Give each
-worker only its exact topic and common principles, required policy excerpts, immutable provenance,
-the resolved local root and literal `LOCAL_SHA` for criteria rereads, and frozen PR evidence,
-with the skill's delegated-worker restrictions.
+inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. Each briefing
+must include the skill's worker evidence rules and result contract verbatim, before the evidence.
+Supply exact topic/principles/policy text, provenance and frozen diff/source excerpts, not summaries
+or local repository access. Workers may use read-only GitHub tools for additional target context
+at the frozen head or immutable diff old side, and binding documents at the frozen base.
+No worker shell, local Git, filesystem, local search, or code-intelligence reads are permitted.
 
 Wait for and retrieve every worker result. Compare expected, launched, returned, retried, and
 fallback rows by unique task name, not just aggregate counts. Follow the skill's one-retry and
 fallback rules exactly; do not redo successful topics. Report `subagent-per-topic` only with
 usable independent results for every required row, otherwise the actual `degraded-panel` or
-`single-orchestrator` path. If limits prevent complete accounting, report incomplete coverage;
-do not silently drop topics to fit the budget.
+`single-orchestrator` path. Check STATUS, EVIDENCE and LIMITATIONS before counting a result:
+bare LGTM, wrong-revision reads, and unresolved required evidence are not usable coverage.
+BLOCKED or required-evidence/provenance failure stops the review with BLOCKED and `noop`;
+only dispatch/format failures permit the skill's bounded retry/fallback. An optional failed
+lookup is a disclosed limitation, not a blocker when authoritative evidence is already sufficient.
+If limits prevent complete accounting, report incomplete coverage; do not silently drop topics.
 
 Independently validate and deduplicate candidates using every gate in the skill. Trace the old
 and new producer-to-effect path and changed causal edge, including binding requirements where
@@ -275,8 +282,13 @@ through alternative commands or sources. Never approve, request changes, dismiss
 merge, or mutate issues, labels, PR fields, or reactions. Only the final safe-output adapter below may publish
 review comments; never use a direct GitHub mutation API.
 
-First finish and retain the skill's exact structured local result. Safe-output tools belong only
-to this orchestrator's final adapter; workers must never call them.
+Before calling any final safe-output tool, emit the complete Step 6 structured result as an
+assistant message in this run's retained transcript, not just private reasoning or a summary.
+This includes NO_FINDINGS with all provenance, manifest, test-boundary and limitation fields,
+or the structured BLOCKED result when appropriate. Do not create a report file or claim that an
+unemitted record was retained. If the record cannot be emitted, stop with an explicit incomplete
+diagnostic and `noop`, never a completed-review claim. Safe-output tools belong only to this
+orchestrator's final adapter; workers must never call them.
 
 ## Adapt only a complete, validated result to review safe outputs
 
