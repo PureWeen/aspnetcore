@@ -88,9 +88,9 @@ Only successful native invocation establishes native loading, not a registry ent
 Record actual loading/provenance; do not invent a revision or require a matching skill copy.
 
 The PR and review criteria are independent inputs. Use the root and `LOCAL_SHA` frozen in Step 1.
-Read routed guides and delegated policies with
-`git -C <root> show <LOCAL_SHA>:<repository-relative-path>`; never re-resolve local `HEAD`.
-When already in the frozen root, use the equivalent `git show <LOCAL_SHA>:<repository-relative-path>`.
+Read routed guides and delegated policies with `git show <LOCAL_SHA>:<repository-relative-path>`
+from the original working directory. `SHA:path` is repository-root-relative even from subdirectories.
+Do not add global Git options, change directories, or re-resolve `HEAD`.
 Spell out the full SHA and path in each read command; do not use shell variables or `HEAD`.
 Guidance changes must be committed, but need not be pushed. Ignore uncommitted edits; do not
 require a clean tree or a particular branch, fetch, check out, or match the installed skill's bytes.
