@@ -180,6 +180,7 @@ environment: copilot-pat-pool
 model: gpt-5.6-sol
 engine:
   id: copilot
+  args: ["--excluded-tools=write_agent"]
   # Pin the CLI, not the model: automatic selection of 1.0.83 breaks tool discovery with
   # stable gh-aw's bundled gateway (https://github.com/github/gh-aw-mcpg/issues/13196).
   # On gh-aw upgrades, retry without this pin once the gateway includes gh-aw-mcpg#13221.
@@ -255,9 +256,10 @@ one fresh general-purpose `task` worker per manifest row, using the caller-selec
 `gpt-5.6-sol` model explicitly. No Anthropic model, automatic model substitution, nested panel,
 inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. Each briefing
 must include the skill's worker evidence rules and result contract verbatim, before the evidence.
-Supply exact topic/principles/policy text, provenance and frozen diff/source excerpts, not summaries
-or local repository access. Before dispatch, compare the actual brief's fenced diff, source and policy
-blocks to the retrieved text; preserve hunk headers and Markdown links, not just equivalent prose.
+Supply exact topic/principles/policy text and provenance. For product code, use immutable GitHub source references
+at the frozen old/head revisions with authoritative changed-line ranges, rather than retyping code or diff hunks.
+Do not substitute source summaries or local repository access. Before dispatch, compare criteria excerpts
+with the retrieved text, preserving policy clauses and Markdown links.
 Workers may use read-only GitHub tools for additional target context
 at the frozen head or immutable diff old side, and binding documents at the frozen base.
 Workers may page only the exact output artifact of their own successful immutable GitHub read.
@@ -276,6 +278,9 @@ For each candidate, require source quotes establishing its premises and call edg
 or the worker's consumed evidence. A required helper's truncated/rate-limited read cannot be called
 optional while retaining a claim that depends on it. A later coordinator read does not repair
 that worker's independent coverage; treat such a COMPLETE as contradictory and BLOCKED.
+Use each worker's first terminal result. `write_agent` is excluded from this runtime: never rebrief,
+correct, or add evidence to an existing worker after dispatch. A deficient brief discovered later
+blocks the review; it is not a response-format failure eligible for retry.
 If limits prevent complete accounting, report incomplete coverage; do not silently drop topics.
 
 Independently validate and deduplicate candidates using every gate in the skill. Trace the old
@@ -304,6 +309,8 @@ or the structured BLOCKED result when appropriate. Do not create a report file o
 unemitted record was retained. If the record cannot be emitted, stop with an explicit incomplete
 diagnostic and `noop`, never a completed-review claim. Safe-output tools belong only to this
 orchestrator's final adapter; workers must never call them.
+The coordinator may read this invocation's own runtime checkpoints for bookkeeping only,
+not source evidence. After compaction, re-establish primary evidence; a remembered summary is not a source read.
 
 ## Adapt only a complete, validated result to review safe outputs
 
