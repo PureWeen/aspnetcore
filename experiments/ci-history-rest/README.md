@@ -178,9 +178,7 @@ Complete ingestion, collector substitution, production auth/hosting/SLOs, and
 full source-change eligibility/unquarantine proof remain unproved. The historical
 fixture-source path/hash bookkeeping gap remains unsupported; this package
 does not repair or republish those receipts. Raw captures and private evidence
-roots are intentionally absent. See the
-[existing discussion](https://gist.github.com/PureWeen/b0dc2dc71a9a6c789130b0a5b3327aa0)
-for cross-repository context.
+roots are intentionally absent.
 
 ## Reviewer decision
 
