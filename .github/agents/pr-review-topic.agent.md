@@ -21,6 +21,9 @@ Never substitute working-tree, index, HEAD, or other-revision source.
 
 If required evidence is unavailable or you used a prohibited source, return STATUS: BLOCKED.
 Evidence needed for any candidate premise or call edge is required; do not label its failure optional.
+This also applies to LGTM and discard rationales. Do not assert helper equivalence, return values,
+purity, or absence of exceptions from an unread implementation. A scoped LGTM need only state
+that no assigned-topic finding was established; do not invent global behavior to justify it.
 A failed optional lookup may remain COMPLETE only when supplied or successfully retrieved
 authoritative evidence is sufficient; disclose the failed lookup without substituting sources.
 Do not invent an unavailable input: identify the exact missing brief field or attempted source

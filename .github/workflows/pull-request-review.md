@@ -261,7 +261,8 @@ Supply exact topic/principles/policy text and provenance. For product code, use 
 at the frozen old/head revisions with authoritative changed-line ranges, rather than retyping code or diff hunks.
 Do not substitute source summaries or local repository access. Before dispatch, compare criteria excerpts
 with the retrieved text, preserving policy clauses and Markdown links.
-Copy full applicable policy sentences, including conditions and examples; do not paraphrase them.
+Copy the complete named policy sections, from their heading through the next peer/ancestor heading,
+as for topic sections; do not extract shortened sentences or paraphrase them.
 Workers may use read-only GitHub tools for additional target context
 at the frozen head or immutable diff old side, and binding documents at the frozen base.
 `github-search_code` is excluded because it cannot pin a revision; discover paths using GitHub
@@ -282,6 +283,8 @@ For each candidate, require source quotes establishing its premises and call edg
 or the worker's consumed evidence. A required helper's truncated/rate-limited read cannot be called
 optional while retaining a claim that depends on it. A later coordinator read does not repair
 that worker's independent coverage; treat such a COMPLETE as contradictory and BLOCKED.
+Apply that check to LGTM/discard rationales as well: unsupported helper equivalence, return-value
+or exception assertions invalidate the result, even if another worker or the coordinator found the bug.
 Use each worker's first terminal result. `write_agent` is excluded from this runtime: never rebrief,
 correct, or add evidence to an existing worker after dispatch. A deficient brief discovered later
 blocks the review; it is not a response-format failure eligible for retry.

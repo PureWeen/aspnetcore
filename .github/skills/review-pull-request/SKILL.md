@@ -102,7 +102,7 @@ Also resolve every applicable direct repository-local Markdown link in the guide
 principles/topics that explicitly delegates a requirement. Supplemental, example, and navigation
 links are not required inputs. Resolve paths relative to the containing guide within the committed
 repository tree, read them at `LOCAL_SHA`, resolve their anchors, and select only the verbatim
-delegated clauses. Record `<policy-path>@<LOCAL_SHA>#<anchor>`. Do not recurse, import unrelated
+anchored policy sections. Record `<policy-path>@<LOCAL_SHA>#<anchor>`. Do not recurse, import unrelated
 procedures, invoke skills/workflows, execute targets, or create manifest rows. Scope-qualified links
 apply only to named work; Components-only policy is not required for JSInterop-only review.
 
@@ -221,8 +221,8 @@ Include exact principles/topic text, `<guide-path>@<LOCAL_SHA>`, actual skill pr
 and target-document provenance at `BASE_REPO/<document-path>@<BASE_SHA>`.
 Do not delegate local repository access or criteria loading. Criteria are not target contracts.
 
-Include delegated policy excerpts and `<policy-path>@<LOCAL_SHA>#<anchor>` provenance.
-Copy complete applicable sentences, preserving conditions/examples; do not rewrite them as summaries.
+Include complete delegated policy sections and `<policy-path>@<LOCAL_SHA>#<anchor>` provenance.
+Copy from the named heading through the next peer/ancestor heading, as for guide topics; do not summarize.
 Do not delegate policy selection or link-following. Supply only topic-specific data in the brief:
 
 ```
@@ -243,7 +243,7 @@ task(
           Source evidence: <repository/path@revision references OR verbatim code blocks with line ranges>
           Common principles: <complete `## Overarching principles` text at LOCAL_SHA>
           Assigned topic: <complete `### <single named topic>` text at LOCAL_SHA>
-          Required policy excerpts, if any: <exact selected delegated clauses at LOCAL_SHA>
+          Required policy sections, if any: <complete verbatim anchored sections at LOCAL_SHA>
           Policy provenance: <policy-path>@<LOCAL_SHA>#<anchor>
           Your only review topic is: <single named topic>."
 )
@@ -263,6 +263,8 @@ sources. An optional lookup failure alone does not invalidate sufficient authori
 For every candidate premise, require a source quote in its brief or consumed worker evidence.
 An unread helper/getter needed by the claim makes COMPLETE contradictory, even if labeled optional;
 a later coordinator read cannot repair that worker's independent coverage.
+Check LGTM and discard rationales too: an unsupported equivalence/return-value/exception claim
+makes the result unusable. Do not silently strip its false premise and count the worker as complete.
 Count only each worker's first terminal result; never rebrief or call `write_agent`.
 If a deficient brief is discovered after dispatch, block rather than repair it as a response-format retry.
 Report `subagent-per-topic` only when every row returned a usable independent result. If the task
