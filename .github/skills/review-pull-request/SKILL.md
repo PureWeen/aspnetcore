@@ -91,7 +91,7 @@ use `forceReadLargeFiles` for that range. A fetch/preview is not a source read; 
 Guidance changes must be committed, not necessarily pushed. Ignore uncommitted edits; require no clean
 tree, specific branch or matching skill bytes, and never fetch or check out.
 The coordinator selects and reads criteria at LOCAL_SHA. Pass exact text, or caller-supplied GitHub
-references to selected policies in the reviewer repository at that same commit. This is transport
+references to selected guide sections/policies in the reviewer repository at that same commit. This is transport
 of the same criteria, not a fallback/version choice. Never substitute working-tree criteria or memory.
 Local product changes do not alter the PR target. Do not read an unrouted guide.
 
@@ -221,7 +221,7 @@ Resolve the changed expression's immediate base/getter and newly called helper d
 Put those immutable references in a shared REQUIRED context list for affected briefs, not prose call-edge summaries.
 Do not dispatch if that context cannot be resolved; the worker must consume every required reference.
 
-Include exact principles/topic text, `<guide-path>@<LOCAL_SHA>`, actual skill provenance,
+Include exact principles/topic text or exact selected-anchor references, `<guide-path>@<LOCAL_SHA>`, actual skill provenance,
 and target-document provenance at `BASE_REPO/<document-path>@<BASE_SHA>`.
 Do not delegate local repository access or policy selection. Criteria are not target contracts.
 
@@ -248,8 +248,8 @@ task(
           Frozen diff: <exact inline diff OR immutable GitHub old/head source references with changed-line ranges>
           Source evidence: <repository/path@revision references OR verbatim code blocks with line ranges>
           REQUIRED context: <immutable changed/base/getter/helper references needed for this change>
-          Common principles: <complete `## Overarching principles` text at LOCAL_SHA>
-          Assigned topic: <complete `### <single named topic>` text at LOCAL_SHA>
+          Common principles: <complete text OR exact guide@LOCAL_SHA#overarching-principles reference>
+          Assigned topic: <complete text OR exact guide@LOCAL_SHA#assigned-topic-anchor reference>
           Required policy sections, if any: <complete sections OR exact repository/path@LOCAL_SHA#anchor references>
           Policy provenance: <policy-path>@<LOCAL_SHA>#<anchor>
           Your only review topic is: <single named topic>."
