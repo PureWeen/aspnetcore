@@ -252,14 +252,16 @@ binding target documents at `BASE_REPO`/`BASE_SHA`. Local criteria are not proof
 branch imposes the same contract.
 
 Construct the complete topic manifest from every routed guide as the skill requires. Dispatch
-one fresh general-purpose `task` worker per manifest row, using the caller-selected
+one fresh `pr-review-topic` `task` worker per manifest row, using the caller-selected
 `gpt-5.6-sol` model explicitly. No Anthropic model, automatic model substitution, nested panel,
-inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. Each briefing
-must include the skill's worker evidence rules and result contract verbatim, before the evidence.
+inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. The fixed worker
+protocol loads natively from `.github/agents/pr-review-topic.agent.md` in the reviewer checkout;
+do not retype it into each brief or substitute general-purpose workers. If unavailable, BLOCKED and noop.
 Supply exact topic/principles/policy text and provenance. For product code, use immutable GitHub source references
 at the frozen old/head revisions with authoritative changed-line ranges, rather than retyping code or diff hunks.
 Do not substitute source summaries or local repository access. Before dispatch, compare criteria excerpts
 with the retrieved text, preserving policy clauses and Markdown links.
+Copy full applicable policy sentences, including conditions and examples; do not paraphrase them.
 Workers may use read-only GitHub tools for additional target context
 at the frozen head or immutable diff old side, and binding documents at the frozen base.
 `github-search_code` is excluded because it cannot pin a revision; discover paths using GitHub
