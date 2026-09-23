@@ -90,8 +90,9 @@ on only its exact tool-returned output file, not workspace input. If one encoded
 use `forceReadLargeFiles` for that range. A fetch/preview is not a source read; incomplete paging is `BLOCKED`.
 Guidance changes must be committed, not necessarily pushed. Ignore uncommitted edits; require no clean
 tree, specific branch or matching skill bytes, and never fetch or check out.
-The coordinator alone loads criteria and passes their exact text to workers; never substitute
-working-tree criteria, a remote revision, or memory. Reuse captured text for excerpts.
+The coordinator selects and reads criteria at LOCAL_SHA. Pass exact text, or caller-supplied GitHub
+references to selected policies in the reviewer repository at that same commit. This is transport
+of the same criteria, not a fallback/version choice. Never substitute working-tree criteria or memory.
 Local product changes do not alter the PR target. Do not read an unrouted guide.
 
 Each guide requires exactly one nonempty `## Overarching principles` and one `## Topics` section,
@@ -219,10 +220,11 @@ a diff hunk or rewrite code; use source references instead. Preserve policy clau
 
 Include exact principles/topic text, `<guide-path>@<LOCAL_SHA>`, actual skill provenance,
 and target-document provenance at `BASE_REPO/<document-path>@<BASE_SHA>`.
-Do not delegate local repository access or criteria loading. Criteria are not target contracts.
+Do not delegate local repository access or policy selection. Criteria are not target contracts.
 
 Include complete delegated policy sections and `<policy-path>@<LOCAL_SHA>#<anchor>` provenance.
-Copy from the named heading through the next peer/ancestor heading, as for guide topics; do not summarize.
+Supply full sections or exact GitHub policy references at the caller's reviewer repository/LOCAL_SHA.
+Never summarize a section or substitute another revision when a supplied reference cannot be read.
 Do not delegate policy selection or link-following. Supply only topic-specific data in the brief:
 
 ```
@@ -238,12 +240,13 @@ task(
           Skill loading: <native invocation | manually read instructions | unavailable>
           Skill provenance: <actual installed skill provenance>
           Criteria provenance: <guide-path>@<LOCAL_SHA>
+          Reviewer repository for supplied policy references: <trusted caller repository, or none>
           Changed files: <authoritative files/statuses, old paths and changed-line ranges>
           Frozen diff: <exact inline diff OR immutable GitHub old/head source references with changed-line ranges>
           Source evidence: <repository/path@revision references OR verbatim code blocks with line ranges>
           Common principles: <complete `## Overarching principles` text at LOCAL_SHA>
           Assigned topic: <complete `### <single named topic>` text at LOCAL_SHA>
-          Required policy sections, if any: <complete verbatim anchored sections at LOCAL_SHA>
+          Required policy sections, if any: <complete sections OR exact repository/path@LOCAL_SHA#anchor references>
           Policy provenance: <policy-path>@<LOCAL_SHA>#<anchor>
           Your only review topic is: <single named topic>."
 )
