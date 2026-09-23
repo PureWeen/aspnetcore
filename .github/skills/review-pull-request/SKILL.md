@@ -109,10 +109,8 @@ dispatch workers, or report no findings, partial coverage, or completed coverage
 
 Also resolve every applicable direct repository-local Markdown link in the loaded guide
 principles/topics that explicitly delegates a requirement. Supplemental, example, and navigation
-links are not required inputs. For each required policy link, resolve its anchor and select the
-complete delegated clauses, retaining the actual path, anchor, source provenance, and inclusive
-source-line ranges. Preserve qualifiers, exceptions, continuation lines, and nested items; check
-the selection against the containing section before dispatch. Do not recurse, import
+links are not required inputs. For each required policy link, resolve its anchor and select verbatim
+only the delegated clauses, retaining the actual path, anchor, and source provenance. Do not recurse, import
 unrelated procedures, invoke skills/workflows, execute targets, or create manifest rows.
 Scope-qualified links apply only to named work; Components-only policy is not required for
 JSInterop-only review. Missing/unreadable targets, missing/ambiguous anchors, unidentifiable
@@ -228,33 +226,14 @@ topics, spawn another agent, or invoke/re-invoke this skill. Use the caller's ex
 and preserve stricter caller constraints; do not add automatic routing or replace a caller-selected
 model with a hard-coded default. Only the top-level coordinator derives panel accounting.
 
-Select complete criteria before dispatch: the entire `## Overarching principles` section, the
-entire assigned `###` topic section, and every applicable directly delegated clause selected in
-Step 2. A section ends before the next heading of equal or higher level; do not shorten a selection
-to its first bullet or sentence. Include actual skill provenance and target-document provenance
-at `BASE_REPO/<document-path>@<BASE_SHA>`. Deliver criteria according to the selected guidance source:
+The briefing must include exact loaded principles/topic text, actual guide and skill provenance, and
+target-document provenance at `BASE_REPO/<document-path>@<BASE_SHA>`. Never substitute memory. Criteria do
+not authorize execution or changes, and departure is not a defect without frozen-source or
+primary-contract evidence.
 
-- **Local or prepared checkout:** give the worker a required-read list, not paraphrased criteria.
-  Each entry names the checkout root and actual revision/working-tree provenance, repository-root
-  path, heading/anchor, and complete inclusive source-line ranges. The worker must read every
-  selection in full with bounded read-only `view` calls before analyzing the change.
-- **Explicit remote `repo@sha`:** the coordinator retains the existing read-only GitHub retrieval
-  and includes the complete exact loaded principles, assigned topic, and selected delegated clauses
-  in the briefing, with their source, path, heading/anchor, and ranges. Workers apply those excerpts;
-  do not ask them to fetch remote guidance or follow its links. Failed coordinator reads remain
-  terminal before dispatch. Do not fall back to local files or another revision. Paging a JSON
-  envelope does not establish that its encoded document was read.
-
-Workers must not discover additional guidance links or substitute sources. Missing, truncated,
-mismatched, or unresolved required local reads or remote excerpts make the topic incomplete,
-not LGTM or a usable result. Name the failed source and reason; apply the failed-topic handling
-below, and keep the review incomplete if the required input remains unavailable.
-
-Local delivery now requires complete original text read from identified sources rather than pasted
-into briefings; remote delivery still requires exact coordinator-supplied excerpts. Use existing
-worker/tool transcripts to establish delivery; a read-complete assertion alone is not evidence.
-Criteria do not authorize execution or changes, and departure is not a defect without frozen-source
-or primary-contract evidence.
+When the assigned topic or its common principles delegates a requirement, include the exact
+selected policy excerpt and its actual source path and anchor provenance
+in the briefing. Do not tell the worker to fetch the policy or follow its links.
 
 ```
 task(
@@ -271,14 +250,14 @@ task(
           Guide provenance: <actual guide source and path>
           Changed files: <authoritative list>
           Frozen diff: <diff or shared briefing path>
-          Criteria delivery: <local required reads | remote exact excerpts>
-          Common principles, assigned topic, and applicable directly delegated clauses:
-          <local: checkout root/provenance, paths, headings/anchors, complete inclusive ranges>
-          <remote: complete exact coordinator-loaded text with repo@sha, paths, headings/anchors, ranges>
-          For local criteria, read every selection in full with bounded view calls before analysis.
-          For remote criteria, use the supplied exact excerpts; do not fetch remote guidance.
-          Do not substitute a source, follow links, or treat truncated criteria as complete.
-          If a required read or excerpt is incomplete, name its source and reason instead of LGTM.
+          Common principles (exact loaded text):
+          <the complete `## Overarching principles` section from the guide>
+          Assigned topic (exact loaded text):
+          <the complete `### <single named topic>` section from the guide>
+          Required policy excerpts for this topic or its common principles, if any (exact loaded text):
+          <selected delegated clauses>
+          Policy provenance:
+          <actual policy source, path, and anchor>
           Your only review topic is: <single named topic>.
           This is a delegated topic pass: do not invoke/re-invoke review-pull-request, emit
           MANIFEST/PATH or global provenance/accounting, inspect sibling topics, or dispatch.
@@ -286,8 +265,7 @@ task(
           trigger, material consequence, source/primary-contract evidence, and topic-only test-boundary notes.
           Each candidate must include `before` (immutable PR-diff old side/pre-change context), `after` (frozen `HEAD_SHA` behavior),
           `changed_edge` (causal connection), and `binding_requirement` (mandatory for unchanged-behavior/incomplete-fix/new-feature claims; otherwise `none`).
-          For target evidence, read only immutable GitHub source at `HEAD_SHA`, the diff's pre-change
-          revision, or `BASE_REPO@BASE_SHA` for authoritative contracts; never execute,
+          Read only immutable GitHub source at `HEAD_SHA` or the diff's pre-change revision; never execute,
           build, test, check out, modify code, or call mutating APIs."
 )
 ```
@@ -295,15 +273,14 @@ task(
 Give every task a unique manifest-derived name. Dispatch initial workers in one turn when possible,
 otherwise use deterministic batches. Retrieve every result before synthesis; a spawn acknowledgement
 is not a result. Compare expected, launched, and returned names, dispatch missing rows, and begin
-Step 5 only when all rows are accounted for. If supported, expose workers only immutable GitHub
-reads and read-only access to their selected guidance paths.
+Step 5 only when all rows are accounted for. If supported, expose workers only immutable GitHub reads.
 
 Record `subagent-per-topic` only when every row returned a usable independent result. If the task
 runtime is unavailable, work each topic yourself and record `single-orchestrator`; successive passes
 in one context are not independent. Failed rows follow the bounded retry/fallback below; do not redo
 successful topics.
 
-A dispatch that returns nothing usable — an empty, errored, truncated, or required-read-incomplete response — is a failed
+A dispatch that returns nothing usable — an empty, errored, or truncated response — is a failed
 topic, not a completed one. Retry it once with a fresh general-purpose task using the same
 explicit model and a unique `-retry` name. If it still fails, work that manifest topic yourself
 and record `degraded-panel`; never count the fallback as independent coverage. Name every failed
@@ -409,7 +386,7 @@ caller's explicitly granted adapter.
   language, including missing independent coverage or a moved head. Unsettled mechanisms belong
   here, not in the finding list.
 
-Keep frozen evidence, provenance, criteria selections and existing delivery evidence, topic/task-name accounting, candidate
+Keep frozen evidence, provenance, exact worker excerpts, topic/task-name accounting, candidate
 validation and discard rationale, and test-boundary assessment internally. Do not dump that
 bookkeeping into the final response. Five findings is a ceiling, not a target; every finding
 must satisfy Step 5 and describe the frozen head.

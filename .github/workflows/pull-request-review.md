@@ -47,25 +47,6 @@ sandbox:
 skills:
   - .github/skills/review-pull-request
 
-steps:
-  - name: Checkout reviewer guidance
-    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    with:
-      repository: ${{ github.repository }}
-      ref: ${{ needs.freeze_pr_head.outputs.workflow_sha }}
-      fetch-depth: 1
-      persist-credentials: false
-  - name: Verify reviewer guidance revision
-    env:
-      WORKFLOW_SHA: ${{ needs.freeze_pr_head.outputs.workflow_sha }}
-    run: |
-      if [[ "$(git rev-parse HEAD)" != "$WORKFLOW_SHA" ||
-            "$(git config --get remote.origin.url)" != "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" ]]; then
-        echo "::error::Reviewer guidance checkout does not match the workflow repository and revision."
-        exit 1
-      fi
-      printf 'Reviewer guidance: %s@%s\n' "$GITHUB_REPOSITORY" "$WORKFLOW_SHA"
-
 network:
   allowed:
     - defaults
@@ -103,7 +84,7 @@ safe-outputs:
   # Its detector tracking helper can still attempt issue writes on warning/failure.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   needs: [freeze_pr_head]
-  staged: false
+  staged: true
   activation-comments: false
   report-incomplete: false
   report-failed-jobs: false
@@ -231,23 +212,16 @@ title/body, linked requirements, and all existing feedback as required by the sk
 the diff's immutable old side from the current base-ref head. If any necessary input is
 unavailable or incomplete, preserve the limitation and do not fabricate a complete review.
 
-Use the skill's default local guidance source: the prepared repository-root checkout of
-`${{ github.repository }}` at `${{ needs.freeze_pr_head.outputs.workflow_sha }}`, verified before
-agent execution; record that provenance and use bounded read-only `view` calls on the actual
-multiline routed guides and applicable directly delegated policies, not GitHub responses.
-This checkout supplies review criteria only; continue using immutable GitHub reads for target
-PR source and target-base authoritative contracts.
+Use `${{ github.repository }}@${{ needs.freeze_pr_head.outputs.workflow_sha }}` for the skill's caller-supplied guide and policy
+source, read through the existing GitHub tools with routing-table paths resolved from that
+repository's root, not the skill directory.
 
 Construct the complete topic manifest from every routed guide as the skill requires. Dispatch
 one fresh general-purpose `task` worker per manifest row, using the caller-selected
 `gpt-5.6-sol` model explicitly. No Anthropic model, automatic model substitution, nested panel,
 inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. Give each
-worker the skill's required-read list: prepared-checkout provenance, repository-root paths,
-headings/anchors, and complete inclusive ranges for its common principles, assigned topic, and
-applicable delegated clauses, together with frozen PR evidence and delegated-worker restrictions.
-Workers must read those original selections with bounded `view` calls before analysis; summaries
-in a briefing do not replace them. Missing, truncated, mismatched, or unresolved required reads
-are incomplete topics, handled through the skill's existing failed-result rules.
+worker only its exact topic and common principles, required policy excerpts, immutable provenance,
+and frozen PR evidence, with the skill's delegated-worker restrictions.
 
 Wait for and retrieve every worker result. Compare expected, launched, returned, retried, and
 fallback rows by unique task name, not just aggregate counts. Follow the skill's one-retry and
