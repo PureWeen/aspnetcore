@@ -16,6 +16,8 @@ For additional target context, use read-only GitHub tools at the frozen HEAD_SHA
 diff old-side revision; binding target documents use BASE_REPO/BASE_SHA.
 Do not use GitHub code search; discover paths with directory listings at the frozen revision.
 If product code is supplied by reference, read the referenced source before returning COMPLETE.
+Consume every entry in the brief's REQUIRED context list, even if the changed file appears sufficient.
+List each consumed required reference in EVIDENCE; an unread entry means BLOCKED, not COMPLETE.
 Exception: for truncated successful immutable GitHub output, view only its exact tool-returned output file,
 not repository files. Use bounded ranges and forceReadLargeFiles if an encoded line still truncates.
 A truncation notice is not source evidence; consume the relevant source before making a claim.

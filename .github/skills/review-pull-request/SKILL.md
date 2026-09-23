@@ -217,6 +217,9 @@ It must not inspect sibling topics, spawn agents, or invoke this skill. Preserve
 and constraints; do not add automatic routing or a hard-coded default. Only the coordinator derives accounting.
 Before dispatch, compare verbatim criteria and any inline source with retrieved text. Never abbreviate
 a diff hunk or rewrite code; use source references instead. Preserve policy clauses and Markdown links.
+Resolve the changed expression's immediate base/getter and newly called helper definitions before dispatch.
+Put those immutable references in a shared REQUIRED context list for affected briefs, not prose call-edge summaries.
+Do not dispatch if that context cannot be resolved; the worker must consume every required reference.
 
 Include exact principles/topic text, `<guide-path>@<LOCAL_SHA>`, actual skill provenance,
 and target-document provenance at `BASE_REPO/<document-path>@<BASE_SHA>`.
@@ -244,6 +247,7 @@ task(
           Changed files: <authoritative files/statuses, old paths and changed-line ranges>
           Frozen diff: <exact inline diff OR immutable GitHub old/head source references with changed-line ranges>
           Source evidence: <repository/path@revision references OR verbatim code blocks with line ranges>
+          REQUIRED context: <immutable changed/base/getter/helper references needed for this change>
           Common principles: <complete `## Overarching principles` text at LOCAL_SHA>
           Assigned topic: <complete `### <single named topic>` text at LOCAL_SHA>
           Required policy sections, if any: <complete sections OR exact repository/path@LOCAL_SHA#anchor references>
@@ -263,6 +267,7 @@ read results. A bare LGTM, contradictory COMPLETE, missing evidence, or prohibit
 not usable. A BLOCKED result or required-evidence/provenance failure blocks the review: name the
 topic and reason, exclude it from completed coverage, and stop without retrying or substituting
 sources. An optional lookup failure alone does not invalidate sufficient authoritative evidence.
+Compare each result's consumed evidence with its REQUIRED context list; any missing entry blocks the review.
 For every candidate premise, require a source quote in its brief or consumed worker evidence.
 An unread helper/getter needed by the claim makes COMPLETE contradictory, even if labeled optional;
 a later coordinator read cannot repair that worker's independent coverage.

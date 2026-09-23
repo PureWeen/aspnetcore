@@ -261,6 +261,9 @@ Supply exact topic/principles/policy text and provenance. For product code, use 
 at the frozen old/head revisions with authoritative changed-line ranges, rather than retyping code or diff hunks.
 Do not substitute source summaries or local repository access. Before dispatch, compare criteria excerpts
 with the retrieved text, preserving policy clauses and Markdown links.
+Before dispatch, resolve immediate base/getter and new-helper definitions used by the changed expression.
+Supply their immutable references in the shared REQUIRED context list, unchanged across affected briefs.
+Every worker must consume its required list and name those reads in EVIDENCE; no inference from member names.
 For delegated policies, supply immutable references to the exact selected paths/anchors in the trusted
 reviewer repository `${{ github.repository }}` at `LOCAL_SHA`, not copied or summarized sections.
 The coordinator has already selected/read these committed policies; workers consume the same bytes
@@ -287,6 +290,7 @@ optional while retaining a claim that depends on it. A later coordinator read do
 that worker's independent coverage; treat such a COMPLETE as contradictory and BLOCKED.
 Apply that check to LGTM/discard rationales as well: unsupported helper equivalence, return-value
 or exception assertions invalidate the result, even if another worker or the coordinator found the bug.
+Compare consumed evidence against each required-context list before counting coverage; missing entries mean BLOCKED.
 Use each worker's first terminal result. `write_agent` is excluded from this runtime: never rebrief,
 correct, or add evidence to an existing worker after dispatch. A deficient brief discovered later
 blocks the review; it is not a response-format failure eligible for retry.
