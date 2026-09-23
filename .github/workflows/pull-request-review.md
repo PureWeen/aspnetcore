@@ -84,7 +84,7 @@ safe-outputs:
   # Its detector tracking helper can still attempt issue writes on warning/failure.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   needs: [freeze_pr_head]
-  staged: false
+  staged: true
   activation-comments: false
   report-incomplete: false
   report-failed-jobs: false
