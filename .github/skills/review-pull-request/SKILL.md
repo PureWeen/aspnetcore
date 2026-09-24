@@ -46,9 +46,16 @@ objects. For those originals, old code at `mergeBase`, and `BASE_SHA` contracts 
 git -C <literal-prepared-workspace> show --no-ext-diff --no-textconv <full-frozen-SHA>:<repository-path>
 ```
 
-When the caller has already set the working directory to that prepared workspace, omit `-C`
-and its path. Local callers authorize the explicit workspace-specific command when needed;
-do not broaden permissions to all Git or shell commands if it is unavailable.
+When the caller has already set the working directory to that prepared workspace, the literal
+command is:
+
+```text
+git show --no-ext-diff --no-textconv <full-frozen-SHA>:<repository-path>
+```
+
+Omit `-C` and its path. Run exactly one read per tool call; do not chain commands, add a pipeline
+or wrapper, or combine multiple reads. Local callers authorize the explicit workspace-specific
+command when needed; do not broaden permissions to all Git or shell commands if it is unavailable.
 
 This read-only evidence command is permitted for the coordinator and workers, not other shell
 commands, pipelines, Git mutations or fetches. Require exit zero and the relevant original bytes;
@@ -314,7 +321,9 @@ task(
           Target base: <BASE_REPO>/<BASE_REF>@<full 40-character BASE_SHA>
           Prepared workspace: <literal absolute path>; mergeBase=<full SHA>;
                               overlay inventory=<literal absolute file path>.
-          Originals: git -C <workspace> show --no-ext-diff --no-textconv <frozen SHA>:<path>.
+          Originals: <literal caller-selected original-file read command>.
+          Run one original-file read per tool call exactly as supplied; do not add -C, a wrapper,
+          pipeline, chaining, output formatting, paging command, or a second read.
           Skill loading: <native invocation | manual methodology | unavailable>
           Skill provenance: <SKILL_SOURCE>@<SKILL_SHA or truthful non-repository provenance>
           Guide provenance: <actual guide source and path>
