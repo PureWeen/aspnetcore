@@ -227,14 +227,68 @@ test('classifies every repository-relative Markdown link in each routed guide', 
         '- Read [design](<../src/Components/DESIGN.md> "Context").\n' +
         '- External [docs](https://example.com/Policy.md) are not repository-relative.\n' +
         '- Supplemental implementation/test references: [example](Example.md#sample).\n' +
-        '- For Components APIs follow [API](Components.md#api); generic JSInterop differs.\n';
+        '- For Components APIs follow [API](../src/Components/AGENTS.md#code-clarity-and-durable-knowledge); generic JSInterop differs.\n';
     const links = guideLinks(sample, 'docs/Guide.md', false);
     assert.deepEqual(links.included.map(link => link.anchor), ['binding']);
     assert.deepEqual(links.context.map(link => link.path),
         ['src/Components/ARCHITECTURE.md', 'src/Components/DESIGN.md']);
-    assert.deepEqual(links.skipped.map(link => link.anchor), ['sample', 'api']);
+    assert.deepEqual(links.skipped.map(link => link.anchor), ['sample', 'code-clarity-and-durable-knowledge']);
+    const mixed = (await fs.readFile('docs/BlazorComponentsGuidance.md', 'utf8')).split('\n')
+        .find(line => line.includes('For Components E2E work'));
+    const jsInterop = guideLinks(mixed, 'docs/BlazorComponentsGuidance.md', false);
+    assert.deepEqual(jsInterop.included.map(link => `${link.path}#${link.anchor}`), [
+        'CONTRIBUTING.md#tests',
+        '.github/copilot-instructions.md#running-tests',
+    ]);
+    assert.deepEqual(jsInterop.skipped.map(link => `${link.path}#${link.anchor}`), [
+        'src/Components/AGENTS.md#creating-e2e-tests',
+    ]);
     assert.throws(() => guideLinks('[bad](Policy.md#)', 'docs/Guide.md', true), /Invalid required policy anchor/);
 });
+
+for (const area of ['Components', 'JSInterop'])
+{
+    test(`routes a rename out of ${area} using its previous path`, async t =>
+    {
+        const f = await fixture(t);
+        const oldPath = `src/${area}/Old.cs`;
+        const newPath = 'docs/Renamed.cs';
+        const base = f.commit({ [oldPath]: 'UNCHANGED_VALUE\n' });
+        const head = f.commit({ [newPath]: 'UNCHANGED_VALUE\n' }, base);
+        f.state.pull.base.ref = 'main';
+        f.state.pull.changed_files = 1;
+        f.state.pull.head.sha = head;
+        f.state.baseTip = base;
+        f.state.mergeBase = base;
+        f.state.diff = execFileSync('git', ['--git-dir', f.repository, 'diff', '--binary', base, head]);
+        f.state.files = [{
+            filename: newPath, previous_filename: oldPath, status: 'renamed',
+            sha: git(f.repository, ['rev-parse', `${head}:${newPath}`]),
+        }];
+        await fs.writeFile(path.join(f.options.guidanceRoot, 'docs/BlazorComponentsGuidance.md'),
+            '# Components\n## Overarching principles\n- A rule.\n' +
+            '## Topics\n### Tests\n- Follow [Components E2E](../src/Components/AGENTS.md#creating-e2e-tests).\n');
+        await fs.mkdir(path.join(f.options.guidanceRoot, 'src/Components'), { recursive: true });
+        await fs.writeFile(path.join(f.options.guidanceRoot, 'src/Components/AGENTS.md'),
+            '# Components\n## Creating E2E Tests\n- Validate the behavior.\n');
+        const manifest = await prepare(f.options, f.dependencies);
+        assert.deepEqual(manifest.guides.map(guide => guide.path),
+            ['docs/CrossCuttingGuidance.md', 'docs/BlazorComponentsGuidance.md']);
+        assert.deepEqual(manifest.policies.map(policy => policy.anchor),
+            area === 'Components' ? ['creating-e2e-tests'] : []);
+        assert.deepEqual(manifest.skippedLinks.map(link => link.anchor),
+            area === 'JSInterop' ? ['creating-e2e-tests'] : []);
+        assert.equal((await prepare({ ...f.options, check: true }, f.dependencies)).ready, true);
+        const filename = path.join(f.options.output, 'files.json');
+        const changed = JSON.parse(await fs.readFile(filename, 'utf8'));
+        delete changed[0].previous_filename;
+        const bytes = Buffer.from(JSON.stringify(changed, null, 2) + '\n');
+        await fs.writeFile(filename, bytes);
+        manifest.artifacts['files.json'] = createHash('sha256').update(bytes).digest('hex');
+        await fs.writeFile(path.join(f.options.output, 'manifest.json'), JSON.stringify(manifest));
+        await assert.rejects(prepare({ ...f.options, check: true }, f.dependencies), /guide routing is incomplete/);
+    });
+}
 
 for (const baseRef of ['main', 'release/11.0'])
 {

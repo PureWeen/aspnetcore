@@ -15,6 +15,11 @@ const suffix = '.source';
 const maximumBlobBytes = 16 * 1024 * 1024;
 const fullSha = /^[a-f0-9]{40}$/;
 const repositoryName = /^[a-z0-9_.-]+\/[a-z0-9_.-]+$/i;
+const componentsOnlyPolicies = new Set([
+    'src/Components/AGENTS.md#code-clarity-and-durable-knowledge',
+    'src/Components/AGENTS.md#cross-runtime-design-checkpoint',
+    'src/Components/AGENTS.md#creating-e2e-tests',
+]);
 const hash = (bytes, algorithm = 'sha256') => createHash(algorithm).update(bytes).digest('hex');
 const blobHash = bytes => createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
 
@@ -145,6 +150,12 @@ function anchorFor(title)
     return title.toLowerCase().replace(/<[^>]*>/g, '').replace(/[^a-z0-9 _-]/g, '').replace(/ /g, '-');
 }
 
+function changedIn(files, expression)
+{
+    return files.some(file => [file.filename, file.previous_filename]
+        .some(name => typeof name === 'string' && expression.test(name)));
+}
+
 export function validateGuide(markdown, name)
 {
     const groups = sections(markdown, 2);
@@ -190,7 +201,7 @@ export function guideLinks(text, guidePath, components)
             {
                 skipped.push({ ...link, reason: 'Supporting source example, not a delegated criterion.' });
             }
-            else if (!components && /\b(?:Components APIs|Components renderers|Components E2E work)\b/.test(line))
+            else if (!components && anchor && componentsOnlyPolicies.has(`${resolved}#${anchor}`))
             {
                 skipped.push({ ...link, reason: 'Components-only criterion is not applicable to JSInterop-only paths.' });
             }
@@ -450,8 +461,8 @@ export async function prepare(options, dependencies = {})
             requireValue(!name.includes('/') && hash(await fs.readFile(path.join(output, name))) === digest, `Incomplete or modified input: ${name}`);
         }
         const changed = JSON.parse(await fs.readFile(path.join(output, 'files.json'), 'utf8'));
-        const required = ['docs/CrossCuttingGuidance.md', ...(changed.some(file =>
-            /^src\/(Components|JSInterop)\//.test(file.filename)) ? ['docs/BlazorComponentsGuidance.md'] : [])];
+        const required = ['docs/CrossCuttingGuidance.md', ...(changedIn(changed,
+            /^src\/(Components|JSInterop)\//) ? ['docs/BlazorComponentsGuidance.md'] : [])];
         requireValue(JSON.stringify(manifest.guides.map(guide => guide.path)) === JSON.stringify(required),
             'Prepared guide routing is incomplete.');
         const included = [];
@@ -462,7 +473,7 @@ export async function prepare(options, dependencies = {})
             const body = await fs.readFile(path.join(output, 'guidance', `${guide.path}${suffix}`), 'utf8');
             const actual = validateGuide(body, guide.path);
             requireValue(JSON.stringify(actual.topics) === JSON.stringify(guide.topics), `Prepared guide topics changed: ${guide.path}`);
-            const links = guideLinks(body, guide.path, changed.some(file => /^src\/Components\//.test(file.filename)));
+            const links = guideLinks(body, guide.path, changedIn(changed, /^src\/Components\//));
             included.push(...links.included);
             context.push(...links.context);
             skipped.push(...links.skipped);
@@ -601,7 +612,7 @@ export async function prepare(options, dependencies = {})
     const guides = [];
     const policies = [];
     const context = [];
-    const components = files.some(file => /^src\/Components\//.test(file.filename));
+    const components = changedIn(files, /^src\/Components\//);
     const exclusions = [
         { scope: 'Running PR code, tests, CI, browser workflows, or implementation samples',
             reason: 'This is a source-only review; assess changed tests and contracts from source.' },
@@ -613,7 +624,7 @@ export async function prepare(options, dependencies = {})
         body: resolvePolicy(instruction, 'security-concerns-are-out-of-scope', instructionPath),
     });
     const skippedLinks = [];
-    for (const name of ['docs/CrossCuttingGuidance.md', ...(files.some(file => /^src\/(Components|JSInterop)\//.test(file.filename))
+    for (const name of ['docs/CrossCuttingGuidance.md', ...(changedIn(files, /^src\/(Components|JSInterop)\//)
         ? ['docs/BlazorComponentsGuidance.md'] : [])])
     {
         const body = await fs.readFile(path.join(output, 'guidance', `${name}${suffix}`), 'utf8');
