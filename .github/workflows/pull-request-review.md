@@ -33,7 +33,7 @@ concurrency:
 # Initial operational ceilings, not evidence that a panel completed. The skill owns the topic
 # count and its 50-row maximum; budget exhaustion must never silently reduce that manifest.
 timeout-minutes: 90
-max-ai-credits: -1
+max-ai-credits: 1500
 
 user-rate-limit:
   max-runs-per-window: 5
@@ -46,6 +46,32 @@ sandbox:
     model-fallback: false
 skills:
   - .github/skills/review-pull-request
+
+steps:
+  - name: Checkout reviewer guidance
+    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    with:
+      repository: ${{ github.repository }}
+      ref: ${{ needs.freeze_pr_head.outputs.workflow_sha }}
+      fetch-depth: 1
+      persist-credentials: false
+      sparse-checkout: |
+        **/*.md
+        /.github/skills/review-pull-request/
+        /.github/copilot/settings.json
+      sparse-checkout-cone-mode: false
+  - name: Verify reviewer guidance revision
+    env:
+      WORKFLOW_SHA: ${{ needs.freeze_pr_head.outputs.workflow_sha }}
+    run: |
+      if [[ "$(git rev-parse HEAD)" != "$WORKFLOW_SHA" ||
+            "$(git config --get remote.origin.url)" != "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" ]]; then
+        echo "::error::Reviewer guidance checkout does not match the workflow repository and revision."
+        exit 1
+      fi
+      printf 'Reviewer guidance: %s@%s\n' "$GITHUB_REPOSITORY" "$WORKFLOW_SHA"
+      # checkout:false never restores this activation-only backup.
+      rm -rf /tmp/gh-aw/base
 
 network:
   allowed:
@@ -84,7 +110,7 @@ safe-outputs:
   # Its detector tracking helper can still attempt issue writes on warning/failure.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   needs: [freeze_pr_head]
-  staged: true
+  staged: false
   activation-comments: false
   report-incomplete: false
   report-failed-jobs: false
@@ -212,21 +238,33 @@ title/body, linked requirements, and all existing feedback as required by the sk
 the diff's immutable old side from the current base-ref head. If any necessary input is
 unavailable or incomplete, preserve the limitation and do not fabricate a complete review.
 
-Use `${{ github.repository }}@${{ needs.freeze_pr_head.outputs.workflow_sha }}` for the skill's caller-supplied guide and policy
-source, read through the existing GitHub tools with routing-table paths resolved from that
-repository's root, not the skill directory.
+Use the skill's hosted GitHub mode with the prepared guidance-only checkout as its guidance
+source. Its literal root is `${{ github.workspace }}`; its provenance is
+`${{ github.repository }}@${{ needs.freeze_pr_head.outputs.workflow_sha }}`, verified before
+agent execution. Record these separately and use bounded `view` calls on the actual multiline
+routed guides and applicable directly delegated policies, not GitHub responses.
+This checkout's Markdown supplies criteria, not target evidence. Target implementation and
+contracts require GitHub reads bound to the appropriate full frozen SHAs; external primary
+contracts retain their own explicitly identified sources/revisions.
 
 Construct the complete topic manifest from every routed guide as the skill requires. Dispatch
 one fresh general-purpose `task` worker per manifest row, using the caller-selected
 `gpt-5.6-sol` model explicitly. No Anthropic model, automatic model substitution, nested panel,
-inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. Give each
-worker only its exact topic and common principles, required policy excerpts, immutable provenance,
-and frozen PR evidence, with the skill's delegated-worker restrictions.
+inline domain agent, per-guide aggregation, or hard-coded topic count is allowed. Read the selected
+criteria yourself with bounded `view` calls, then give each worker the complete, verbatim text of
+its common principles, assigned topic, applicable delegated clauses, and the skill's Hard
+prohibitions section, each labeled with its repository-root path, checkout provenance,
+heading/anchor, and inclusive line range, together with frozen PR evidence and delegated-worker
+restrictions. Do not summarize or shorten a selection, and do not ask workers to fetch or re-read
+guidance. A failed or truncated coordinator read is terminal before dispatch; a worker's missing or
+truncated required evidence is an incomplete topic, handled through the skill's existing
+failed-result rules.
 
 Wait for and retrieve every worker result. Compare expected, launched, returned, retried, and
 fallback rows by unique task name, not just aggregate counts. Follow the skill's one-retry and
-fallback rules exactly; do not redo successful topics. Record `subagent-per-topic` only with
-usable independent results for every required row, otherwise the actual `degraded-panel` or
+fallback rules exactly, reusing the original complete `task.prompt` for a retry and appending
+only its specific failure reason; do not redo successful topics. Record `subagent-per-topic` only
+with usable independent results for every required row, otherwise the actual `degraded-panel` or
 `single-orchestrator` path. If limits prevent complete accounting, report incomplete coverage;
 do not silently drop topics to fit the budget.
 
