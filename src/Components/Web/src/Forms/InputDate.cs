@@ -104,7 +104,7 @@ public class InputDate<[DynamicallyAccessedMembers(DynamicallyAccessedMemberType
             DateTimeOffset dateTimeOffsetValue => BindConverter.FormatValue(dateTimeOffsetValue, _format, CultureInfo.InvariantCulture),
             DateOnly dateOnlyValue => BindConverter.FormatValue(dateOnlyValue, _format, CultureInfo.InvariantCulture),
             TimeOnly timeOnlyValue => BindConverter.FormatValue(timeOnlyValue, _format, CultureInfo.InvariantCulture),
-            _ => string.Empty, // Handles null for Nullable<DateTime>, etc.
+            _ => BindConverter.FormatValue((DateTime?)null, _format, CultureInfo.InvariantCulture)!.Trim(),
         };
 
     /// <inheritdoc />
