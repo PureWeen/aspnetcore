@@ -54,7 +54,7 @@ public class JsonPatchDocument : IJsonPatchDocument, IEndpointParameterMetadataP
     {
         ArgumentNullThrowHelper.ThrowIfNull(path);
 
-        Operations.Add(new Operation("add", PathHelpers.ValidateAndNormalizePath(path), null, value));
+        Operations.Add(new Operation("add", PathHelpers.NormalizePath(path), null, value));
         return this;
     }
 
