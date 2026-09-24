@@ -100,7 +100,7 @@ public class InputDate<[DynamicallyAccessedMembers(DynamicallyAccessedMemberType
     protected override string FormatValueAsString(TValue? value)
         => value switch
         {
-            DateTime dateTimeValue => BindConverter.FormatValue(dateTimeValue, _format, CultureInfo.InvariantCulture),
+            DateTime dateTimeValue => BindConverter.FormatValue(dateTimeValue, _format, CultureInfo.CurrentCulture),
             DateTimeOffset dateTimeOffsetValue => BindConverter.FormatValue(dateTimeOffsetValue, _format, CultureInfo.InvariantCulture),
             DateOnly dateOnlyValue => BindConverter.FormatValue(dateOnlyValue, _format, CultureInfo.InvariantCulture),
             TimeOnly timeOnlyValue => BindConverter.FormatValue(timeOnlyValue, _format, CultureInfo.InvariantCulture),
