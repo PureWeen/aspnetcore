@@ -173,6 +173,10 @@ test('prepares distinct complete sides, inert target instructions, large files a
     assert.equal(manifest.guidance.workingTreeChanges, true);
     assert.equal(manifest.exclusions.length, 2);
     assert.match(manifest.exclusions[1].body, /Do not review the excluded scope/);
+    assert.ok(['apiFreeze', 'fetch', 'changedFiles', 'diff', 'feedback', 'manifest']
+        .every(name => Number.isFinite(manifest.timingsMs[name]) && manifest.timingsMs[name] >= 0));
+    assert.deepEqual(Object.keys(manifest.timingsMs).filter(name => name.startsWith('exportTree:')).sort(),
+        [...new Set([f.head, f.mergeBase, f.baseTip])].sort().map(commit => `exportTree:${commit}`));
     assert.deepEqual(JSON.parse(await fs.readFile(path.join(f.options.output, 'feedback.json'), 'utf8')),
         { comments: [], reviews: [], inline: [] });
     assert.match(await fs.readFile(path.join(f.options.output, 'guidance/docs/CrossCuttingGuidance.md.source'), 'utf8'), /DIRTY_GUIDANCE/);
@@ -447,6 +451,13 @@ for (const [name, mutate] of [
         const filename = path.join(f.options.output, 'manifest.json');
         const manifest = JSON.parse(await fs.readFile(filename));
         manifest.guides = [];
+        await fs.writeFile(filename, JSON.stringify(manifest));
+    }],
+    ['missing timings', async f =>
+    {
+        const filename = path.join(f.options.output, 'manifest.json');
+        const manifest = JSON.parse(await fs.readFile(filename));
+        delete manifest.timingsMs.feedback;
         await fs.writeFile(filename, JSON.stringify(manifest));
     }],
     ['wrong source role', async f =>

@@ -7,6 +7,7 @@ import { once } from 'node:events';
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -370,6 +371,19 @@ async function localGuidance(root)
 
 export async function prepare(options, dependencies = {})
 {
+    const timingsMs = {};
+    const timed = async (name, action) =>
+    {
+        const start = performance.now();
+        try
+        {
+            return await action();
+        }
+        finally
+        {
+            timingsMs[name] = Math.round((performance.now() - start) * 1000) / 1000;
+        }
+    };
     requireValue(Number(process.versions.node.split('.')[0]) >= 22, 'Node.js 22 or newer is required.');
     requireValue(repositoryName.test(options.repo || '') && /^[1-9]\d*$/.test(String(options.pr)),
         'Cannot resolve a single target repository; specify --repo OWNER/REPO and --pr NUMBER.');
@@ -390,9 +404,8 @@ export async function prepare(options, dependencies = {})
         const bytes = run('gh', args);
         return accept ? bytes : JSON.parse(bytes);
     });
-    const repository = await api(`repos/${options.repo}`);
-    requireValue(repositoryName.test(repository.full_name) && Number.isSafeInteger(repository.id), 'Invalid target repository metadata.');
-    const endpoint = `repos/${repository.full_name}`;
+    let repository;
+    let endpoint;
     async function freeze()
     {
         const pull = await api(`${endpoint}/pulls/${options.pr}`);
@@ -415,7 +428,14 @@ export async function prepare(options, dependencies = {})
             pull,
         };
     }
-    const frozen = await freeze();
+    const frozen = await timed('apiFreeze', async () =>
+    {
+        repository = await api(`repos/${options.repo}`);
+        requireValue(repositoryName.test(repository.full_name) && Number.isSafeInteger(repository.id),
+            'Invalid target repository metadata.');
+        endpoint = `repos/${repository.full_name}`;
+        return freeze();
+    });
     const output = path.resolve(options.output);
     const producer = hash(await fs.readFile(script));
     let guidance;
@@ -437,12 +457,16 @@ export async function prepare(options, dependencies = {})
         requireValue(manifest.version === 2 && manifest.ready === true && manifest.producer === producer
             && manifest.suffix === suffix && JSON.stringify(manifest.target) === JSON.stringify(frozen.identity),
         'Prepared input is stale, mismatched, or from a different preparation version.');
+        const timingNames = ['apiFreeze', 'fetch', 'changedFiles', 'diff', 'feedback', 'manifest',
+            ...new Set(Object.values(manifest.sources || {}).map(source => `exportTree:${source.commit}`))];
         requireValue(JSON.stringify(Object.keys(manifest.sources || {}).sort()) === JSON.stringify(['baseTip', 'head', 'mergeBase'])
             && manifest.guidance?.root === 'guidance'
             && JSON.stringify(Object.keys(manifest.artifacts || {}).sort()) === JSON.stringify(['diff.patch', 'feedback.json', 'files.json', 'pull.json'])
             && Array.isArray(manifest.guides) && Array.isArray(manifest.policies)
             && Array.isArray(manifest.context) && Array.isArray(manifest.exclusions)
-            && Array.isArray(manifest.skippedLinks),
+            && Array.isArray(manifest.skippedLinks) && manifest.timingsMs
+            && timingNames.every(name => Number.isFinite(manifest.timingsMs[name]) && manifest.timingsMs[name] >= 0)
+            && Object.values(manifest.timingsMs).every(value => Number.isFinite(value) && value >= 0),
         'Prepared manifest omits required inputs.');
         for (const role of ['head', 'mergeBase', 'baseTip'])
         {
@@ -522,21 +546,27 @@ export async function prepare(options, dependencies = {})
     {
         groups.set(repo, [...new Set([...(groups.get(repo) || []), commit])]);
     }
-    for (const [repo, commits] of groups)
+    await timed('fetch', async () =>
     {
-        await fetch(repo, commits, store);
-    }
-    const files = [];
-    for (let page = 1;; page++)
-    {
-        const batch = await api(`${endpoint}/pulls/${options.pr}/files?per_page=100&page=${page}`);
-        requireValue(Array.isArray(batch), 'GitHub returned an invalid file list.');
-        files.push(...batch);
-        if (batch.length < 100)
+        for (const [repo, commits] of groups)
         {
-            break;
+            await fetch(repo, commits, store);
         }
-    }
+    });
+    const files = await timed('changedFiles', async () =>
+    {
+        const result = [];
+        for (let page = 1;; page++)
+        {
+            const batch = await api(`${endpoint}/pulls/${options.pr}/files?per_page=100&page=${page}`);
+            requireValue(Array.isArray(batch), 'GitHub returned an invalid file list.');
+            result.push(...batch);
+            if (batch.length < 100)
+            {
+                return result;
+            }
+        }
+    });
     requireValue(files.length === frozen.pull.changed_files && new Set(files.map(file => file.filename)).size === files.length,
         'GitHub returned an incomplete or duplicate changed-file list.');
     const changedPaths = objects(store, 'diff', '--no-ext-diff', '--no-textconv', '--no-renames', '--name-only', '-z',
@@ -549,17 +579,20 @@ export async function prepare(options, dependencies = {})
         requireValue(objects(store, 'rev-parse', `${side}:${file.filename}`).toString().trim() === file.sha,
             `GitHub file identity does not match the frozen tree: ${file.filename}`);
     }
-    const diff = await api(`${endpoint}/pulls/${options.pr}`, 'application/vnd.github.diff');
-    requireValue(Buffer.isBuffer(diff), 'GitHub did not return the authoritative diff bytes.');
-    await write(output, 'diff.patch', diff);
-    objects(store, 'read-tree', frozen.identity.mergeBase);
-    if (diff.length)
+    await timed('diff', async () =>
     {
-        objects(store, 'apply', '--cached', '--binary', '--whitespace=nowarn', path.join(output, 'diff.patch'));
-    }
-    requireValue(objects(store, 'write-tree').toString().trim()
-        === objects(store, 'rev-parse', `${frozen.identity.head}^{tree}`).toString().trim(),
-    'The authoritative diff does not reconstruct the frozen head; incomplete or unsupported diff.');
+        const diff = await api(`${endpoint}/pulls/${options.pr}`, 'application/vnd.github.diff');
+        requireValue(Buffer.isBuffer(diff), 'GitHub did not return the authoritative diff bytes.');
+        await write(output, 'diff.patch', diff);
+        objects(store, 'read-tree', frozen.identity.mergeBase);
+        if (diff.length)
+        {
+            objects(store, 'apply', '--cached', '--binary', '--whitespace=nowarn', path.join(output, 'diff.patch'));
+        }
+        requireValue(objects(store, 'write-tree').toString().trim()
+            === objects(store, 'rev-parse', `${frozen.identity.head}^{tree}`).toString().trim(),
+        'The authoritative diff does not reconstruct the frozen head; incomplete or unsupported diff.');
+    });
     await write(output, 'files.json', JSON.stringify(files, null, 2) + '\n');
     await write(output, 'pull.json', JSON.stringify(frozen.pull, null, 2) + '\n');
     async function paginate(uri)
@@ -576,12 +609,15 @@ export async function prepare(options, dependencies = {})
             }
         }
     }
-    const feedback = {
-        comments: await paginate(`issues/${options.pr}/comments`),
-        reviews: await paginate(`pulls/${options.pr}/reviews`),
-        inline: await paginate(`pulls/${options.pr}/comments`),
-    };
-    await write(output, 'feedback.json', JSON.stringify(feedback, null, 2) + '\n');
+    await timed('feedback', async () =>
+    {
+        const feedback = {
+            comments: await paginate(`issues/${options.pr}/comments`),
+            reviews: await paginate(`pulls/${options.pr}/reviews`),
+            inline: await paginate(`pulls/${options.pr}/comments`),
+        };
+        await write(output, 'feedback.json', JSON.stringify(feedback, null, 2) + '\n');
+    });
     await fs.mkdir(path.join(output, 'source'));
     const sources = {};
     const exported = new Map();
@@ -593,15 +629,15 @@ export async function prepare(options, dependencies = {})
             const root = `source/${commit}`;
             exported.set(commit, {
                 root, commit, tree: objects(store, 'rev-parse', `${commit}^{tree}`).toString().trim(),
-                ...await exportTree(store, commit, path.join(output, root)),
+                ...await timed(`exportTree:${commit}`, () => exportTree(store, commit, path.join(output, root))),
             });
         }
         sources[role] = exported.get(commit);
     }
     if (guidance.mode === 'remote')
     {
-        guidance = { ...guidance, root: 'guidance', ...await exportTree(store, guidance.commit, path.join(output, 'guidance'),
-            name => name.endsWith('.md')) };
+        guidance = { ...guidance, root: 'guidance', ...await timed('exportGuidance',
+            () => exportTree(store, guidance.commit, path.join(output, 'guidance'), name => name.endsWith('.md'))) };
     }
     else
     {
@@ -646,14 +682,16 @@ export async function prepare(options, dependencies = {})
     }
     requireValue(JSON.stringify((await freeze()).identity) === JSON.stringify(frozen.identity),
         'The target or base branch moved during preparation; no ready manifest was written.');
+    const manifestStart = performance.now();
     const artifacts = {};
     for (const name of ['diff.patch', 'files.json', 'pull.json', 'feedback.json'])
     {
         artifacts[name] = hash(await fs.readFile(path.join(output, name)));
     }
+    timingsMs.manifest = Math.round((performance.now() - manifestStart) * 1000) / 1000;
     const manifest = {
         version: 2, ready: true, producer, target: frozen.identity, suffix, sources, guidance,
-        guides, policies, context, skippedLinks, exclusions, artifacts,
+        guides, policies, context, skippedLinks, exclusions, artifacts, timingsMs,
         limitations: 'Tracked Git bytes only. Symlinks, submodules and LFS pointers are inert data and cannot establish their target behavior.',
     };
     await write(output, 'manifest.pending', JSON.stringify(manifest, null, 2) + '\n');
