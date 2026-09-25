@@ -30,17 +30,18 @@ target-base contract. A local dirty guidance snapshot is *working-tree guidance*
 an immutable revision; hosted guidance must identify the trusted workflow commit.
 
 Files under `source/<sha>/<path>.source` contain ordinary Git blobs from the role
-indicated in the manifest. The full tree is available for unchanged producers,
-consumers, overloads, and instructions. The `.source` suffix makes source-side
+indicated in the manifest; every bundled source filename carries the `.source` suffix.
+The full tree is available for unchanged producers, consumers, overloads, and
+instructions. The suffix makes source-side
 `AGENTS.md` and `.github` files inert evidence. A symlink is only link text, a
 submodule only a commit pointer, and LFS content only a pointer; do not infer behavior
 from unavailable target bytes. Use `diff.patch` and `files.json` for changed-line
 anchors, `feedback.json` for deduplication, and `pull.json` for context. Read full
 relevant source bodies in bounded ranges rather than relying on a search hit, summary,
-or truncated response. If material evidence, a primary external contract, or any
-required guide/policy input is unavailable, mark that check incomplete. Never silently
-fetch product source through live GitHub tools, infer it from memory, or fall back to
-another revision.
+or truncated response. A missing, unreadable, malformed, or empty routed guide, policy,
+diff, changed-file source, frozen feedback, or required source role blocks completion.
+Never silently fetch product source through live GitHub tools, infer it from memory, or
+fall back to another revision.
 
 The bundle routes `docs/CrossCuttingGuidance.md` for every PR and
 `docs/BlazorComponentsGuidance.md` for Components/JSInterop paths. Apply **all**
@@ -64,15 +65,16 @@ For source-only review, exclude executing CI/browser workflows and unsupported
 implementation validation; use the bundle's explicitly classified `exclusions` to
 identify each excluded check and its reason, and complete the remaining checks in a
 mixed guide. An unavailable contract, source body, or required external evidence is
-`INCOMPLETE`, not an exclusion. Do not turn excluded work into LGTM.
+not an exclusion. Do not turn excluded work into LGTM.
 For each topic, distinguish an assessed but non-applicable changed edge from a
 source-declared exclusion; do not mark unrelated topics as `excluded` merely because
 their mechanism is absent. Prohibited test/browser execution is an explicit exclusion,
 not a failed source-review check. Source-only review can be `complete` when the frozen
 source and binding contracts establish the applicable behavior without execution.
 If a *material claim* instead depends on unavailable runtime or external-contract
-evidence, mark that claim and its owning check `incomplete`; do not use the
-source-only exclusion to accept or dismiss it.
+evidence (for example HTML/Streams specifications, BCL/runtime implementation bodies,
+Selenium behavior, or non-code process metadata), record it as `UNRESOLVED` with the
+missing evidence. That candidate does not make the guide incomplete by itself.
 Do not require a PR rationale to establish a behavioral regression when the old
 and new frozen source settle the behavior. Do not require the implementation of
 a standard library operation when the claimed failure is already ruled out at
@@ -84,25 +86,26 @@ Prefer one fresh reviewer worker per routed guide, each receiving the **entire g
 text**, all applicable policy clauses, frozen identities, changed-file list, diff,
 and source-root paths. A worker applies the guide's every topic, performs source-only
 review, returns *candidates rather than publishing*, and reports a guide completion
-status: `complete`, `incomplete` with the exact missing work/reason, or `excluded` with
-the excluded scope/reason. A guide with both excluded and in-scope checks must report
-the completed in-scope work and the exclusions separately. A worker labels its own
-report `PATH: per-guide-worker` and names only its assigned guide; only the coordinator
-labels the combined result `PATH: per-guide`. Do not label a per-guide worker
-`single-reviewer` or claim that its own guide result completes the entire PR.
-If a worker fails, record
-that guide as incomplete rather than substituting coordinator analysis for an
-independent pass. Never spawn a worker per topic, nest reviewers, or count a launched
-worker as a returned result. In an explicitly configured offline one-pass comparison,
-apply the exact same guide texts and gates in one context and report
-`single-reviewer`, not independent guide workers.
+status: `complete`, `incomplete` only for a required-input/read failure, or `excluded`
+with the excluded scope/reason. A guide with both excluded and in-scope checks must
+report the completed in-scope work and the exclusions separately. Workers must not call
+`rename_session`, re-invoke this skill, copy or re-export the bundle, or modify it; they
+read the supplied bundle in place. A worker labels its own report
+`PATH: per-guide-worker` and names only its assigned guide; only the coordinator labels
+the combined result `PATH: per-guide`. Do not label a per-guide worker
+`single-reviewer` or claim that its own guide result completes the entire PR. If a
+worker fails or does not return, record that guide as incomplete rather than
+substituting coordinator analysis for an independent pass. Never spawn a worker per
+topic, nest reviewers, or count a launched worker as a returned result. In an
+explicitly configured offline one-pass comparison, apply the exact same guide texts and
+gates in one context and report `single-reviewer`, not independent guide workers.
 
 Independently check every returned candidate before acceptance. Require:
 
 1. A `file:line` added or modified on the RIGHT side of the frozen diff, with that
    path in the authoritative changed-file list.
-2. A realistic trigger, material consumer-visible effect, and causal connection
-   between the changed line and the effect.
+2. A realistic consumer or application trigger traced through source, material
+   consumer-visible effect, and causal connection between the changed line and effect.
 3. Frozen old-side behavior, frozen head behavior, and the actual called overload,
    producer-to-consumer path, and any required target-base or primary contract. A
    sibling helper is not evidence about the called helper. Read its full body and
@@ -116,7 +119,9 @@ behavioral finding. Do not create a candidate that merely requests a test or a
 rationale without a concrete effect.
 
 Reject a candidate when source disproves it, with the precise called edge and full
-return path; if the path cannot be established, report incomplete instead of guessing.
+return path. When workers disagree, independently re-check the disputed evidence;
+unless it settles the trigger and causal path, record the candidate as `UNRESOLVED`
+rather than accepting it.
 Resolve overloaded calls and value-producing expressions before accepting or
 discarding any claim; a nearby helper or a type annotation is not its runtime behavior.
 
@@ -126,19 +131,28 @@ evidence, never execution proof.
 
 ## Return result; never publish
 
-Return a compact structured result with `PR`, `HEAD_SHA`, `MERGE_BASE_SHA`,
+The first line is always `STATUS: FINDINGS`, `STATUS: NO_FINDINGS`,
+`STATUS: INCOMPLETE`, or `STATUS: BLOCKED`. Return a compact structured result with
+`PR`, `HEAD_SHA`, `MERGE_BASE_SHA`,
 `BASE_TIP_SHA`, `GUIDANCE_SOURCE` (immutable commit or explicitly dirty working tree),
 `GUIDES` (each routed guide and its status, completed in-scope checks, exclusions,
-and any unresolved work), `UNCOVERED`, `PATH` (`per-guide` or `single-reviewer`),
-`FINDINGS` (zero to five, ordered by severity and confidence), `DISCARDED` (claim,
-precise source reason), `TEST_BOUNDARY`, and `LIMITATIONS`. Each finding includes
-changed file/line, concrete trigger, before/after behavior, causal edge, consequence,
-source or primary-contract evidence, and confidence.
+and unresolved candidates), `UNCOVERED`, `PATH` (`per-guide` or `single-reviewer`),
+`NEW_FINDINGS` (zero to five, ordered by severity and confidence),
+`EXISTING_FEEDBACK_COVERAGE` (deduplicated true positives with the existing comment or
+review reference), `UNRESOLVED` (candidate and exact missing evidence), `DISCARDED`
+(claim and precise source reason), `TEST_BOUNDARY`, and `LIMITATIONS`. Each new finding
+includes changed file/line, concrete trigger, before/after behavior, causal edge,
+consequence, source or primary-contract evidence, confidence, and severity:
+`P1` for broken/incorrect common usage or data loss, `P2` for incorrect behavior in a
+realistic narrower scenario, or `P3` for minor/edge or test/doc-only impact.
 
-Return `BLOCKED` when bundle, guidance, or required evidence is invalid, missing,
-unreadable, mismatched, or truncated. Return `INCOMPLETE` if any in-scope guide work,
-candidate validation, or necessary contract remains unresolved; give the missing
-work and keep any candidates local. `NO_FINDINGS` is allowed only after every in-scope
-guide completes and no candidate survives independent validation. An excluded scope
-must remain visible, never be reported as completed. Neither `INCOMPLETE` nor
-`BLOCKED` licenses partial publication; source-only confidence is not runtime proof.
+Return `BLOCKED` when a required bundle input is invalid, missing, unreadable,
+mismatched, malformed, empty, or truncated. Return `INCOMPLETE` when a routed worker
+fails or does not return, or reports such a required-input failure. External-contract
+and non-code metadata gaps stay `UNRESOLVED`; they do not cause either status.
+`NO_FINDINGS` is allowed only after every routed guide completes and no new candidate
+survives independent validation, but it must still disclose deduplicated true positives
+and unresolved candidates. Use `FINDINGS` when at least one new finding survives.
+An excluded scope must remain visible, never be reported as completed. Neither
+`INCOMPLETE` nor `BLOCKED` licenses partial publication; source-only confidence is not
+runtime proof.
