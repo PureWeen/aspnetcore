@@ -81,6 +81,10 @@ If a *material claim* instead depends on unavailable runtime or external-contrac
 evidence (for example HTML/Streams specifications, BCL/runtime implementation bodies,
 Selenium behavior, or non-code process metadata), record it as `UNRESOLVED` with the
 missing evidence. That candidate does not make the guide incomplete by itself.
+An external operation that the old and new paths call identically is not missing
+evidence when the claim is only that head stops or starts reaching it, and a platform
+behavior already stated in frozen repository source or established by deduplicated
+feedback is not missing external evidence.
 Do not require a PR rationale to establish a behavioral regression when the old
 and new frozen source settle the behavior. Do not require the implementation of
 a standard library operation when the claimed failure is already ruled out at
@@ -125,10 +129,15 @@ Independently check every returned candidate before acceptance. Require:
 4. No equivalent earlier issue, review, resolved inline comment, or current
    feedback; no speculative, stylistic, or otherwise unsupported clause.
 
+If existing feedback was claimed fixed but still applies at head, raise it as a new
+finding that references the feedback, rather than reporting it only as coverage.
 For an incomplete-fix or new-feature omission, require a binding issue, API, or
-repository contract; a missing test or unclear intent alone is not a material
-behavioral finding. Do not create a candidate that merely requests a test or a
-rationale without a concrete effect.
+repository contract; the feature's own documented purpose in the frozen source (for
+example its diagnostic description, XML docs, or PR-added docs) is such a contract. A
+missing test or unclear intent alone is not a material behavioral finding. A
+before/after regression, where old and new frozen source settle a changed observable
+effect for the same input sequence, never needs an external contract. Do not create a
+candidate that merely requests a test or a rationale without a concrete effect.
 
 Reject a candidate when source disproves it, with the precise called edge and full
 return path. A discard that argues behavior is unchanged must compare the old and new
@@ -154,7 +163,8 @@ The first line is always `STATUS: FINDINGS`, `STATUS: NO_FINDINGS`,
 and unresolved candidates), `UNCOVERED`, `PATH` (`per-guide` or `single-reviewer`),
 `NEW_FINDINGS` (zero to five, ordered by severity and confidence),
 `EXISTING_FEEDBACK_COVERAGE` (deduplicated true positives with the existing comment or
-review reference), `UNRESOLVED` (candidate and exact missing evidence), `DISCARDED`
+review reference), `UNRESOLVED` (candidate, the exact missing artifact that would settle
+it, and why no frozen head, mergeBase, or baseTip source can supply it), `DISCARDED`
 (claim and precise source reason), `TEST_BOUNDARY`, and `LIMITATIONS`. Each new finding
 includes changed file/line, concrete trigger, before/after behavior, causal edge,
 consequence, source or primary-contract evidence, confidence, and severity:
