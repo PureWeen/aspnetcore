@@ -1,0 +1,29 @@
+{
+  "builds": [
+    {"id": 700001, "repository": {"id": "dotnet/aspnetcore"}, "project": {"name": "public"}, "definition": {"id": 83}},
+    {"id": 700002, "repository": {"id": "dotnet/aspnetcore"}, "project": {"name": "public"}, "definition": {"id": 83}},
+    {"id": 700003, "repository": {"id": "dotnet/aspnetcore"}, "project": {"name": "public"}, "definition": {"id": 87}}
+  ],
+  "rows": [
+    {
+      "BuildId": 700001, "BuildDefinitionId": 83,
+      "TestName": "Example.Tests.Widget.RoundTrip(value: 1)",
+      "Arguments": "value: 1", "ArgumentHash": "synthetic-one",
+      "QueueName": "synthetic-queue", "TestRunName": "synthetic-run",
+      "WorkItemFriendlyName": "synthetic-work", "Outcome": "Failed",
+      "TestRunId": 800001, "TestResultId": 900001, "JobName": "synthetic-job",
+      "WorkItemId": 1, "WorkItemName": "synthetic-physical-work",
+      "Message": "Illustrative failure"
+    },
+    {
+      "BuildId": 700002, "BuildDefinitionId": 83,
+      "TestName": "Example.Tests.Widget.RoundTrip(value: 2)",
+      "Arguments": "value: 2", "ArgumentHash": "synthetic-two",
+      "QueueName": "synthetic-queue", "TestRunName": "synthetic-run",
+      "WorkItemFriendlyName": "synthetic-work", "Outcome": "Failed",
+      "TestRunId": 800002, "TestResultId": 900002, "JobName": "synthetic-job",
+      "WorkItemId": 2, "WorkItemName": "synthetic-physical-work",
+      "Message": "Illustrative failure"
+    }
+  ]
+}

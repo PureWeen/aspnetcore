@@ -1,0 +1,983 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Build Insights cross-build test history proposal",
+    "version": "0.3.0-local-validation",
+    "description": "LOCAL VALIDATION CONTRACT, NOT A DEPLOYED SERVICE. Revised after real consumer integration exposed missing physical work-item provenance, an incorrect internal-ID type, and missing all-outcomes inventory semantics. The original 0.2 draft is retained separately. No production authentication audience or SLO is specified; examples remain illustrative. Scope is dnceng-public/public for dotnet/aspnetcore, dotnet/maui, dotnet/runtime and dotnet/sdk, never the private organization. Atomic completeness, overflow detection, authorization enforcement, cancellation and finite public bounds require implementation proof. Authoritative build-ownership validation adds work not included in the earlier query-only prototype. Complements existing single-build/result/log/Build Analysis tools; it is not another log service, KBE matcher or publishing workflow."
+  },
+  "security": [
+    {
+      "approvedBearer": []
+    }
+  ],
+  "paths": {
+    "/v1/repositories/{owner}/{repository}/test-history/query": {
+      "post": {
+        "operationId": "queryTestHistory",
+        "summary": "Read bounded indexed test observations for explicit builds",
+        "description": "Atomic read-only query under local validation, not a deployed service guarantee. Require an explicit projection and exactly one outcome selector: an exact source outcome, or allOutcomes:true for case inventory. AND all supplied predicates before grouping. Case projection returns source-identity buckets and exhaustive available reported reference tuples. MethodBuilds permits only exact Failed with filters and allOutcomes absent, returning compact ASP-style lossy method/distinct-build memberships without case references. A match is an indexed observation, not an authoritative verified positive. Every unverified build, including a matching candidate, can need enrichment. No snapshot, complete-data, execution or flakiness guarantees. Provisional bounds: 200 builds; 500 groups; 250 case reference tuples per group and 2,000 total; 2 MiB response; 30-second end-to-end deadline including ownership checks. Detect all aggregation/result overflows before 200; no partial results, cursors, arbitrary KQL, logs or policy decisions.",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "description": "Initial repository-owner allowlist; unsupported scope returns 404.",
+            "schema": {
+              "type": "string",
+              "enum": ["dotnet"]
+            }
+          },
+          {
+            "name": "repository",
+            "in": "path",
+            "required": true,
+            "description": "Initial repository allowlist, mapped only to dnceng-public/public; unsupported or unauthorized scope returns 404.",
+            "schema": {
+              "type": "string",
+              "enum": ["aspnetcore", "maui", "runtime", "sdk"]
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": false,
+            "description": "Optional W3C tracing context. Validate according to W3C Trace Context; malformed context is ignored and replaced, not used for authorization or trusted logging fields.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "At most 64 KiB of UTF-8 JSON. Require buildIds, projection and exactly one of outcome or allOutcomes:true. All-outcomes is case-only and does not certify complete source data. Reject duplicate JSON keys/IDs, unknown fields/projections, prohibited selector/projection/filter combinations, null or empty filter objects, coercions and invalid values. Recommend 50 explicit IDs; provisional maximum 200. No default outcome or implicit latest-build/window query.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HistoryQuery"
+              },
+              "examples": {
+                "caseDiscovery": {
+                  "summary": "Illustrative case discovery for an explicit source outcome",
+                  "value": {
+                    "buildIds": [700001, 700002],
+                    "projection": "case",
+                    "outcome": "Failed"
+                  }
+                },
+                "allOutcomeDiscovery": {
+                  "summary": "Illustrative inventory without assuming a fixed list of indexed outcomes",
+                  "value": {
+                    "buildIds": [700001, 700002],
+                    "projection": "case",
+                    "allOutcomes": true
+                  }
+                },
+                "caseQuestion": {
+                  "summary": "Illustrative case question preserving an explicitly empty queue",
+                  "value": {
+                    "buildIds": [700001, 700002],
+                    "projection": "case",
+                    "outcome": "Failed",
+                    "filters": {
+                      "testName": "Example.Tests.WidgetTests.RoundTrip",
+                      "arguments": "(value: 1)",
+                      "argumentHash": "illustrative-argument-hash",
+                      "pipelineId": 101,
+                      "queue": "",
+                      "testRunName": "illustrative-ui-run",
+                      "workItemFriendlyName": "illustrative-ui-work-item",
+                      "errorContains": "Illustrative failure"
+                    }
+                  }
+                },
+                "emptyDeviceValues": {
+                  "summary": "Illustrative device question with exact empty argument/hash/label values",
+                  "value": {
+                    "buildIds": [700001, 700002],
+                    "projection": "case",
+                    "outcome": "Failed",
+                    "filters": {
+                      "arguments": "",
+                      "argumentHash": "",
+                      "queue": "illustrative-device-queue",
+                      "testRunName": "",
+                      "workItemFriendlyName": ""
+                    }
+                  }
+                },
+                "methodBuilds": {
+                  "summary": "Illustrative compact ASP-style method/build discovery",
+                  "value": {
+                    "buildIds": [700001, 700002],
+                    "projection": "methodBuilds",
+                    "outcome": "Failed"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "All required matched-source reads and selected-projection outputs completed within bounds. Case references are exhaustive within those reads; methodBuilds intentionally omits them. Indexed matches or zero matches, never authoritative verification or complete data.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/NoStore"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryResult"
+                },
+                "examples": {
+                  "caseMatch": {
+                    "$ref": "#/components/examples/CaseMatch"
+                  },
+                  "methodBuildsMatch": {
+                    "$ref": "#/components/examples/MethodBuildsMatch"
+                  },
+                  "zeroMatchUnknown": {
+                    "$ref": "#/components/examples/ZeroMatchUnknown"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem",
+            "description": "Invalid JSON, duplicate keys/IDs, missing projection/outcome, unknown fields/projection, invalid values, or methodBuilds with non-Failed outcome or any filters property. Nothing is silently coerced or dropped."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem",
+            "description": "Authenticated principal is not admitted to the service. Repository-specific authorization failures use indistinguishable 404."
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem",
+            "description": "Unsupported or unauthorized repository, or at least one missing, inaccessible, out-of-project or cross-repository build. Do not identify which build failed the ownership check."
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem",
+            "description": "UTF-8 request body exceeds 64 KiB."
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem",
+            "description": "Request media type is not application/json."
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem",
+            "description": "query-too-broad: known evidence/response cap would be exceeded. No partial groups. Narrow build IDs or permitted case filters; methodBuilds cannot add filters in v1."
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem",
+            "description": "source-incomplete or source-invalid: truncation, partial/invalid results, failed batches, indeterminate completion or malformed numeric source IDs. No silent coercion, partial result or empty success is substituted."
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem",
+            "description": "Authoritative ownership validation or history dependency is unavailable. Do not bypass authorization or report absent observations."
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem",
+            "description": "query-deadline: 30-second operation deadline expired, including ownership checks. Cancel outstanding source work; no historical result is returned."
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem",
+            "description": "Other HTTP error, including an unexpected server failure. No partial historical result; use the HTTP status and safe problem details."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "approvedBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Proposed owner-approved human/workload authentication. Issuer, tenant, audience, permissions, token format, hosting credentials and acquisition flow are owner decisions, not specified or deployed. Authorize the repository and independently validate every build's ownership in dnceng-public/public. This ownership work was not part of the measured query-only prototype. Caller credentials are not forwarded to Kusto."
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "Server-generated correlation identifier, also returned as requestId in a problem response.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "NoStore": {
+        "description": "Do not cache requests/results as reusable historical or authorization evidence.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "const": "no-store"
+        }
+      },
+      "RetryAfter": {
+        "description": "Suggested integer seconds before a bounded retry; neither capacity nor unchanged source observations are guaranteed.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$",
+          "examples": ["30"]
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Operation failed atomically. application/problem+json contains no partial history. Problem types are stable URNs; unfamiliar types still retain their HTTP-status meaning.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/NoStore"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid credentials. Authentication is required even though the initial source scope is public.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/NoStore"
+          },
+          "WWW-Authenticate": {
+            "description": "HTTP authentication challenge. The service owner specifies the approved authentication configuration.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "examples": ["Bearer"]
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Rate/admission rejection under provider-set measured resource budgets, including internal batching. No fixed rate or concurrency SLO is claimed by this proposal. Retry-After is required; client retries must be bounded.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/NoStore"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "BuildId": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 1,
+        "maximum": 2147483647,
+        "description": "Positive Azure DevOps build identifier in the fixed dnceng-public/public scope. Existence and repository ownership must be validated separately."
+      },
+      "Outcome": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "description": "Exact case-sensitive nonempty source outcome. No default or inferred value. Failed is used in illustrative/proven consumer scenarios; other literal values, including Passed, never imply complete coverage or authoritative execution/pass evidence."
+      },
+      "HistoryQuery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["buildIds", "projection"],
+        "properties": {
+          "buildIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/BuildId"
+            },
+            "description": "Authoritative explicit build manifest. Ordering has no semantic effect. Duplicates are rejected rather than silently normalized."
+          },
+          "projection": {
+            "type": "string",
+            "enum": ["case", "methodBuilds"],
+            "description": "case retains the fixed source-key tuple and available reported references. methodBuilds uses the lossy aspnet-method-prefix/v1 prefix-before-first-'(' then trim projection and unions distinct build memberships. In v1 methodBuilds requires outcome Failed and filters absent, mirroring the implemented method_build path."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/Outcome"
+          },
+          "allOutcomes": {
+            "type": "boolean",
+            "const": true,
+            "description": "Explicit case-only inventory over all indexed source outcomes. Mutually exclusive with outcome; false is invalid. This is not a passing/execution denominator or complete ingestion guarantee, and must not be implemented by enumerating only outcomes seen in a frozen corpus."
+          },
+          "filters": {
+            "$ref": "#/components/schemas/Filters"
+          }
+        },
+        "oneOf": [
+          {
+            "required": ["outcome"],
+            "not": {"required": ["allOutcomes"]}
+          },
+          {
+            "required": ["allOutcomes"],
+            "not": {"required": ["outcome"]},
+            "properties": {"projection": {"const": "case"}}
+          }
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "projection": {
+                  "const": "methodBuilds"
+                }
+              },
+              "required": ["projection"]
+            },
+            "then": {
+              "required": ["outcome"],
+              "properties": {
+                "outcome": {
+                  "const": "Failed"
+                }
+              },
+              "not": {
+                "required": ["filters"]
+              }
+            }
+          }
+        ]
+      },
+      "Filters": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "description": "Case projection only. Closed allowlist; AND all filters and the required outcome before grouping. Exact case-sensitive equality except errorContains over the full Message. Omission is unrestricted. Empty arguments/hash/queue/labels are exact values, not unavailable. Source nulls do not match supplied values. No normalization, wildcard, regex, arbitrary operator or truncated-message predicate.",
+        "properties": {
+          "testName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Exact source test-name representation, not a method projection."
+          },
+          "arguments": {
+            "type": "string",
+            "maxLength": 8192,
+            "description": "Exact opaque source argument representation. Empty string is explicitly empty, not missing. Does not independently guarantee canonical parameter-case identity."
+          },
+          "argumentHash": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Exact opaque source argument hash, including an explicitly empty string. Do not recompute, decode or normalize."
+          },
+          "pipelineId": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Exact source pipeline/definition identifier in dnceng-public/public."
+          },
+          "queue": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Exact source queue, including an explicitly empty string."
+          },
+          "testRunName": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Exact source TestRunName label, including an explicitly empty string."
+          },
+          "workItemFriendlyName": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Exact source WorkItemFriendlyName label, including an explicitly empty string. Not the WorkItemName GUID or WorkItemId."
+          },
+          "errorContains": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "Literal case-sensitive contains_cs predicate on the full source Message, applied before grouping. Never use a truncated sample. No KQL, regex or glob evaluation."
+          }
+        }
+      },
+      "HistoryResult": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "repository",
+          "query",
+          "queryCompleteness",
+          "dataCompleteness",
+          "snapshotConsistency",
+          "identityVerification",
+          "referenceDetail",
+          "queryStartedAt",
+          "queryCompletedAt",
+          "groups",
+          "notObservedBuildIds"
+        ],
+        "description": "Clients tolerate additive output fields. Cross-field invariants: every membership/reference build ID belongs to query.buildIds; each reference build ID belongs to its group; group keys are unique; case identity outcomes equal query.outcome when an exact outcome is selected, while allOutcomes preserves raw reported outcome values; supplied case filters match their raw identity fields; notObservedBuildIds is precisely the input set minus all indexed memberships; total case reference tuples across groups <= 2,000. All build-ID arrays are ascending. These are indexed observations, not authoritative verified positives, execution counts or pass/fail-rate denominators. Per-question fallback remains the scoped build set minus authoritative verified positives for that question, including enrichment of indexed matching candidates.",
+        "properties": {
+          "repository": {
+            "type": "string",
+            "enum": ["dotnet/aspnetcore", "dotnet/maui", "dotnet/runtime", "dotnet/sdk"]
+          },
+          "query": {
+            "$ref": "#/components/schemas/HistoryQuery",
+            "description": "Echo of accepted query with buildIds sorted ascending. String predicates are preserved exactly. The explicit manifest is not a replayable source snapshot."
+          },
+          "queryCompleteness": {
+            "type": "string",
+            "const": "complete",
+            "description": "Proposed fail-closed service requirement, not a demonstrated engine/service guarantee: every required matched-source read completed without aggregation/result truncation and all selected-projection output is included. Case references are exhaustive within those reads and bounds. MethodBuilds intentionally omits references; this is not truncation. Never implies complete data, verification or a snapshot."
+          },
+          "dataCompleteness": {
+            "type": "string",
+            "const": "unknown",
+            "description": "Always unknown: missing initial passes, FAIL-to-PASS overwrites, retention, lag, gaps and unresolved source identities prevent comprehensive failure/execution/pass claims, including for indexed matching builds and queries of other literal outcomes."
+          },
+          "snapshotConsistency": {
+            "type": "string",
+            "const": "notGuaranteed",
+            "description": "Source state can differ across reads/batches or repeated queries. Explicit builds plus service timestamps are not a replayable snapshot."
+          },
+          "identityVerification": {
+            "type": "string",
+            "const": "notChecked",
+            "description": "No source case/reference identity has been independently verified. Indexed matching builds are not externally verified positives; every unverified candidate can still require enrichment."
+          },
+          "referenceDetail": {
+            "type": "string",
+            "enum": ["caseReferences", "omittedByProjection"],
+            "description": "caseReferences requires complete available reference enumeration for each case group within matched-source reads and bounds. omittedByProjection is used only for compact methodBuilds, which intentionally returns no case references."
+          },
+          "queryStartedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Service operation start time; not a data snapshot version."
+          },
+          "queryCompletedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Service operation completion time, no earlier than queryStartedAt."
+          },
+          "groups": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CaseGroup"
+                },
+                {
+                  "$ref": "#/components/schemas/MethodBuildGroup"
+                }
+              ]
+            },
+            "description": "All indexed memberships in the selected projection. Do not mix case and methodBuilds groups. Empty means no indexed matches for the query, not passed or authoritatively absent."
+          },
+          "notObservedBuildIds": {
+            "type": "array",
+            "maxItems": 200,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/BuildId"
+            },
+            "description": "Aggregate complement of indexed matches within query.buildIds, never authoritative negative/pass evidence. Not the complete per-question fallback set: every unverified build, including indexed matching candidates, can need authoritative enrichment."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "query": {
+                  "properties": {
+                    "projection": {
+                      "const": "case"
+                    }
+                  },
+                  "required": ["projection"]
+                }
+              },
+              "required": ["query"]
+            },
+            "then": {
+              "properties": {
+                "referenceDetail": {
+                  "const": "caseReferences"
+                },
+                "groups": {
+                  "items": {
+                    "$ref": "#/components/schemas/CaseGroup"
+                  }
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "referenceDetail": {
+                  "const": "omittedByProjection"
+                },
+                "groups": {
+                  "items": {
+                    "$ref": "#/components/schemas/MethodBuildGroup"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CaseIdentity": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "pipelineId",
+          "testName",
+          "arguments",
+          "argumentHash",
+          "queue",
+          "testRunName",
+          "workItemFriendlyName",
+          "outcome"
+        ],
+        "description": "Fixed exact source-key tuple: pipelineId/testName/arguments/argumentHash/queue/testRunName/workItemFriendlyName/outcome. Nullable raw fields form unresolved buckets; identity is always unverified. Empty strings remain distinct from unavailable nulls. Never group across builds by WorkItemName GUID, JobId or WorkItemId. No guarantee that payload conflicts are absent, and no exhaustive raw-observation table is implied.",
+        "properties": {
+          "pipelineId": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "testName": {
+            "type": ["string", "null"]
+          },
+          "arguments": {
+            "type": ["string", "null"]
+          },
+          "argumentHash": {
+            "type": ["string", "null"]
+          },
+          "queue": {
+            "type": ["string", "null"]
+          },
+          "testRunName": {
+            "type": ["string", "null"]
+          },
+          "workItemFriendlyName": {
+            "type": ["string", "null"]
+          },
+          "outcome": {
+            "type": ["string", "null"],
+            "description": "Raw reported source Outcome. For an exact-outcome query it must equal the nonempty query.outcome. For allOutcomes:true retain source strings, including empty values, or reported null as unresolved buckets. A missing required source column is still a source-validation error, not permission to manufacture null."
+          }
+        }
+      },
+      "CaseGroup": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["kind", "identity", "matchingBuildIds", "references", "hasUnreferencedObservations"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "case"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/CaseIdentity"
+          },
+          "matchingBuildIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/BuildId"
+            },
+            "description": "Exact distinct requested builds with a matching indexed observation in this source bucket. Deduplicate ingestion without claiming an execution or an externally verified positive."
+          },
+          "references": {
+            "type": "array",
+            "maxItems": 250,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            },
+            "description": "Exhaustive available distinct tuples (buildId, testRunId, testResultId, helixJobId, workItemId, workItemName) within matched-source reads for this bucket and the bounds. helixJobId reports source JobName, workItemId reports the numeric internal WorkItemId, and workItemName preserves the distinct physical source WorkItemName. Deduplicate only within a group; aliases can recur across cases. Include partial tuples with at least one reported source ID; all-null source IDs produce no fabricated reference. Presence does not establish resolvability or identity verification."
+          },
+          "hasUnreferencedObservations": {
+            "type": "boolean",
+            "description": "True if any matching source observation had no reported source ID. False establishes only ID availability in matched-source reads, never identity verification, resolvability, absence of conflicts or complete source coverage."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "references": {
+                  "maxItems": 0
+                }
+              },
+              "required": ["references"]
+            },
+            "then": {
+              "properties": {
+                "hasUnreferencedObservations": {
+                  "const": true
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MethodBuildGroup": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["kind", "method", "matchingBuildIds"],
+        "description": "Compact aspnet-method-prefix/v1 output, intentionally without case identity, source IDs, reference enumeration or error detail. Union build-ID sets across collapsed cases/configurations rather than summing group sizes.",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "methodBuilds"
+          },
+          "method": {
+            "type": "string",
+            "description": "aspnet-method-prefix/v1 uses Kusto trim(@'\\s+', tostring(split(TestName, '(')[0])): the source prefix before its first '(' or the whole name, converted to string and trimmed. Explicitly lossy, not a CLR-name parser. An empty derived string remains an unresolved indexed bucket, not a verified method. Do not invent a null/raw-case distinction lost by this projection."
+          },
+          "matchingBuildIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/BuildId"
+            },
+            "description": "Distinct builds with at least one indexed Failed observation in this method projection. Not execution counts or externally verified positives."
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": ["identity"]
+            },
+            {
+              "required": ["references"]
+            },
+            {
+              "required": ["hasUnreferencedObservations"]
+            }
+          ]
+        }
+      },
+      "SourceReference": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "buildId",
+          "testRunId",
+          "testResultId",
+          "helixJobId",
+          "workItemId",
+          "workItemName",
+          "referenceVerification"
+        ],
+        "description": "Structured reported source provenance, never independent identity or occurrence verification. At least one source ID must be present. Raw missing string-ID metadata (null or an empty source ID string) is represented as null; nonempty reported ID strings are preserved. This missing-ID rule does not normalize case identity/filter strings, where empty and null remain distinct. No fabricated or credentialed URLs or log fetches. Numeric IDs must be exact positive JSON-safe integers or reported null; malformed, fractional, boolean, nonpositive or out-of-range values cause source-invalid, never silent stringification or dropped tuples. Aliases can recur across case groups.",
+        "properties": {
+          "buildId": {
+            "$ref": "#/components/schemas/BuildId"
+          },
+          "testRunId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Reported test-run ID as an exact positive JSON-safe integer, or null when unavailable."
+          },
+          "testResultId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Reported test-result ID as an exact positive JSON-safe integer, or null when unavailable."
+          },
+          "helixJobId": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "description": "Reported source JobName value used as the Helix job identifier in the verified consumers, preserved as opaque provenance; NOT the source-internal numeric JobId. Null when unreported; no inference or original identity verification is performed. Never a cross-build grouping key."
+          },
+          "workItemId": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Reported source-internal numeric WorkItemId, or null when unavailable. NOT the physical WorkItemName GUID, friendly workitem name, or a certified dereferenceable Helix identifier. Do not stringify the internal integer or substitute a GUID."
+          },
+          "workItemName": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "description": "Reported source WorkItemName, an opaque physical work-item GUID in the verified runtime evidence. Distinct from numeric WorkItemId and logical WorkItemFriendlyName. Preserve the value for original-evidence verification; never substitute the friendly name or use it as a cross-build grouping key."
+          },
+          "referenceVerification": {
+            "type": "string",
+            "const": "notChecked",
+            "description": "Provenance only. These IDs may alias cases or be unresolved; follow-up verification remains with approved existing evidence tools."
+          }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "testRunId": {
+                "type": "integer"
+              }
+            }
+          },
+          {
+            "properties": {
+              "testResultId": {
+                "type": "integer"
+              }
+            }
+          },
+          {
+            "properties": {
+              "helixJobId": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "properties": {
+              "workItemId": {
+                "type": "integer"
+              }
+            }
+          },
+          {
+            "properties": {
+              "workItemName": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["type", "title", "status", "detail", "requestId"],
+        "description": "RFC 9457-style problem details. No partial historical groups or matches. Type identifies a stable problem family; clients must handle unknown future types by status. Details must not expose KQL, credentials, source logs, raw predicates or unauthorized repository/build facts.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^urn:build-insights-history:problem:[a-z][a-z0-9-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "examples": [
+          {
+            "type": "urn:build-insights-history:problem:invalid-request",
+            "title": "Invalid history query",
+            "status": 400,
+            "detail": "buildIds contains duplicate ID 700001.",
+            "requestId": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "type": "urn:build-insights-history:problem:query-too-broad",
+            "title": "History query exceeds a result bound",
+            "status": 422,
+            "detail": "The result would exceed 250 source-reference tuples in a case group. Reduce buildIds or use a permitted case filter.",
+            "requestId": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "type": "urn:build-insights-history:problem:source-incomplete",
+            "title": "Source query did not complete",
+            "status": 502,
+            "detail": "A source query reported truncation. No historical result is returned.",
+            "requestId": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "type": "urn:build-insights-history:problem:source-invalid",
+            "title": "Source observation failed validation",
+            "status": 502,
+            "detail": "A matched source row contained an invalid numeric reference ID. No historical result is returned.",
+            "requestId": "00000000-0000-4000-8000-000000000005"
+          },
+          {
+            "type": "urn:build-insights-history:problem:query-deadline",
+            "title": "History query deadline expired",
+            "status": 504,
+            "detail": "The 30-second operation budget expired. No historical result is returned.",
+            "requestId": "00000000-0000-4000-8000-000000000004"
+          }
+        ]
+      }
+    },
+    "examples": {
+      "CaseMatch": {
+        "summary": "Illustrative indexed case match, not an authoritative verified positive",
+        "description": "Synthetic IDs, names and service timestamps only. No REST invocation or real test/build existence is claimed. The matching build can still require authoritative enrichment, not just the aggregate complement.",
+        "value": {
+          "repository": "dotnet/maui",
+          "query": {
+            "buildIds": [700001, 700002],
+            "projection": "case",
+            "outcome": "Failed",
+            "filters": {
+              "testName": "Example.Tests.WidgetTests.RoundTrip",
+              "arguments": "(value: 1)",
+              "argumentHash": "illustrative-argument-hash",
+              "pipelineId": 101,
+              "queue": "",
+              "testRunName": "illustrative-ui-run",
+              "workItemFriendlyName": "illustrative-ui-work-item",
+              "errorContains": "Illustrative failure"
+            }
+          },
+          "queryCompleteness": "complete",
+          "dataCompleteness": "unknown",
+          "snapshotConsistency": "notGuaranteed",
+          "identityVerification": "notChecked",
+          "referenceDetail": "caseReferences",
+          "queryStartedAt": "2026-09-01T12:00:00Z",
+          "queryCompletedAt": "2026-09-01T12:00:01Z",
+          "groups": [
+            {
+              "kind": "case",
+              "identity": {
+                "pipelineId": 101,
+                "testName": "Example.Tests.WidgetTests.RoundTrip",
+                "arguments": "(value: 1)",
+                "argumentHash": "illustrative-argument-hash",
+                "queue": "",
+                "testRunName": "illustrative-ui-run",
+                "workItemFriendlyName": "illustrative-ui-work-item",
+                "outcome": "Failed"
+              },
+              "matchingBuildIds": [700001],
+              "references": [
+                {
+                  "buildId": 700001,
+                  "testRunId": 900001,
+                  "testResultId": 1,
+                  "helixJobId": null,
+                  "workItemId": null,
+                  "workItemName": null,
+                  "referenceVerification": "notChecked"
+                }
+              ],
+              "hasUnreferencedObservations": false
+            }
+          ],
+          "notObservedBuildIds": [700002]
+        }
+      },
+      "MethodBuildsMatch": {
+        "summary": "Illustrative compact method/distinct-build membership without case references",
+        "description": "Synthetic example of the requested aspnet-method-prefix/v1 projection. Case/configuration distinctions, raw source IDs and error detail are intentionally lost. No REST invocation or verified occurrence is claimed.",
+        "value": {
+          "repository": "dotnet/aspnetcore",
+          "query": {
+            "buildIds": [700001, 700002],
+            "projection": "methodBuilds",
+            "outcome": "Failed"
+          },
+          "queryCompleteness": "complete",
+          "dataCompleteness": "unknown",
+          "snapshotConsistency": "notGuaranteed",
+          "identityVerification": "notChecked",
+          "referenceDetail": "omittedByProjection",
+          "queryStartedAt": "2026-09-01T12:00:00Z",
+          "queryCompletedAt": "2026-09-01T12:00:01Z",
+          "groups": [
+            {
+              "kind": "methodBuilds",
+              "method": "Example.Tests.WidgetTests.RoundTrip",
+              "matchingBuildIds": [700001, 700002]
+            }
+          ],
+          "notObservedBuildIds": []
+        }
+      },
+      "ZeroMatchUnknown": {
+        "summary": "Illustrative completed query with zero indexed matches; every requested build remains unverified",
+        "description": "No pass, execution or authoritative failure-absence inference is permitted. This illustrative response is not a replay or comparison against CaseMatch; it makes no REST-exercise claim.",
+        "value": {
+          "repository": "dotnet/maui",
+          "query": {
+            "buildIds": [700001, 700002],
+            "projection": "case",
+            "outcome": "Failed",
+            "filters": {
+              "testName": "Example.Tests.WidgetTests.RoundTrip",
+              "arguments": "(value: 1)",
+              "argumentHash": "illustrative-argument-hash",
+              "pipelineId": 101,
+              "queue": "",
+              "testRunName": "illustrative-ui-run",
+              "workItemFriendlyName": "illustrative-ui-work-item",
+              "errorContains": "Illustrative failure"
+            }
+          },
+          "queryCompleteness": "complete",
+          "dataCompleteness": "unknown",
+          "snapshotConsistency": "notGuaranteed",
+          "identityVerification": "notChecked",
+          "referenceDetail": "caseReferences",
+          "queryStartedAt": "2026-09-01T12:00:00Z",
+          "queryCompletedAt": "2026-09-01T12:00:01Z",
+          "groups": [],
+          "notObservedBuildIds": [700001, 700002]
+        }
+      }
+    }
+  }
+}
