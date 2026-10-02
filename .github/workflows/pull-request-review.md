@@ -1,5 +1,5 @@
 ---
-if: ${{ github.event.repository.fork == false }}
+if: ${{ github.repository == 'PureWeen/aspnetcore' }}
 
 on:
   # Deliberately use direct slash commands: v0.88.7 centralized membership rejects community
