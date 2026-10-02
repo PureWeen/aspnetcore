@@ -122,10 +122,25 @@ jobs:
               (p/'execution.json').write_text(json.dumps(e,indent=2))
               (p/'execution.md').write_text('# Probe setup failure\n\n'+e['reason']+'\n')
           PY
-            cat "$output/execution.md" "$output/dns.md" >> "$GITHUB_STEP_SUMMARY"
-            printf '\nDisk sample report:\n```json\n' >> "$GITHUB_STEP_SUMMARY"
-            cat "$output/disk.json" >> "$GITHUB_STEP_SUMMARY"
-            printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
+            python3 - "$output" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import collections,json,pathlib,sys
+          p=pathlib.Path(sys.argv[1])
+          e=json.loads((p/'execution.json').read_text())
+          print('# Deterministic review execution\n')
+          print('**'+e['classification']+'** — '+e.get('reason','')+'\n')
+          for r in e.get('results',[]):
+              print(f"- {r['tree']}: {r['passed']} passed, {r['failed']} failed, {r['skipped']} skipped.")
+          print('\n| Phase | Seconds | Exit |\n|---|---:|---:|')
+          if (p/'fetch.json').exists():
+              print(f"| fetch + checkout | {json.loads((p/'fetch.json').read_text())['seconds']:.3f} | 0 |")
+          for s in e.get('steps',[]):
+              print(f"| {s['phase']} | {s['seconds']:.3f} | {s['exitCode']} |")
+          for fs in json.loads((p/'disk.json').read_text())['filesystems']:
+              print(f"\nPeak disk: {fs['peakUsedKiB']/1048576:.3f} GiB used, {fs['freeAtPeakKiB']/1048576:.3f} GiB free (10s sampling).")
+          groups=collections.Counter(h['group'] for h in json.loads((p/'dns.json').read_text())['hostnames'])
+          print('\nDNS queries by group: '+', '.join(f'{k}: {v} unique hostnames' for k,v in sorted(groups.items()))+'.')
+          print('\nExact commands, tree identities, per-test outcomes, failure excerpts and full DNS/disk reports are in the uploaded artifact.')
+          PY
             exit "$status"
           }
           trap cleanup EXIT
