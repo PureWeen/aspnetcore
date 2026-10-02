@@ -71,6 +71,11 @@ tools:
     - source
     - export
     - test
+    - sha256sum
+    - set
+    - tee
+    - "true"
+    - /usr/bin/time
     - rm review-shell-scratch/
   cli-proxy: false
   edit: true
