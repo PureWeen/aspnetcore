@@ -1,0 +1,167 @@
+name: Review execution probe
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Fork-only frozen fixture PR number
+        required: true
+        type: string
+      break_restore:
+        description: Deliberately use an unreachable restore feed
+        required: false
+        default: false
+        type: boolean
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  probe:
+    if: github.repository == 'PureWeen/aspnetcore'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out trusted probe infrastructure
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: .github/skills/review-pull-request/scripts
+      - name: Measure deterministic scoped execution
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BREAK_RESTORE: ${{ inputs.break_restore }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/probe-output"
+          scratch="$GITHUB_WORKSPACE/probe-checkout"
+          mkdir -p "$output/logs" "$scratch"
+          export TMPDIR="$GITHUB_WORKSPACE/probe-tmp"
+          mkdir -p "$TMPDIR"
+          script="$GITHUB_WORKSPACE/.github/skills/review-pull-request/scripts/review-execution.sh"
+          date -u +%FT%TZ > "$output/started.txt"
+          uname -a > "$output/runner.txt"
+          node --version >> "$output/runner.txt"
+          npm --version >> "$output/runner.txt"
+          df -Pk / "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$HOME" > "$output/disk-start.txt"
+          (
+            while true; do
+              df -Pk / "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$HOME" |
+                awk -v t="$(date +%s.%N)" 'NR>1 {print t "\t" $0}'
+              sleep 10
+            done
+          ) > "$output/disk-samples.tsv" &
+          disk_pid=$!
+          dns_pid=
+          if command -v tcpdump >/dev/null; then
+            sudo tcpdump -i any -l -n -tt udp port 53 > "$output/dns-raw.log" 2> "$output/dns-capture.log" &
+            dns_pid=$!
+          else
+            echo "tcpdump missing; DNS discovery unavailable" > "$output/dns-capture.log"
+          fi
+          cleanup() {
+            status=$?
+            trap - EXIT
+            set +e
+            kill "$disk_pid"
+            wait "$disk_pid"
+            if [[ -n "$dns_pid" ]]; then
+              sudo kill -INT "$dns_pid"
+              wait "$dns_pid"
+            fi
+            df -Pk / "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$HOME" > "$output/disk-end.txt"
+            for path in "$scratch" "$scratch/.dotnet" "$scratch/artifacts" "$scratch/node_modules" \
+              "$scratch/src/Components/Web.JS/node_modules" "$HOME/.nuget/packages" \
+              "$scratch/.probe-nuget/packages" "$HOME/.npm" "$scratch/.probe-npm-cache"; do
+              du -sk "$path" 2>/dev/null || echo "absent: $path"
+            done > "$output/directory-sizes.txt"
+            python3 - "$output" <<'PY'
+          import json,pathlib,re,sys
+          p=pathlib.Path(sys.argv[1])
+          e=json.loads((p/'execution.json').read_text()) if (p/'execution.json').exists() else {}
+          phases=e.get('steps',[])
+          queries=[]
+          for line in (p/'dns-raw.log').read_text(errors='replace').splitlines() if (p/'dns-raw.log').exists() else []:
+              m=re.search(r'^(\d+\.\d+).*?\b(?:A|AAAA|HTTPS|CNAME)\?\s+(\S+)',line)
+              if not m: continue
+              t=float(m[1]); host=m[2].rstrip('.').lower()
+              phase=next((s['phase'] for s in phases if s['startedEpoch']<=t<=s['endedEpoch']),'fetch/runner/setup')
+              group=('SDK download' if host in ('builds.dotnet.microsoft.com','ci.dot.net','dot.net','dotnetcli.blob.core.windows.net','aka.ms')
+                  else 'runner noise' if any(k in host for k in ('actions.githubusercontent.com','applicationinsights','visualstudio.com','telemetry','monitor.azure.com','githubapp.com'))
+                  else 'GitHub' if any(k in host for k in ('github.com','githubusercontent.com'))
+                  else 'npm' if 'npmjs.org' in host
+                  else 'NuGet / npm Azure feed' if any(k in host for k in ('nuget.org','dev.azure.com','vsassets.io','azureedge.net','blob.core.windows.net'))
+                  else 'other')
+              queries.append({'epoch':t,'hostname':host,'phase':phase,'group':group})
+          hosts={}
+          for q in queries:
+              hosts.setdefault(q['hostname'],{'hostname':q['hostname'],'group':q['group'],'phases':set()})['phases'].add(q['phase'])
+          records=[{**h,'phases':sorted(h['phases'])} for h in sorted(hosts.values(),key=lambda h:(h['group'],h['hostname']))]
+          (p/'dns.json').write_text(json.dumps({'captureAvailable':bool(queries),'hostnames':records,'queries':queries},indent=2))
+          (p/'dns.md').write_text('# Observed DNS queries\n\n| Group | Hostname | Phases |\n|---|---|---|\n'+
+              '\n'.join('| '+r['group']+' | `'+r['hostname']+'` | '+', '.join(r['phases'])+' |' for r in records)+'\n')
+          samples=[]
+          for line in (p/'disk-samples.tsv').read_text().splitlines():
+              x=line.split()
+              if len(x)>=7:
+                  samples.append({'epoch':float(x[0]),'filesystem':x[1],'totalKiB':int(x[2]),'usedKiB':int(x[3]),'freeKiB':int(x[4]),'mount':x[6]})
+          for filename in ('disk-start.txt','disk-end.txt'):
+              for line in (p/filename).read_text().splitlines()[1:]:
+                  x=line.split()
+                  samples.append({'epoch':None,'filesystem':x[0],'totalKiB':int(x[1]),'usedKiB':int(x[2]),'freeKiB':int(x[3]),'mount':x[5]})
+          unique=sorted(set(s['filesystem'] for s in samples))
+          disk={'sampleIntervalSeconds':10,'filesystems':[]}
+          for fs in unique:
+              peak=max((s for s in samples if s['filesystem']==fs),key=lambda s:s['usedKiB'])
+              disk['filesystems'].append({'filesystem':fs,'mount':peak['mount'],'peakUsedKiB':peak['usedKiB'],
+                  'freeAtPeakKiB':peak['freeKiB'],'totalKiB':peak['totalKiB']})
+          (p/'disk.json').write_text(json.dumps(disk,indent=2))
+          if not e:
+              e={'classification':'infra-failure','reason':'probe setup/fetch failed before execution; see logs'}
+              (p/'execution.json').write_text(json.dumps(e,indent=2))
+              (p/'execution.md').write_text('# Probe setup failure\n\n'+e['reason']+'\n')
+          PY
+            cat "$output/execution.md" "$output/dns.md" >> "$GITHUB_STEP_SUMMARY"
+            printf '\nDisk sample report:\n```json\n' >> "$GITHUB_STEP_SUMMARY"
+            cat "$output/disk.json" >> "$GITHUB_STEP_SUMMARY"
+            printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
+            exit "$status"
+          }
+          trap cleanup EXIT
+          sleep 1
+          kill -0 "$disk_pid"
+          if [[ -n "$dns_pid" ]]; then
+            sudo kill -0 "$dns_pid"
+          fi
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]
+          fetch_start=$(date +%s.%N)
+          gh api "repos/PureWeen/aspnetcore/pulls/$PR_NUMBER" > "$output/pr.json"
+          head=$(jq -r .head.sha "$output/pr.json")
+          base_tip=$(jq -r .base.sha "$output/pr.json")
+          [[ "$(jq -r .head.repo.full_name "$output/pr.json")" == PureWeen/aspnetcore ]]
+          [[ "$(jq -r .base.repo.full_name "$output/pr.json")" == PureWeen/aspnetcore ]]
+          gh api "repos/PureWeen/aspnetcore/compare/$base_tip...$head" > "$output/compare.json"
+          base=$(jq -r .merge_base_commit.sha "$output/compare.json")
+          git -C "$scratch" init -q
+          git -C "$scratch" remote add origin https://github.com/PureWeen/aspnetcore.git
+          git -C "$scratch" -c protocol.version=2 fetch --no-tags --depth=1 --filter=blob:none origin "$head" "$base" > "$output/logs/fetch.log" 2>&1
+          git -C "$scratch" -c advice.detachedHead=false checkout --detach "$head" >> "$output/logs/fetch.log" 2>&1
+          fetch_end=$(date +%s.%N)
+          python3 - "$output" "$fetch_start" "$fetch_end" "$head" "$base" <<'PY'
+          import json,pathlib,sys
+          p=pathlib.Path(sys.argv[1])
+          (p/'fetch.json').write_text(json.dumps({'seconds':float(sys.argv[3])-float(sys.argv[2]),
+              'startedEpoch':float(sys.argv[2]),'endedEpoch':float(sys.argv[3]),'headSha':sys.argv[4],'mergeBaseSha':sys.argv[5],
+              'command':'git fetch --no-tags --depth=1 --filter=blob:none origin <head> <merge-base>; git checkout --detach <head>'},indent=2))
+          PY
+          # The API token is used only by the resolver, never passed to PR build/test commands.
+          unset GH_TOKEN
+          bash "$script" "$scratch" "$head" "$base" "$output" > "$output/logs/wrapper.log" 2>&1
+      - name: Upload measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-execution-${{ inputs.pr_number }}-${{ github.run_id }}
+          path: probe-output
+          retention-days: 14
