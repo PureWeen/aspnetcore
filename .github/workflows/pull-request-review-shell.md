@@ -61,6 +61,8 @@ tools:
     - dotnet
     - npm
     - npx
+    - node
+    - env
     - ./eng/build.sh
     - df
     - du
@@ -449,6 +451,13 @@ The pinned CLI's native file-create tool also produced a provider 400 with a `ct
 ID where an `fc` ID was expected. For scratch-only diagnostics/records, use permitted
 `cat`/`printf` shell redirections instead of the native edit/create tool; do not change
 any trusted file or tool permission. Record that workaround and any further denial.
+The Web.JS retry was blocked by unlisted `tee`, `env`, and `node` in setup commands;
+these are now permitted. Use a short scoped npm install with the scratch-local temp
+environment, then the owning Jest file. Do not bundle runtime-version checks, logging,
+and install into one large command. A denied optional helper is not proof that a
+separately permitted npm command is unavailable; try that short legitimate command once
+before marking execution unavailable. Do not access HOME caches if the framework policy
+forbids them; explicitly record the unmeasured cache size instead.
 
 Run the PR's changed/new tests at HEAD (expected green). Then keep those tests byte-identical
 and replace only the PR's non-test product changes with the mergeBase versions:
