@@ -36,7 +36,7 @@ max-turns: 200
 max-ai-credits: 1500
 
 user-rate-limit:
-  max-runs-per-window: 5
+  max-runs-per-window: 8
   window: 60
   ignored-roles: []
 
@@ -67,6 +67,10 @@ tools:
     - date
     - mkdir
     - cp
+    - cd
+    - source
+    - export
+    - test
     - rm review-shell-scratch/
   cli-proxy: false
   edit: true
@@ -433,6 +437,13 @@ Record every tool-permission denial verbatim, the command, whether it executed, 
 successful alternative. Do not hide a denial or weaken the allow-list yourself. Native
 shell tools can use a longer per-call timeout for builds when supported by the CLI.
 If a command is still running, follow its returned session handle; never rerun blindly.
+The initial measurement found that compound checkout with `cd` and `test` was denied;
+both are now explicitly permitted, as are activation's `source` and scratch environment
+`export`. Prefer short inspect-then-act calls over one dense checkout/timing pipeline.
+The pinned CLI's native file-create tool also produced a provider 400 with a `ctc_call_`
+ID where an `fc` ID was expected. For scratch-only diagnostics/records, use permitted
+`cat`/`printf` shell redirections instead of the native edit/create tool; do not change
+any trusted file or tool permission. Record that workaround and any further denial.
 
 Run the PR's changed/new tests at HEAD (expected green). Then keep those tests byte-identical
 and replace only the PR's non-test product changes with the mergeBase versions:
