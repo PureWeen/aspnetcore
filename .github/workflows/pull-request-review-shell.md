@@ -57,6 +57,7 @@ network:
 tools:
   bash:
     - git
+    - jq
     - dotnet
     - npm
     - npx
