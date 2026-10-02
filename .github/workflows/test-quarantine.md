@@ -737,7 +737,7 @@ on:
             return name.split("(")[0].strip()
 
 
-        def aggregate(build_ids):
+        def aggregate_results(build_ids):
             agg = {}
             for bid in build_ids:
                 seen_in_build = set()
@@ -756,6 +756,65 @@ on:
                     e["builds"].append(bid)
                     if t.get("runId") and t.get("id") and len(e["occ"]) < OCC_CAP:
                         e["occ"].append({"runId": t["runId"], "resultId": t["id"], "build": bid})
+            return agg
+
+
+        class TestHistoryUnavailable(Exception):
+            """A provider must translate retrieval/coverage errors to UNKNOWN."""
+
+
+        def none_history_provider(build_id):
+            """Default provider: UNKNOWN (None) for every build; no service calls.
+
+            A supported test-history service, none exists for public CI today, could
+            return a nonempty set of normalized failed methods only when complete
+            for this exact build. Zero observations or unproven coverage mean None.
+            """
+            return None
+
+
+        def aggregate(build_ids, history_provider=none_history_provider):
+            history = {}
+            for bid in build_ids:
+                try:
+                    methods = history_provider(bid)
+                except TestHistoryUnavailable as ex:
+                    print(f"test history UNKNOWN for build {bid}: {type(ex).__name__}", file=sys.stderr)
+                    methods = None
+                if methods is not None and (
+                    not isinstance(methods, (set, frozenset)) or
+                    any(not isinstance(name, str) or not name or
+                        name != name.split("(")[0].strip() for name in methods)
+                ):
+                    print(f"test history UNKNOWN for build {bid}: invalid method set", file=sys.stderr)
+                    methods = None
+                history[bid] = frozenset(methods) if methods else None
+
+            # provider=none uses the original iterator, ordering and page reads.
+            if all(methods is None for methods in history.values()):
+                return aggregate_results(build_ids)
+
+            agg = {}
+            for bid in build_ids:
+                methods = history[bid]
+                if methods is None or any(
+                    name not in agg or len(agg[name]["occ"]) < OCC_CAP for name in methods
+                ):
+                    current = aggregate_results([bid])
+                    if methods is not None and methods != set(current):
+                        print(f"test history mismatch for build {bid}: using original aggregate", file=sys.stderr)
+                        return aggregate_results(build_ids)
+                    for name, entry in current.items():
+                        e = agg.setdefault(name, {"count": 0, "assembly": entry["assembly"],
+                                                  "builds": [], "occ": []})
+                        e["count"] += 1
+                        e["builds"].append(bid)
+                        if entry["occ"] and len(e["occ"]) < OCC_CAP:
+                            e["occ"].append(entry["occ"][0])
+                else:
+                    for name in methods:
+                        agg[name]["count"] += 1
+                        agg[name]["builds"].append(bid)
             return agg
 
 

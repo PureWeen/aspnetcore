@@ -82,6 +82,48 @@ than using the representative assembly field to choose a project. This does not
 redesign aggregation or method-level, file-based quarantine history. Unresolved
 historical inheritance is unproven, not evidence that a test was never inherited.
 
+## Experimental test-history provider hook
+
+**DO NOT MERGE: no behavior change (provider=none).** Part 1 has an injectable
+placeholder for a supported test-history service, none exists for public CI
+today. The default `none_history_provider` returns `None` (UNKNOWN) for every
+selected build and calls no service. With this default, the unchanged
+`aggregate_results` reads every original result page in the original order;
+serialized output is byte-identical.
+
+A test provider can return a nonempty set of already-normalized failed methods
+(KNOWN), but only if it guarantees complete published-result coverage for that
+exact build. Empty observations, unproven coverage and `TestHistoryUnavailable`
+retrieval errors are UNKNOWN. Provider implementations must translate service
+errors to that exception; errors and invalid result shapes are logged before
+original-source fallback. No real provider, transport, credential wiring or
+runtime configuration is included.
+
+Representative builds always use original pages for `automatedTestStorage`
+and both original occurrence slots. A method-set mismatch reruns the unchanged
+aggregate over the selected source, never silently removing candidates.
+Build selection, enrichment, crash logs, source/history eligibility,
+thresholds, unquarantine and publication remain unchanged.
+
+The small synthetic fixtures retain the consumer shapes of public builds
+1597399, 1576238, 1569345, 1602497 and 1599840, without raw service responses.
+The five-build sample has exact parity and **0 pages bypassed**. The earlier
+estimate of roughly 136 avoided reads is withdrawn: positive rows do not prove
+complete ingestion. A deliberately partial older build demonstrates count
+3 -> 2; UNKNOWN plus original-source fallback restores parity. Four of the
+five pilot builds subsequently returned 404 from AzDO, so these are offline
+fixtures, not a currently reproducible live source comparison.
+
+Public Arcade documentation describes
+[`AzureDevOpsTests`](https://github.com/dotnet/arcade/blob/main/Documentation/AzureDevOps/TestReportingData.md)
+on `Engsrvprod/engineeringdata` as containing only `Failed`, `PassedOnRerun` and
+`NotExecuted` raw outcomes, not initial passes.
+The [query documentation](https://github.com/dotnet/arcade/blob/main/Documentation/AzureDevOps/TestReportingQueries.md)
+states access is Microsoft-employee-only. Neither those rows nor a successful
+query certify a build's completeness or provide a supported public CI service.
+Without such a guarantee the original reads remain necessary: no safe retrieval
+savings, full-workflow equivalence or net code deletion is demonstrated.
+
 ## Build Insights behavior
 
 A verified issue ends with exactly one `## Error Message` JSON block containing
@@ -172,6 +214,12 @@ Run the pull-request action-boundary fixtures:
 
 ```bash
 python3 -B .github/workflows/scripts/test-quarantine/test_validate_pull_request_outputs.py
+```
+
+Run the offline history-provider fixtures (including provider=none parity):
+
+```bash
+python3 -B .github/workflows/scripts/test-quarantine/test_history_provider.py
 ```
 
 Validate the source with the repository's gh-aw toolchain:
