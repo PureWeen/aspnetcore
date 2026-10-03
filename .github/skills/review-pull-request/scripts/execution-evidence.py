@@ -188,7 +188,7 @@ def main():
         if job_result not in {"success", "failure", "cancelled", "skipped"}:
             job_result = "unknown"
         result = unavailable(target, "execution artifact is missing; review_execution job result: " + job_result)
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError):
         result = unavailable(target, "execution artifact is unreadable or malformed")
     output_path.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
 

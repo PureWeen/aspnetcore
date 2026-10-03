@@ -64,6 +64,9 @@ class ExecutionTests(unittest.TestCase):
                  ("boolean schema", json.dumps({**report, "schemaVersion": True}), False)]
         for constant in ("NaN", "Infinity", "-Infinity", "1e999"):
             cases.append((constant, json.dumps(report)[:-1] + ', "extra": ' + constant + "}", False))
+        for depth in (900, 5000):
+            cases.append(("nested extra " + str(depth),
+                          json.dumps(report)[:-1] + ', "extra": ' + "[" * depth + "0" + "]" * depth + "}", False))
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
             manifest, input_file, output_file = root / "manifest.json", root / "input.json", root / "execution.json"
@@ -83,6 +86,15 @@ class ExecutionTests(unittest.TestCase):
                     if not available:
                         self.assertEqual(result["classification"], "infra-failure")
                         self.assertTrue(result["reason"])
+            input_file.write_text(json.dumps(report))
+            output_file.unlink()
+            manifest.write_text("{")
+            required_failure = subprocess.run([sys.executable, str(SCRIPTS / "execution-evidence.py"),
+                                               str(input_file), str(manifest), str(output_file)],
+                                              capture_output=True, text=True)
+            self.assertNotEqual(required_failure.returncode, 0)
+            self.assertIn("JSONDecodeError", required_failure.stderr)
+            self.assertFalse(output_file.exists())
 
     def test_normalizer_rejects_inconsistent_rows_and_inputs(self):
         normalize = runpy.run_path(str(SCRIPTS / "execution-evidence.py"))["normalize"]
