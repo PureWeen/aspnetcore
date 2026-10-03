@@ -2,6 +2,7 @@
 """Validate optional, untrusted execution evidence against the prepared source bundle."""
 import copy
 import json
+import os
 import pathlib
 import re
 import sys
@@ -137,7 +138,10 @@ def main():
         report = json.loads(report_path.read_text())
         result = normalize(report, target)
     except FileNotFoundError:
-        result = unavailable(target, "execution artifact is missing; job may have failed or timed out")
+        job_result = os.environ.get("REVIEW_EXECUTION_JOB_RESULT", "unknown")
+        if job_result not in {"success", "failure", "cancelled", "skipped"}:
+            job_result = "unknown"
+        result = unavailable(target, "execution artifact is missing; review_execution job result: " + job_result)
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         result = unavailable(target, "execution artifact is unreadable or malformed")
     output_path.write_text(json.dumps(result, indent=2) + "\n")

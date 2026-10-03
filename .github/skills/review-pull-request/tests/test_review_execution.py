@@ -92,7 +92,10 @@ console.log('Publication gate: '+cases.length+' allowed/rejected shape fixtures 
             subprocess.run(command, check=True)
             result = json.loads(output.read_text())
             self.assertFalse(result["available"])
-            self.assertEqual("execution artifact is missing; job may have failed or timed out", result["reason"])
+            self.assertEqual("execution artifact is missing; review_execution job result: unknown", result["reason"])
+            subprocess.run(command, check=True, env={**os.environ, "REVIEW_EXECUTION_JOB_RESULT": "failure"})
+            self.assertEqual("execution artifact is missing; review_execution job result: failure",
+                             json.loads(output.read_text())["reason"])
             report.write_text("not json")
             subprocess.run(command, check=True)
             self.assertEqual("execution artifact is unreadable or malformed", json.loads(output.read_text())["reason"])

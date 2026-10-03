@@ -360,6 +360,7 @@ pre-agent-steps:
       REVIEW_REPO: ${{ github.repository }}
       REVIEW_PR: ${{ needs.freeze_pr_head.outputs.pr_number }}
       REVIEW_HEAD: ${{ needs.freeze_pr_head.outputs.head_sha }}
+      REVIEW_EXECUTION_JOB_RESULT: ${{ needs.review_execution.result }}
     run: |
       set -euo pipefail
       [[ "${GITHUB_WORKFLOW_SHA:-}" =~ ^[a-f0-9]{40}$ ]]
