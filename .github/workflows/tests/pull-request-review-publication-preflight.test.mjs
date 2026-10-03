@@ -36,7 +36,7 @@ const available = { ...identity, available: true, classification: 'red-green', r
 const unavailable = { ...identity, available: false, classification: 'infra-failure', reason: 'restore failed' };
 const unavailableBody = 'Review completed source-only with no new findings; execution evidence unavailable (infra-failure): restore failed';
 
-function execute(script, input, execution = available) {
+function execute(script, input, execution = available, headSha = identity.headSha) {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'review-publication-preflight-'));
   try {
     const artifact = path.join(temporaryRoot, 'review-publication-gate');
@@ -52,7 +52,7 @@ function execute(script, input, execution = available) {
     try {
       Function('require', 'process', 'core', script)(
         moduleName => moduleName === 'fs' ? fs : moduleName === 'path' ? path : undefined,
-        { env: { RUNNER_TEMP: temporaryRoot, REVIEW_HEAD: identity.headSha } },
+        { env: { RUNNER_TEMP: temporaryRoot, REVIEW_HEAD: headSha } },
         core);
     } catch (caught) {
       error = caught;
@@ -220,13 +220,34 @@ const cases = [
   ['execution claims authoritative evidence', { items: [{ type: 'noop' }] }, false, { ...available, supportingEvidenceOnly: false }],
   ['execution disclosure wrong class suffix', { items: [comment(), { type: 'submit_pull_request_review', body: 'Execution: red-green-verified' }] }, false],
   ['unavailable findings missing reason', { items: [comment(), { type: 'submit_pull_request_review', body: 'Execution: infra-failure' }] }, false, unavailable],
+  ['retained Web.JS bold execution label', { items: [comment(), { type: 'submit_pull_request_review', body: '**Execution: red-green**\nSupporting evidence only.' }] }, true],
+  ['retained QuickGrid bold execution sentence', { items: [comment(), { type: 'submit_pull_request_review', body: '**Execution: red-green.** Prepared evidence supports the selected tests.' }] }, true],
+  ['execution Markdown heading', { items: [comment(), { type: 'submit_pull_request_review', body: '## Execution: red-green' }] }, true],
+  ['execution bold label only', { items: [comment(), { type: 'submit_pull_request_review', body: '**Execution:** red-green' }] }, true],
+  ['execution sentence punctuation', { items: [comment(), { type: 'submit_pull_request_review', body: 'Execution: red-green. Supporting evidence only.' }] }, true],
+  ['execution inline-code class', { items: [comment(), { type: 'submit_pull_request_review', body: 'Execution: `red-green`' }] }, true],
+  ['unavailable bold execution label', { items: [comment(), { type: 'submit_pull_request_review', body: '**Execution: infra-failure**\nrestore failed; findings are source-only.' }] }, true, unavailable],
+  ['execution class word suffix', { items: [comment(), { type: 'submit_pull_request_review', body: 'Execution: red-greenish' }] }, false],
+  ['execution wrong class', { items: [comment(), { type: 'submit_pull_request_review', body: 'Execution: green-green' }] }, false],
+  ['execution mid-line label', { items: [comment(), { type: 'submit_pull_request_review', body: 'See Execution: red-green' }] }, false],
+  ['execution unbalanced emphasis', { items: [comment(), { type: 'submit_pull_request_review', body: '**Execution: red-green' }] }, false],
+  ['execution garbled label', { items: [comment(), { type: 'submit_pull_request_review', body: 'Exec*ution: red-green' }] }, false],
+  ['execution list bullet', { items: [comment(), { type: 'submit_pull_request_review', body: '- Execution: red-green' }] }, false],
+  ['execution bold class suffix', { items: [comment(), { type: 'submit_pull_request_review', body: '**Execution: red-green-verified**' }] }, false],
+  ['execution code class suffix', { items: [comment(), { type: 'submit_pull_request_review', body: 'Execution: `red-green-verified`' }] }, false],
 ];
+
+for (const runDirectory of process.argv.slice(2)) {
+  const input = JSON.parse(fs.readFileSync(path.join(runDirectory, 'agent', 'agent_output.json'), 'utf8'));
+  const execution = JSON.parse(fs.readFileSync(path.join(runDirectory, 'review-execution-validated', 'execution.json'), 'utf8'));
+  cases.push([`retained collector ${path.basename(runDirectory)}`, input, true, execution, execution.headSha]);
+}
 
 const mismatches = [];
 for (const filename of [workflowSource, workflowLock]) {
   const script = extractScript(filename);
-  for (const [name, input, accepted, execution] of cases) {
-    const result = execute(script, input, execution);
+  for (const [name, input, accepted, execution, headSha] of cases) {
+    const result = execute(script, input, execution, headSha);
     if (result.error !== undefined) {
       mismatches.push(`${path.basename(filename)} ${name} threw instead of failing through core.setFailed: ${result.error}`);
     } else if ((result.failures.length === 0) !== accepted) {

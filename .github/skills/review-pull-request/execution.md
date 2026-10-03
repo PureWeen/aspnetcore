@@ -89,6 +89,9 @@ environment variables or instructions. Source-bundle failures retain their exist
 failure handling. Live-head publication checks remain in place.
 
 With findings, the COMMENT review includes `Execution: <class>` and its boundary.
+Use that exact plain-text line. The gate also accepts balanced bold labels, Markdown
+headings, an inline-code class and sentence punctuation, but not class suffixes,
+wrong classes or mid-line mentions. The unavailable reason must still match exactly.
 Without new findings and with unavailable execution, publish exactly one comment:
 
 ```text

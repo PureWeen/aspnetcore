@@ -375,10 +375,14 @@ jobs:
             const unavailable = execution.available === false && output.items.length === 1 &&
               statusComments.length === 1 && statusComments[0].body ===
                 `Review completed source-only with no new findings; execution evidence unavailable (${execution.classification}): ${execution.reason}`;
+            const executionLabel = `(?:Execution: ${execution.classification}|` +
+              `\\*\\*Execution: ${execution.classification}\\.?\\*\\*|` +
+              `\\*\\*Execution:\\*\\* ${execution.classification}|` +
+              `Execution: \`${execution.classification}\`)\\.?`;
             const executionSection = findings && output.items
               .filter(item => item.type === 'submit_pull_request_review')
               .every(item => typeof item.body === 'string' &&
-                new RegExp(`(?:^|\\n)Execution: ${execution.classification}(?=\\s|;|$)`).test(item.body) &&
+                new RegExp(`(?:^|\\n)[ \\t]{0,3}(?:#{1,6}[ \\t]+)?${executionLabel}(?=\\s|;|$)`).test(item.body) &&
                 (execution.available || item.body.includes(execution.reason)));
             if (!(findings && executionSection) && !(clean && execution.available === true) && !unavailable) {
               core.setFailed('Incomplete or partial review output cannot be published.');
@@ -580,7 +584,8 @@ trusted configuration to that SHA; never override their target or commit. The fi
 summarizes the validated new findings, existing-feedback coverage, unresolved
 candidates, per-guide completion, immutable provenance, test boundary, uncovered areas
 and limitations, and identifies the source verdict separately from execution evidence.
-Include a short section beginning `Execution: <execution.classification>`, with the
+Include a short section whose first line is exactly `Execution: <execution.classification>`
+as plain text, without heading markers, emphasis or backticks. Follow it with the
 exact evidence/availability boundary and reason even when execution is unavailable.
 Never submit `APPROVE` or `REQUEST_CHANGES`.
 

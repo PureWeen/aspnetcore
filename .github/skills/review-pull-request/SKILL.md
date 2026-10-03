@@ -36,6 +36,7 @@ The coordinator records exact commands, tree/file identities, passed/failed/skip
 counts, failure excerpts, unsupported selections, and unavailable reasons, separately
 from source-supported candidates. Head-pass/reverted-product-fail shows that the
 selected tests exercise product changes; it does not verify every source finding.
+Begin the execution section with a plain-text `Execution: <class>` line.
 A runtime failure alone never becomes a finding.
 Missing or mismatched execution does not block source review or make it `INCOMPLETE`.
 
