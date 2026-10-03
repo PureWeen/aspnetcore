@@ -36,7 +36,7 @@ max-turns: 200
 max-ai-credits: 1500
 
 user-rate-limit:
-  max-runs-per-window: 5
+  max-runs-per-window: 6
   window: 60
   ignored-roles: []
 
@@ -221,6 +221,8 @@ jobs:
           bash "$GITHUB_WORKSPACE/review-execution-infrastructure/review-execution.sh" \
             "$checkout" "$REVIEW_HEAD" "$REVIEW_MERGE_BASE" "$output" "$REVIEW_BASE" \
             > "$output/logs/wrapper.log" 2>&1
+          # Fork-only acceptance: prove source publication survives a failed execution job.
+          exit 1
       - name: Upload optional untrusted execution evidence even after failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -258,7 +260,7 @@ jobs:
             }
   verify_live_head:
     needs: [agent, freeze_pr_head]
-    if: needs.agent.result == 'success'
+    if: always() && needs.agent.result == 'success' && needs.freeze_pr_head.result == 'success'
     runs-on: ubuntu-slim
     permissions:
       pull-requests: read

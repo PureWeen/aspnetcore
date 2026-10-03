@@ -40,7 +40,7 @@ if mode == 'init':
         p = pathlib.PurePosixPath(name)
         is_test = any(s.lower() in ('test', 'tests', 'testassets') for s in p.parts)
         is_test |= bool(re.search(r'\.(?:test\.(?:ts|js)|spec\.ts)$', name))
-        docs = p.suffix.lower() in ('.md', '.rst', '.adoc')
+        docs = p.suffix.lower() in ('.md', '.rst', '.adoc') and not name.startswith('.github/workflows/')
         kind = 'test' if is_test else ('docs-only' if docs else 'product')
         files.append({'status': status, 'path': name, 'kind': kind})
         if not is_test:
@@ -310,6 +310,8 @@ PY
   target=${fields[1]}
   if [[ "$kind" == dotnet ]]; then
     restore_args=(./eng/build.sh --restore --no-build --build-managed --no-build-native --no-build-nodejs --no-build-java --no-build-installers --projects "$checkout/$target" -p:UseIisNativeAssets=false -p:BuildNodeJS=false)
+    # Fork-only acceptance: real restore failure, never a synthetic execution report.
+    restore_args+=(-p:RestoreSources=http://127.0.0.1:9/nuget/v3/index.json)
     run_step "restore-$i" head "${restore_args[@]}"
   else
     npm_args=(npm ci "--workspace=$target" --include-workspace-root --loglevel=http)

@@ -29,6 +29,11 @@ class ExecutionTests(unittest.TestCase):
                          "persist-credentials: false", "if: ${{ github.event.repository.fork == false }}"):
             self.assertTrue(required in text, required)
 
+    def test_publication_preflight_survives_execution_job_failure(self):
+        text = (ROOT.parents[1] / "workflows" / "pull-request-review.md").read_text()
+        preflight = text.split("  verify_live_head:\n", 1)[1].split("pre-agent-steps:", 1)[0]
+        self.assertTrue("if: always() && needs.agent.result == 'success' && needs.freeze_pr_head.result == 'success'" in preflight)
+
     def test_packer_execution_exclusions_are_actor_specific(self):
         text = (SCRIPTS / "prepare-review.cs").read_text()
         self.assertTrue("Hosted agent and workers executing PR code" in text)
@@ -227,6 +232,12 @@ grep -q 'sleep 3' "$output/record.txt"
             git("commit", "-qm", "docs")
             head = git("rev-parse", "HEAD")
             self.assertEqual("not-applicable", report("init")["classification"])
+            git("reset", "--hard", base)
+            write(".github/workflows/example.md", "---\non: push\n---\nExecutable workflow")
+            git("add", ".")
+            git("commit", "-qm", "workflow")
+            head = git("rev-parse", "HEAD")
+            self.assertEqual("unsupported", report("init")["classification"])
             git("reset", "--hard", base)
             write(prefix + "src/Value.cs", "product")
             git("add", ".")
