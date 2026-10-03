@@ -27,6 +27,8 @@ def normalize(report, target):
     if classification not in CLASSES:
         return unavailable(target, "execution report has an unknown classification")
     if classification in {"red-green", "green-green"}:
+        if classification == "red-green" and not report.get("revertedFiles"):
+            return unavailable(target, "execution report has no reverted product change")
         plans, results = report.get("plan"), report.get("results")
         if not isinstance(plans, list) or not plans or not isinstance(results, list):
             return unavailable(target, "execution report has no complete test plan/results")
@@ -94,7 +96,7 @@ def self_test():
         assert not normalized["available"] and len(normalized["reason"]) <= 240 and "\n" not in normalized["reason"]
     assert not normalize({**base, "classification": "red-green", "plan": []}, target)["available"]
     pair = {**base, "classification": "red-green", "plan": [{"files": ["test.cs"]}],
-            "unsupported": [], "restoredHead": True, "results": []}
+            "unsupported": [], "restoredHead": True, "results": [], "revertedFiles": ["src/Product.cs"]}
     for tree, passed, failed in (("head", 2, 0), ("reverted", 1, 1)):
         pair["results"].append({"planIndex": 0, "tree": tree, "passed": passed, "failed": failed,
                                "skipped": 0, "total": 2, "exitCode": 1 if failed else 0,
@@ -117,6 +119,7 @@ def self_test():
     assert not normalize(altered, target)["available"]
     altered = {**pair, "unsupported": [{"path": "other"}]}
     assert not normalize(altered, target)["available"]
+    assert not normalize({**pair, "revertedFiles": []}, target)["available"]
     print("Normalizer: identities, all classifications, counts, all-skipped, missing reports, partial unsupported: passed")
 
 

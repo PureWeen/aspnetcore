@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import stat
 import subprocess
+import sys
 import textwrap
 import unittest
 
@@ -34,7 +35,7 @@ class ExecutionTests(unittest.TestCase):
         self.assertFalse('"Running PR code, tests, CI, browser workflows, or implementation samples"' in text)
 
     def test_artifact_normalizer_and_gate_fixtures(self):
-        subprocess.run(["python", str(SCRIPTS / "execution-evidence.py"), "--self-test"], check=True)
+        subprocess.run([sys.executable, str(SCRIPTS / "execution-evidence.py"), "--self-test"], check=True)
 
     def test_publication_gate_shapes(self):
         text = (ROOT.parents[1] / "workflows" / "pull-request-review.md").read_text()
@@ -65,13 +66,15 @@ const cases = [
   [unavailable, [{type:'report_incomplete',reason:'missing guide'},
     {type:'add_comment',body:'Review not published (INCOMPLETE): missing guide\\n\\nNo partial findings were published.'}], true],
 ];
-for (const [execution, items, expected] of cases) {
+const mismatches = [];
+for (const [index, [execution, items, expected]] of cases.entries()) {
   let failed=false;
   const fs={readFileSync: filename => JSON.stringify(filename.endsWith('agent_output.json') ? {items} : execution)};
   vm.runInNewContext('(function(){'+code+'})()', {require:n=>n==='fs'?fs:require(n),
     process:{env:{RUNNER_TEMP:'.'}},core:{setFailed:()=>{failed=true;}}});
-  if ((!failed)!==expected) throw new Error(JSON.stringify({items,expected,failed}));
+  if ((!failed)!==expected) mismatches.push({index,items,expected,failed});
 }
+if (mismatches.length) throw new Error(JSON.stringify(mismatches));
 console.log('Publication gate: '+cases.length+' allowed/rejected shape fixtures passed');
 """
         subprocess.run(["node", "-e", wrapper, json.dumps(code)], check=True)
@@ -82,7 +85,7 @@ console.log('Publication gate: '+cases.length+' allowed/rejected shape fixtures 
         report, manifest, output = (scratch / n for n in ("input.json", "manifest.json", "execution.json"))
         target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
         manifest.write_text(json.dumps({"target": target}))
-        command = ["python", str(SCRIPTS / "execution-evidence.py"), str(report), str(manifest), str(output)]
+        command = [sys.executable, str(SCRIPTS / "execution-evidence.py"), str(report), str(manifest), str(output)]
         try:
             if report.exists():
                 report.unlink()
@@ -140,7 +143,8 @@ grep -q 'sleep 3' "$output/record.txt"
             path.mkdir()
 
         def git(*args):
-            return subprocess.check_output(["git", *args], cwd=checkout, stderr=subprocess.DEVNULL).decode().strip()
+            return subprocess.check_output(["git", "-c", "core.longpaths=true", *args],
+                                           cwd=checkout, stderr=subprocess.DEVNULL).decode().strip()
 
         def write(name, text):
             p = checkout / name
@@ -150,6 +154,7 @@ grep -q 'sleep 3' "$output/record.txt"
         git("init", "-q")
         git("config", "user.name", "Fixture")
         git("config", "user.email", "fixture@example.invalid")
+        git("config", "core.longpaths", "true")
         prefix = "src/Components/QuickGrid/Microsoft.AspNetCore.Components.QuickGrid/"
         write(prefix + "src/Deleted.cs", "old")
         write(prefix + "test/Microsoft.AspNetCore.Components.QuickGrid.Tests.csproj", "<Project/>")
@@ -167,7 +172,7 @@ grep -q 'sleep 3' "$output/record.txt"
         env = {**os.environ, "REVIEW_EXECUTION_BASE_TIP": base}
 
         def report(mode, *args):
-            subprocess.run(["python", "-c", report_code, str(output), str(checkout), head, base, mode, *map(str, args)],
+            subprocess.run([sys.executable, "-c", report_code, str(output), str(checkout), head, base, mode, *map(str, args)],
                            env=env, check=True, stdout=subprocess.DEVNULL)
             return json.loads((output / "execution.json").read_text())
 
@@ -206,6 +211,7 @@ grep -q 'sleep 3' "$output/record.txt"
                 self.assertEqual(classification, report("failure", classification, "exact failure")["classification"])
             self.assertTrue(report("finish")["restoredHead"])
             d = report("init")
+            report("revert")
             for tree, failed in (("head", 0), ("reverted", 1)):
                 jest.write_text(json.dumps({"numTotalTests": 2, "numPassedTests": 2 - failed, "numFailedTests": failed}))
                 report("test", "jest", tree, jest, failed, 0)
@@ -223,6 +229,17 @@ grep -q 'sleep 3' "$output/record.txt"
             git("commit", "-qm", "product")
             head = git("rev-parse", "HEAD")
             self.assertEqual("unsupported", report("init")["classification"])
+            git("reset", "--hard", base)
+            write(prefix + "test/OnlyTest.cs", "namespace Tests; public class OnlyTest { [Fact] public void Example() {} }")
+            git("add", ".")
+            git("commit", "-qm", "test-only")
+            head = git("rev-parse", "HEAD")
+            report("init")
+            report("revert")
+            for tree, failed in (("head", 0), ("reverted", 1)):
+                jest.write_text(json.dumps({"numTotalTests": 2, "numPassedTests": 2 - failed, "numFailedTests": failed}))
+                report("test", "jest", tree, jest, failed, 0)
+            self.assertEqual("infra-failure", report("finish")["classification"])
         finally:
             shutil.rmtree(scratch, onexc=remove_readonly)
 

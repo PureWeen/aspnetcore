@@ -40,7 +40,7 @@ if mode == 'init':
         p = pathlib.PurePosixPath(name)
         is_test = any(s.lower() in ('test', 'tests', 'testassets') for s in p.parts)
         is_test |= bool(re.search(r'\.(?:test\.(?:ts|js)|spec\.ts)$', name))
-        docs = p.suffix.lower() in ('.md', '.rst', '.adoc', '.png', '.jpg', '.svg')
+        docs = p.suffix.lower() in ('.md', '.rst', '.adoc')
         kind = 'test' if is_test else ('docs-only' if docs else 'product')
         files.append({'status': status, 'path': name, 'kind': kind})
         if not is_test:
@@ -103,6 +103,13 @@ if mode == 'init':
                 unsupported.append({'path': name, 'reason': 'no owning npm workspace with Jest test entry point'})
         else:
             unsupported.append({'path': name, 'reason': 'support/testassets change is not a directly runnable test'})
+    for f in files:
+        if f['kind'] != 'product':
+            continue
+        kind = ('dotnet' if f['path'].startswith('src/Components/QuickGrid/Microsoft.AspNetCore.Components.QuickGrid/src/')
+            else 'jest' if f['path'].startswith('src/Components/Web.JS/src/') else None)
+        if kind and not any(p['kind'] == kind for p in plans.values()):
+            unsupported.append({'path': f['path'], 'reason': 'no changed supported tests for this product area'})
     d = {'schemaVersion': 1, 'headSha': head, 'mergeBaseSha': base,
         'baseTipSha': __import__('os').environ['REVIEW_EXECUTION_BASE_TIP'],
         'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -196,6 +203,8 @@ elif mode == 'finish':
         d['planClassifications'] = pairs
         d['reason'] = ('partial unsupported selection; see unsupported paths and per-plan outcomes'
             if d['unsupported'] else 'head/reverted outcomes: '+', '.join(pairs))
+        if 'red-green' in pairs and not d['revertedFiles']:
+            d['classification'], d['reason'] = 'infra-failure', 'assertions failed on identical product trees; no reverted product change'
     d['finishedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     d['restoredHead'] = git('rev-parse','HEAD').decode().strip()==head and not git('status','--porcelain','--untracked-files=no')
     if not d['restoredHead']:
@@ -301,8 +310,6 @@ PY
   target=${fields[1]}
   if [[ "$kind" == dotnet ]]; then
     restore_args=(./eng/build.sh --restore --no-build --build-managed --no-build-native --no-build-nodejs --no-build-java --no-build-installers --projects "$checkout/$target" -p:UseIisNativeAssets=false -p:BuildNodeJS=false)
-    # Fork-only acceptance: a real restore failure, not a synthetic report.
-    restore_args+=(-p:RestoreSources=http://127.0.0.1:9/nuget/v3/index.json)
     run_step "restore-$i" head "${restore_args[@]}"
   else
     npm_args=(npm ci "--workspace=$target" --include-workspace-root --loglevel=http)
