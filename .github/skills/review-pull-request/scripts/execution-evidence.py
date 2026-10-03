@@ -19,7 +19,8 @@ def unavailable(target, reason):
 
 
 def normalize(report, target):
-    if not isinstance(report, dict) or report.get("schemaVersion") != 1:
+    if (not isinstance(report, dict) or isinstance(report.get("schemaVersion"), bool) or
+            report.get("schemaVersion") != 1):
         return unavailable(target, "execution report is malformed or has an unsupported schema")
     for field, role in (("headSha", "head"), ("mergeBaseSha", "mergeBase"), ("baseTipSha", "baseTip")):
         if report.get(field) != target[role]:
@@ -180,6 +181,8 @@ def main():
             raise ValueError("oversized execution report")
         report = json.loads(report_path.read_text())
         result = normalize(report, target)
+        # Keep non-JSON numbers inside the optional-artifact fallback boundary.
+        json.dumps(result, allow_nan=False)
     except FileNotFoundError:
         job_result = os.environ.get("REVIEW_EXECUTION_JOB_RESULT", "unknown")
         if job_result not in {"success", "failure", "cancelled", "skipped"}:
@@ -187,7 +190,7 @@ def main():
         result = unavailable(target, "execution artifact is missing; review_execution job result: " + job_result)
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         result = unavailable(target, "execution artifact is unreadable or malformed")
-    output_path.write_text(json.dumps(result, indent=2) + "\n")
+    output_path.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
 
 
 if __name__ == "__main__":

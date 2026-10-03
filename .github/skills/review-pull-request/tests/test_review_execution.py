@@ -54,6 +54,36 @@ class ExecutionTests(unittest.TestCase):
     def test_artifact_normalizer_and_gate_fixtures(self):
         subprocess.run([sys.executable, str(SCRIPTS / "execution-evidence.py"), "--self-test"], check=True)
 
+    def test_malformed_optional_artifacts_emit_parseable_unavailable_status(self):
+        target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
+        report = {"schemaVersion": 1, "headSha": target["head"], "mergeBaseSha": target["mergeBase"],
+                  "baseTipSha": target["baseTip"], "classification": "not-applicable",
+                  "changedFiles": [{"path": "README.md", "kind": "docs-only"}]}
+        cases = [("integer schema", json.dumps(report), True),
+                 ("numeric schema", json.dumps({**report, "schemaVersion": 1.0}), True),
+                 ("boolean schema", json.dumps({**report, "schemaVersion": True}), False)]
+        for constant in ("NaN", "Infinity", "-Infinity", "1e999"):
+            cases.append((constant, json.dumps(report)[:-1] + ', "extra": ' + constant + "}", False))
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            manifest, input_file, output_file = root / "manifest.json", root / "input.json", root / "execution.json"
+            manifest.write_text(json.dumps({"target": target}))
+            for label, text, available in cases:
+                with self.subTest(label=label):
+                    input_file.write_text(text)
+                    subprocess.run([sys.executable, str(SCRIPTS / "execution-evidence.py"),
+                                    str(input_file), str(manifest), str(output_file)], check=True)
+                    parsed = subprocess.run(["node", "-e",
+                                             "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'))",
+                                             str(output_file)], capture_output=True, text=True)
+                    self.assertEqual(parsed.returncode, 0, parsed.stderr)
+                    result = json.loads(output_file.read_text())
+                    self.assertEqual(result["available"], available)
+                    self.assertTrue(result["supportingEvidenceOnly"])
+                    if not available:
+                        self.assertEqual(result["classification"], "infra-failure")
+                        self.assertTrue(result["reason"])
+
     def test_normalizer_rejects_inconsistent_rows_and_inputs(self):
         normalize = runpy.run_path(str(SCRIPTS / "execution-evidence.py"))["normalize"]
         target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
