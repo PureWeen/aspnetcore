@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"e851b7a5f25017d81afcdf956e3f2285b0dda7991e7a42dea63606a94bff1527","body_hash":"71186d4324d70b5990455ba50b58e56056faedfe3e47a46fa4186a8563011548","compiler_version":"v0.89.21","strict":true,"agent_id":"copilot","agent_model":"gpt-5.6-sol","engine_versions":{"copilot":"1.0.80"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_PAT_0","COPILOT_PAT_1","COPILOT_PAT_2","COPILOT_PAT_3","COPILOT_PAT_4","COPILOT_PAT_5","COPILOT_PAT_6","COPILOT_PAT_7","COPILOT_PAT_8","COPILOT_PAT_9","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-dotnet","sha":"a98b56852c35b8e3190ac28c8c2271da59106c68","version":"v6.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"924af5fdc64061cfbf66fb584c8b07e2ac230c60","version":"v0.89.21"}],"skills":[".github/skills/review-pull-request"],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.23","digest":"sha256:2c78aaba1c108e130e2d6d01e4f2cca334ea04c53e6f258913ac34173fe7e3b2","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.23@sha256:2c78aaba1c108e130e2d6d01e4f2cca334ea04c53e6f258913ac34173fe7e3b2"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.23","digest":"sha256:c15c3d1208df10c5b588a3657be53742aa982ae0909d1eb1812525268794ca64","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.23@sha256:c15c3d1208df10c5b588a3657be53742aa982ae0909d1eb1812525268794ca64"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.23","digest":"sha256:02ffc56dd40158223064ef03a78c2d9717473c93723b4e403d455ea6f0b09ae0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.23@sha256:02ffc56dd40158223064ef03a78c2d9717473c93723b4e403d455ea6f0b09ae0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.25","digest":"sha256:9be0a86220e807a0ecc89e53d7453468f7a53fbc6b3d1efd2299025ffe01d086","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.25@sha256:9be0a86220e807a0ecc89e53d7453468f7a53fbc6b3d1efd2299025ffe01d086"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0daa8971fa4732b647150cb6524a6b0804b68d5d24f6f58b5dd1af23bd63fb23","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0daa8971fa4732b647150cb6524a6b0804b68d5d24f6f58b5dd1af23bd63fb23"}],"mcp_servers":[{"name":"safeoutputs","tools":["add_comment","create_pull_request_review_comment","missing_data","missing_tool","noop","submit_pull_request_review"]}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"94a621974ac41526aac116e8ee4c2b70bad797a67389955e3a71ca7d02b68012","body_hash":"cbf335ae40540e518c30051b7f326d81c1bff098e2ee6ce21faf1618fa69501b","compiler_version":"v0.89.21","strict":true,"agent_id":"copilot","agent_model":"gpt-5.6-sol","engine_versions":{"copilot":"1.0.80"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_PAT_0","COPILOT_PAT_1","COPILOT_PAT_2","COPILOT_PAT_3","COPILOT_PAT_4","COPILOT_PAT_5","COPILOT_PAT_6","COPILOT_PAT_7","COPILOT_PAT_8","COPILOT_PAT_9","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"11d5960a326750d5838078e36cf38b85af677262","version":"v4"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-dotnet","sha":"a98b56852c35b8e3190ac28c8c2271da59106c68","version":"v6.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"actions/upload-artifact","sha":"ea165f8d65b6e75b540449e92b4886f43607fa02","version":"v4"},{"repo":"github/gh-aw-actions/setup","sha":"924af5fdc64061cfbf66fb584c8b07e2ac230c60","version":"v0.89.21"}],"skills":[".github/skills/review-pull-request"],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.23","digest":"sha256:2c78aaba1c108e130e2d6d01e4f2cca334ea04c53e6f258913ac34173fe7e3b2","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.23@sha256:2c78aaba1c108e130e2d6d01e4f2cca334ea04c53e6f258913ac34173fe7e3b2"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.23","digest":"sha256:c15c3d1208df10c5b588a3657be53742aa982ae0909d1eb1812525268794ca64","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.23@sha256:c15c3d1208df10c5b588a3657be53742aa982ae0909d1eb1812525268794ca64"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.23","digest":"sha256:02ffc56dd40158223064ef03a78c2d9717473c93723b4e403d455ea6f0b09ae0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.23@sha256:02ffc56dd40158223064ef03a78c2d9717473c93723b4e403d455ea6f0b09ae0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.25","digest":"sha256:9be0a86220e807a0ecc89e53d7453468f7a53fbc6b3d1efd2299025ffe01d086","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.25@sha256:9be0a86220e807a0ecc89e53d7453468f7a53fbc6b3d1efd2299025ffe01d086"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0daa8971fa4732b647150cb6524a6b0804b68d5d24f6f58b5dd1af23bd63fb23","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0daa8971fa4732b647150cb6524a6b0804b68d5d24f6f58b5dd1af23bd63fb23"}],"mcp_servers":[{"name":"safeoutputs","tools":["add_comment","create_pull_request_review_comment","missing_data","missing_tool","noop","submit_pull_request_review"]}]}
 # This file was automatically generated by gh-aw (v0.89.21). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -23,7 +23,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Maintainer-invoked, source-only pull request review using the repository's review-pull-request skill and a trusted frozen bundle. Validated findings become at most five inline comments and one COMMENT-only review, pinned to the reviewed commit. Findings are posted directly to the pull request; this is advisory, never a merge gate.
+# Maintainer-invoked, source review using the repository's review-pull-request skill, a trusted frozen bundle, and optional deterministic execution evidence. Validated findings become at most five inline comments and one COMMENT-only review, pinned to the reviewed commit. Findings are posted directly to the pull request; this is advisory, never a merge gate.
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -51,6 +51,7 @@
 #   - GITHUB_TOKEN
 #
 # Custom actions used:
+#   - actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 #   - actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (source v8)
@@ -58,6 +59,7 @@
 #   - actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
 #   - actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+#   - actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
 #   - github/gh-aw-actions/setup@924af5fdc64061cfbf66fb584c8b07e2ac230c60 # v0.89.21
 #
 # Container images used:
@@ -369,7 +371,9 @@ jobs:
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_BASE_TIP: ${{ needs.freeze_pr_head.outputs.base_tip }}
           GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_HEAD_SHA: ${{ needs.freeze_pr_head.outputs.head_sha }}
+          GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_MERGE_BASE: ${{ needs.freeze_pr_head.outputs.merge_base }}
           GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_PR_NUMBER: ${{ needs.freeze_pr_head.outputs.pr_number }}
           GH_AW_NEEDS_PAT_POOL_OUTPUTS_PAT_NUMBER: ${{ needs.pat_pool.outputs.pat_number }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
@@ -388,7 +392,9 @@ jobs:
               file: process.env.GH_AW_PROMPT,
               substitutions: {
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_BASE_TIP: process.env.GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_BASE_TIP,
                 GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_HEAD_SHA: process.env.GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_HEAD_SHA,
+                GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_MERGE_BASE: process.env.GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_MERGE_BASE,
                 GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_PR_NUMBER: process.env.GH_AW_NEEDS_FREEZE_PR_HEAD_OUTPUTS_PR_NUMBER,
                 GH_AW_NEEDS_PAT_POOL_OUTPUTS_PAT_NUMBER: process.env.GH_AW_NEEDS_PAT_POOL_OUTPUTS_PAT_NUMBER,
                 GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
@@ -440,7 +446,10 @@ jobs:
       - activation
       - freeze_pr_head
       - pat_pool
-    if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
+      - review_execution
+    if: >
+      (needs.activation.outputs.daily_ai_credits_exceeded != 'true') && ((always() && needs.activation.result == 'success' &&
+      needs.freeze_pr_head.result == 'success') && (needs.activation.result == 'success'))
     runs-on: ubuntu-latest
     environment: copilot-pat-pool
     permissions:
@@ -549,6 +558,12 @@ jobs:
         env:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
+      - continue-on-error: true
+        name: Download optional deterministic execution evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1 (source v8)
+        with:
+          name: review-execution
+          path: ${{ runner.temp }}/review-execution-input
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -559,7 +574,13 @@ jobs:
           REVIEW_PR: ${{ needs.freeze_pr_head.outputs.pr_number }}
           REVIEW_REPO: ${{ github.repository }}
         name: Prepare trusted frozen review bundle
-        run: "set -euo pipefail\n[[ \"${GITHUB_WORKFLOW_SHA:-}\" =~ ^[a-f0-9]{40}$ ]]\nproducer_dir=\"$(mktemp -d \"${RUNNER_TEMP}/review-producer.XXXXXX\")\"\nfor filename in prepare-review.cs Directory.Build.props Directory.Build.targets Directory.Packages.props; do\n  gh api -H 'Accept: application/vnd.github.raw' \\\n    \"repos/$REVIEW_REPO/contents/.github/skills/review-pull-request/scripts/$filename?ref=$GITHUB_WORKFLOW_SHA\" \\\n    > \"$producer_dir/$filename\"\n  test -s \"$producer_dir/$filename\"\ndone\ndotnet run \"$producer_dir/prepare-review.cs\" -- \\\n  --repo \"$REVIEW_REPO\" --pr \"$REVIEW_PR\" --head \"$REVIEW_HEAD\" \\\n  --guidance \"$REVIEW_REPO@$GITHUB_WORKFLOW_SHA\" --output /tmp/gh-aw/review-bundle\ntest -s /tmp/gh-aw/review-bundle/manifest.json"
+        run: "set -euo pipefail\n[[ \"${GITHUB_WORKFLOW_SHA:-}\" =~ ^[a-f0-9]{40}$ ]]\nproducer_dir=\"$(mktemp -d \"${RUNNER_TEMP}/review-producer.XXXXXX\")\"\nfor filename in prepare-review.cs execution-evidence.py Directory.Build.props Directory.Build.targets Directory.Packages.props; do\n  gh api -H 'Accept: application/vnd.github.raw' \\\n    \"repos/$REVIEW_REPO/contents/.github/skills/review-pull-request/scripts/$filename?ref=$GITHUB_WORKFLOW_SHA\" \\\n    > \"$producer_dir/$filename\"\n  test -s \"$producer_dir/$filename\"\ndone\ndotnet run \"$producer_dir/prepare-review.cs\" -- \\\n  --repo \"$REVIEW_REPO\" --pr \"$REVIEW_PR\" --head \"$REVIEW_HEAD\" \\\n  --guidance \"$REVIEW_REPO@$GITHUB_WORKFLOW_SHA\" --output /tmp/gh-aw/review-bundle\ntest -s /tmp/gh-aw/review-bundle/manifest.json\npython3 \"$producer_dir/execution-evidence.py\" \\\n  \"$RUNNER_TEMP/review-execution-input/execution.json\" /tmp/gh-aw/review-bundle/manifest.json \\\n  /tmp/gh-aw/review-bundle/execution.json\n"
+      - name: Preserve validated optional execution status for publication preflight
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: error
+          name: review-execution-validated
+          path: /tmp/gh-aw/review-bundle/execution.json
 
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.23@sha256:2c78aaba1c108e130e2d6d01e4f2cca334ea04c53e6f258913ac34173fe7e3b2 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.23@sha256:c15c3d1208df10c5b588a3657be53742aa982ae0909d1eb1812525268794ca64 ghcr.io/github/gh-aw-firewall/squid:0.28.23@sha256:02ffc56dd40158223064ef03a78c2d9717473c93723b4e403d455ea6f0b09ae0 ghcr.io/github/gh-aw-mcpg:v0.4.25@sha256:9be0a86220e807a0ecc89e53d7453468f7a53fbc6b3d1efd2299025ffe01d086 ghcr.io/github/gh-aw-node@sha256:0daa8971fa4732b647150cb6524a6b0804b68d5d24f6f58b5dd1af23bd63fb23
@@ -1214,6 +1235,7 @@ jobs:
       - detection
       - freeze_pr_head
       - pat_pool
+      - review_execution
       - safe_outputs
       - verify_live_head
     if: >
@@ -1582,7 +1604,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "ASP.NET Core Pull Request Review"
-          WORKFLOW_DESCRIPTION: "Maintainer-invoked, source-only pull request review using the repository's review-pull-request skill and a trusted frozen bundle. Validated findings become at most five inline comments and one COMMENT-only review, pinned to the reviewed commit. Findings are posted directly to the pull request; this is advisory, never a merge gate."
+          WORKFLOW_DESCRIPTION: "Maintainer-invoked, source review using the repository's review-pull-request skill, a trusted frozen bundle, and optional deterministic execution evidence. Validated findings become at most five inline comments and one COMMENT-only review, pinned to the reviewed commit. Findings are posted directly to the pull request; this is advisory, never a merge gate."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "false"
           GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
@@ -1648,7 +1670,7 @@ jobs:
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
           WORKFLOW_NAME: "ASP.NET Core Pull Request Review"
-          WORKFLOW_DESCRIPTION: "Maintainer-invoked, source-only pull request review using the repository's review-pull-request skill and a trusted frozen bundle. Validated findings become at most five inline comments and one COMMENT-only review, pinned to the reviewed commit. Findings are posted directly to the pull request; this is advisory, never a merge gate."
+          WORKFLOW_DESCRIPTION: "Maintainer-invoked, source review using the repository's review-pull-request skill, a trusted frozen bundle, and optional deterministic execution evidence. Validated findings become at most five inline comments and one COMMENT-only review, pinned to the reviewed commit. Findings are posted directly to the pull request; this is advisory, never a merge gate."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "false"
         run: |
@@ -1761,9 +1783,12 @@ jobs:
     if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       pull-requests: read
     outputs:
+      base_tip: ${{ steps.get_head.outputs.base_tip }}
       head_sha: ${{ steps.get_head.outputs.head_sha }}
+      merge_base: ${{ steps.get_head.outputs.merge_base }}
       pr_number: ${{ steps.get_head.outputs.pr_number }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
@@ -1797,13 +1822,25 @@ jobs:
             });
             if (data.number !== pullNumber || data.state !== 'open' ||
                 data.base.repo.full_name.toLowerCase() !== repository.toLowerCase() ||
-                typeof data.head.sha !== 'string' || !/^[0-9a-f]{40}$/.test(data.head.sha)) {
+                typeof data.head.sha !== 'string' || !/^[0-9a-f]{40}$/.test(data.head.sha) ||
+                !/^[0-9a-f]{40}$/.test(data.base.sha)) {
               core.setFailed('GitHub did not return the expected open pull request and valid head SHA.');
               return;
             }
 
             core.setOutput('pr_number', String(pullNumber));
             core.setOutput('head_sha', data.head.sha);
+            const comparison = await github.rest.repos.compareCommits({
+              owner: context.repo.owner, repo: context.repo.repo,
+              base: data.base.sha, head: data.head.sha,
+            });
+            const mergeBase = comparison.data.merge_base_commit.sha;
+            if (!/^[0-9a-f]{40}$/.test(mergeBase)) {
+              core.setFailed('The frozen merge base is invalid.');
+              return;
+            }
+            core.setOutput('base_tip', data.base.sha);
+            core.setOutput('merge_base', mergeBase);
 
   pat_pool:
     needs: pre_activation
@@ -1951,6 +1988,78 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'check_rate_limit.cjs'));
             await main();
+
+  review_execution:
+    needs: freeze_pr_head
+    if: needs.freeze_pr_head.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    timeout-minutes: 35
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: | # zizmor: ignore[github-env] - GITHUB_SERVER_URL is set by GitHub Actions, not user input.
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Resolve trusted infrastructure and frozen identity
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_WORKFLOW_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$REVIEW_HEAD" =~ ^[a-f0-9]{40}$ && "$REVIEW_BASE" =~ ^[a-f0-9]{40}$ && "$REVIEW_MERGE_BASE" =~ ^[a-f0-9]{40}$ ]]
+          mkdir -p "$GITHUB_WORKSPACE/review-execution-infrastructure" "$GITHUB_WORKSPACE/review-execution-output/logs"
+          gh api "repos/$REVIEW_REPO/pulls/$REVIEW_PR" > "$GITHUB_WORKSPACE/review-execution-output/pull.json"
+          test "$(jq -r .head.sha "$GITHUB_WORKSPACE/review-execution-output/pull.json")" = "$REVIEW_HEAD"
+          test "$(jq -r .state "$GITHUB_WORKSPACE/review-execution-output/pull.json")" = open
+          gh api "repos/$REVIEW_REPO/compare/$REVIEW_BASE...$REVIEW_HEAD" > "$GITHUB_WORKSPACE/review-execution-output/compare.json"
+          test "$(jq -r .merge_base_commit.sha "$GITHUB_WORKSPACE/review-execution-output/compare.json")" = "$REVIEW_MERGE_BASE"
+          gh api -H 'Accept: application/vnd.github.raw' \
+            "repos/$REVIEW_REPO/contents/.github/skills/review-pull-request/scripts/review-execution.sh?ref=$GITHUB_WORKFLOW_SHA" \
+            > "$GITHUB_WORKSPACE/review-execution-infrastructure/review-execution.sh"
+          test -s "$GITHUB_WORKSPACE/review-execution-infrastructure/review-execution.sh"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_BASE: ${{ needs.freeze_pr_head.outputs.base_tip }}
+          REVIEW_HEAD: ${{ needs.freeze_pr_head.outputs.head_sha }}
+          REVIEW_MERGE_BASE: ${{ needs.freeze_pr_head.outputs.merge_base }}
+          REVIEW_PR: ${{ needs.freeze_pr_head.outputs.pr_number }}
+          REVIEW_REPO: ${{ github.repository }}
+      - name: Check out disposable frozen PR source without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+          lfs: false
+          path: review-execution-checkout
+          persist-credentials: false
+          ref: ${{ needs.freeze_pr_head.outputs.head_sha }}
+          submodules: false
+      - name: Execute measured owning-project tests without API credentials
+        run: |
+          set -euo pipefail
+          unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN
+          checkout="$GITHUB_WORKSPACE/review-execution-checkout"
+          output="$GITHUB_WORKSPACE/review-execution-output"
+          timeout --signal=TERM --kill-after=15s 120s git -C "$checkout" fetch --no-tags --depth=1 origin "$REVIEW_MERGE_BASE" \
+            > "$output/logs/fetch.log" 2>&1
+          bash "$GITHUB_WORKSPACE/review-execution-infrastructure/review-execution.sh" \
+            "$checkout" "$REVIEW_HEAD" "$REVIEW_MERGE_BASE" "$output" "$REVIEW_BASE" \
+            > "$output/logs/wrapper.log" 2>&1
+        env:
+          REVIEW_BASE: ${{ needs.freeze_pr_head.outputs.base_tip }}
+          REVIEW_HEAD: ${{ needs.freeze_pr_head.outputs.head_sha }}
+          REVIEW_MERGE_BASE: ${{ needs.freeze_pr_head.outputs.merge_base }}
+      - name: Upload optional untrusted execution evidence even after failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          if-no-files-found: warn
+          name: review-execution
+          path: review-execution-output
 
   safe_outputs:
     needs:
@@ -2117,7 +2226,7 @@ jobs:
         with:
           merge-multiple: true
           path: ${{ runner.temp }}/review-publication-gate
-          pattern: "{agent,agent-output-fallback}"
+          pattern: "{agent,agent-output-fallback,review-execution-validated}"
       - name: Reject incomplete or partial publication sets
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -2126,6 +2235,8 @@ jobs:
             const path = require('path');
             const filename = path.join(process.env.RUNNER_TEMP, 'review-publication-gate', 'agent_output.json');
             const output = JSON.parse(fs.readFileSync(filename, 'utf8'));
+            const execution = JSON.parse(fs.readFileSync(path.join(
+              process.env.RUNNER_TEMP, 'review-publication-gate', 'execution.json'), 'utf8'));
             if (!Array.isArray(output.items)) {
               core.setFailed('The agent output has no complete items list.');
               return;
@@ -2142,6 +2253,15 @@ jobs:
               ? statusComments[0].body.match(
                 /^Review not published \((BLOCKED|INCOMPLETE)\): ([^\r\n]{1,240})\n\nNo partial findings were published\.$/)
               : null;
+            const unavailableMatch = statusComments.length === 1 && typeof statusComments[0].body === 'string'
+              ? statusComments[0].body.match(/^Review completed source-only with no new findings; execution evidence unavailable \((head-red|red-compile|zero-tests|infra-failure|unsupported|mixed)\): ([^\r\n]{1,240})$/)
+              : null;
+            const unavailableOnly = unavailableMatch && execution.available === false &&
+              unavailableMatch[1] === execution.classification && unavailableMatch[2] === execution.reason &&
+              output.items.length === 1;
+            const executionSection = output.items.filter(item => item.type === 'submit_pull_request_review')
+              .every(item => typeof item.body === 'string' &&
+                item.body.includes(`Execution: ${execution.classification}`));
             const incompleteReason = incompleteItems.length === 1 &&
               typeof incompleteItems[0].reason === 'string'
               ? incompleteItems[0].reason
@@ -2149,7 +2269,9 @@ jobs:
             if ((noop > 0 && (comments || reviews || incomplete || statusComments.length)) ||
                 (incomplete && (comments || reviews || noop !== 0 || incompleteItems.length !== 1 ||
                   !statusMatch || statusMatch[2] !== incompleteReason)) ||
-                (!incomplete && statusComments.length > 0) ||
+                (!incomplete && statusComments.length > 0 && !unavailableOnly) ||
+                (!incomplete && noop > 0 && execution.available !== true) ||
+                (!incomplete && !executionSection) ||
                 (comments > 0 && reviews !== 1) ||
                 (reviews > 0 && (comments < 1 || comments > 5))) {
               core.setFailed('Incomplete or partial review output cannot be published.');

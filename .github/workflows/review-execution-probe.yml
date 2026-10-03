@@ -39,7 +39,7 @@ jobs:
           mkdir -p "$output/logs" "$scratch"
           export TMPDIR="$GITHUB_WORKSPACE/probe-tmp"
           mkdir -p "$TMPDIR"
-          script="$GITHUB_WORKSPACE/.github/skills/review-pull-request/scripts/review-execution.sh"
+          script="$GITHUB_WORKSPACE/.github/skills/review-pull-request/scripts/review-execution-phaseA.sh"
           date -u +%FT%TZ > "$output/started.txt"
           uname -a > "$output/runner.txt"
           node --version >> "$output/runner.txt"

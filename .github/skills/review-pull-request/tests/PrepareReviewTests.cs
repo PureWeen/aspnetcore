@@ -80,6 +80,8 @@ public class PrepareReviewTests
             fixture.Output, "guidance/.github/skills/review-pull-request/routing.md.source")))),
             manifest["routing"]!["sha256"]!.GetValue<string>());
         Assert.Equal(2, manifest["exclusions"]!.AsArray().Count);
+        Assert.Contains("Hosted agent and workers executing PR code", manifest["exclusions"]![0]!["scope"]!.GetValue<string>());
+        Assert.Contains("native local coordinator", manifest["exclusions"]![0]!["reason"]!.GetValue<string>());
         Assert.Contains("Do not review the excluded scope", manifest["exclusions"]![1]!["body"]!.GetValue<string>());
         foreach (var name in new[] { "apiFreeze", "fetch", "changedFiles", "diff", "feedback", "manifest" })
         {

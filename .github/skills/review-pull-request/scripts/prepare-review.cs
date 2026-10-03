@@ -1247,8 +1247,8 @@ internal static partial class PrepareReviewProgram
         {
             new JsonObject
             {
-                ["scope"] = "Running PR code, tests, CI, browser workflows, or implementation samples",
-                ["reason"] = "This is a source-only review; assess changed tests and contracts from source.",
+                ["scope"] = "Hosted agent and workers executing PR code; CI/browser workflows and unsupported implementation validation",
+                ["reason"] = "Reviewers assess source and consume optional deterministic execution evidence. Only the native local coordinator may validate in a disposable detached worktree.",
             },
         };
         const string instructionPath = ".github/copilot-instructions.md";

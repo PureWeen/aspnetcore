@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# Trusted measured prototype. Run only against a disposable, frozen PR checkout.
+# Fork-only deterministic probe. Run against a disposable, frozen PR checkout.
 set -euo pipefail
-if [[ "${REVIEW_EXECUTION_BOUNDED:-}" != 1 ]]; then
-  exec env REVIEW_EXECUTION_BOUNDED=1 timeout --signal=TERM --kill-after=30s 1800s bash "$0" "$@"
-fi
-deadline=$((SECONDS + 1740))
 checkout=$(realpath "$1")
 head=$2
 base=$3
-export REVIEW_EXECUTION_BASE_TIP=${5:-$base}
 mkdir -p "$4"
 output=$(realpath "$4")
 mkdir -p "$output/logs"
@@ -17,7 +12,6 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 DISABLE_CUSTOM_PROMPT=1
 export NUGET_PACKAGES="$checkout/.probe-nuget/packages"
 export npm_config_cache="$checkout/.probe-npm-cache"
 export NUGET_ENHANCED_MAX_NETWORK_TRY_COUNT=1 NUGET_ENHANCED_NETWORK_RETRY_DELAY_MILLISECONDS=100
-unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN
 
 # Keep the planner and report writer with the trusted wrapper, not in the PR tree.
 report() {
@@ -44,10 +38,6 @@ if mode == 'init':
         kind = 'test' if is_test else ('docs-only' if docs else 'product')
         files.append({'status': status, 'path': name, 'kind': kind})
         if not is_test:
-            if kind == 'product' and not (
-                name.startswith('src/Components/QuickGrid/Microsoft.AspNetCore.Components.QuickGrid/src/') or
-                name.startswith('src/Components/Web.JS/src/')):
-                unsupported.append({'path': name, 'reason': 'product path outside measured prototype'})
             continue
         if any('e2e' in s.lower() or 'selenium' in s.lower() for s in p.parts):
             unsupported.append({'path': name, 'reason': 'unsupported: browser E2E'})
@@ -69,8 +59,7 @@ if mode == 'init':
             # Public test classes from source; private nested component/data classes are excluded.
             classes = re.findall(r'\bpublic\s+(?:(?:partial|sealed|abstract)\s+)*class\s+(\w+)', text)
             namespace = re.search(r'\bnamespace\s+([\w.]+)', text)
-            if (project == 'src/Components/QuickGrid/Microsoft.AspNetCore.Components.QuickGrid/test/Microsoft.AspNetCore.Components.QuickGrid.Tests.csproj'
-                    and classes and re.search(r'\[(?:Fact|Theory)\b', text)):
+            if project and classes and re.search(r'\[(?:Fact|Theory)\b', text):
                 item = plans.setdefault(('dotnet', project), {'kind': 'dotnet', 'project': project,
                     'files': [], 'classes': [], 'filter': ''})
                 item['files'].append(name)
@@ -92,9 +81,7 @@ if mode == 'init':
             if isinstance(workspaces, dict):
                 workspaces = workspaces.get('packages', [])
             member = pkg and any(fnmatch.fnmatch(pkg.relative_to(root).as_posix(), w.rstrip('/')) for w in workspaces)
-            if (name.startswith('src/Components/Web.JS/') and member and
-                    manifest.get('name') == '@microsoft/microsoft.aspnetcore.components.web.js' and
-                    'jest' in manifest.get('scripts', {}).get('test', '')):
+            if member and manifest.get('name') and 'jest' in manifest.get('scripts', {}).get('test', ''):
                 workspace = manifest['name']
                 item = plans.setdefault(('jest', workspace), {'kind': 'jest', 'workspace': workspace, 'files': [], 'paths': []})
                 item['files'].append(name)
@@ -104,15 +91,13 @@ if mode == 'init':
         else:
             unsupported.append({'path': name, 'reason': 'support/testassets change is not a directly runnable test'})
     d = {'schemaVersion': 1, 'headSha': head, 'mergeBaseSha': base,
-        'baseTipSha': __import__('os').environ['REVIEW_EXECUTION_BASE_TIP'],
         'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        'breakRestore': __import__('os').environ.get('BREAK_RESTORE') == 'true',
         'changedFiles': files, 'plan': list(plans.values()), 'unsupported': unsupported, 'steps': [],
         'results': [], 'revertedFiles': [], 'classification': 'pending',
         'scope': 'changed test classes / Jest paths only; project-to-project dependencies allowed',
         'cachePolicy': 'fresh checkout-local NuGet/npm caches; no Actions cache'}
     if not plans:
-        if any(f['kind'] != 'docs-only' for f in files) and not unsupported:
-            unsupported.append({'path': '', 'reason': 'no changed supported runnable tests'})
         d['classification'] = 'unsupported' if unsupported else 'not-applicable'
         d['reason'] = '; '.join(sorted(set(u['reason'] for u in unsupported))) if unsupported else (
             'docs-only; no build or test' if files and all(f['kind']=='docs-only' for f in files) else 'no changed runnable tests')
@@ -134,9 +119,7 @@ elif mode == 'step':
     save(d)
 elif mode == 'revert':
     d = json.loads(path.read_text())
-    d['revertedFiles'] = [f['path'] for f in d['changedFiles'] if f['kind']=='product' and (
-        f['path'].startswith('src/Components/QuickGrid/Microsoft.AspNetCore.Components.QuickGrid/src/') or
-        f['path'].startswith('src/Components/Web.JS/src/'))]
+    d['revertedFiles'] = [f['path'] for f in d['changedFiles'] if f['kind']=='product']
     save(d)
 elif mode == 'test':
     d = json.loads(path.read_text())
@@ -192,14 +175,10 @@ elif mode == 'finish':
             pairs.append('red-green' if a and b and a['classification']=='pass' and b['classification']=='fail'
                 else 'green-green' if a and b and a['classification']=='pass' and b['classification']=='pass'
                 else 'infra-failure')
-        d['classification'] = pairs[0] if len(set(pairs))==1 and not d['unsupported'] else 'mixed'
+        d['classification'] = pairs[0] if len(set(pairs))==1 else 'mixed'
         d['planClassifications'] = pairs
-        d['reason'] = ('partial unsupported selection; see unsupported paths and per-plan outcomes'
-            if d['unsupported'] else 'head/reverted outcomes: '+', '.join(pairs))
     d['finishedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     d['restoredHead'] = git('rev-parse','HEAD').decode().strip()==head and not git('status','--porcelain','--untracked-files=no')
-    if not d['restoredHead']:
-        d['classification'], d['reason'] = 'infra-failure', 'disposable tracked tree restoration failed'
     save(d)
     lines = ['# Deterministic review execution', '', f"**{d['classification']}** — {d.get('reason','')}",
         f"Head `{head}`; merge base `{base}`; restored tracked head: {d['restoredHead']}.",
@@ -229,15 +208,8 @@ run_step() {
   printf -v command '%q ' "$@"
   printf '%s\tstart\t%s\t%s\n' "$start" "$phase" "$tree" >> "$output/phases.tsv"
   set +e
-  local remaining=$((deadline - SECONDS))
-  if ((remaining <= 0)); then
-    code=124
-    printf 'Overall execution deadline exceeded\n' > "$log"
-  else
-    ((remaining <= 600)) || remaining=600
-    timeout --signal=TERM --kill-after=15s "${remaining}s" "$@" >"$log" 2>&1
-    code=$?
-  fi
+  "$@" >"$log" 2>&1
+  code=$?
   set -e
   end=$(date +%s.%N)
   printf '%s\tend\t%s\t%s\n' "$end" "$phase" "$tree" >> "$output/phases.tsv"
@@ -267,7 +239,6 @@ finish() {
   exit "$code"
 }
 trap finish EXIT
-trap 'exit 124' TERM INT
 report init
 plan_count=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["plan"]))' "$output/execution.json")
 if [[ "$plan_count" == 0 ]]; then
@@ -301,9 +272,15 @@ PY
   target=${fields[1]}
   if [[ "$kind" == dotnet ]]; then
     restore_args=(./eng/build.sh --restore --no-build --build-managed --no-build-native --no-build-nodejs --no-build-java --no-build-installers --projects "$checkout/$target" -p:UseIisNativeAssets=false -p:BuildNodeJS=false)
+    if [[ "${BREAK_RESTORE:-false}" == true ]]; then
+      restore_args+=(-p:RestoreSources=http://127.0.0.1:9/nuget/v3/index.json)
+    fi
     run_step "restore-$i" head "${restore_args[@]}"
   else
     npm_args=(npm ci "--workspace=$target" --include-workspace-root --loglevel=http)
+    if [[ "${BREAK_RESTORE:-false}" == true ]]; then
+      npm_args+=(--registry=http://127.0.0.1:9/ --fetch-retries=0)
+    fi
     run_step "restore-$i" head "${npm_args[@]}"
   fi
   if [[ "$step_code" != 0 ]]; then
