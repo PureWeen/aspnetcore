@@ -83,16 +83,17 @@ def changed_methods(text, lines):
         attributes = m.group(1)
         if not re.search(r'\[(?:Fact|Theory)\b', attributes):
             continue
+        attribute_start = code.index('[', m.start(1), m.end(1))
         start = m.end() - len(m.group(3))
         end = closing(code, start, '{', '}') if m.group(3) == '{' else code.index(';', start) + 1
-        if not touched(text, m.start(), end, lines):
+        if not touched(text, attribute_start, end, lines):
             continue
-        owners = [c for c in classes if c[2] < m.start() < c[3]]
+        owners = [c for c in classes if c[2] < attribute_start < c[3]]
         if len(owners) != 1 or not owners[0][1] or owners[0][4] or namespace is None:
             raise ValueError('only non-nested, non-generic public test classes with a namespace are supported')
         name = namespace.group(1) + '.' + owners[0][0] + '.' + m.group(2)
         methods.append(name)
-        spans.append((text.count('\n', 0, m.start()) + 1, text.count('\n', 0, end) + 1))
+        spans.append((text.count('\n', 0, attribute_start) + 1, text.count('\n', 0, end) + 1))
         if re.search(r'\[Fact\b', attributes):
             rows[name] = 1
         elif not re.search(r'\[(?:MemberData|ClassData)\b', attributes):

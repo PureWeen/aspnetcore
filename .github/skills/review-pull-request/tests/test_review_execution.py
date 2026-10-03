@@ -132,7 +132,7 @@ class ExecutionTests(unittest.TestCase):
             original_cs = """namespace Tests;
 public class Cases
 {
-    [Fact]
+    [Fact(Skip = "unchanged control")]
     public void Unchanged() { Assert.True(true); }
     [Theory]
     [InlineData(1)]
@@ -154,15 +154,24 @@ public class Cases
             base = git("rev-parse", "HEAD")
             cases = [
                 ("theory data row", cs + "Cases.cs", original_cs.replace("[InlineData(1)]", "[InlineData(1)]\n    [InlineData(2)]"),
-                 "dotnet", ["Tests.Cases.Changed"]),
+                 "dotnet", ["Tests.Cases.Changed"], {"Tests.Cases.Changed": 2}),
+                ("new fact before skipped old control", cs + "Cases.cs",
+                 original_cs.replace('    [Fact(Skip', '    [Fact]\n    public void NewRegression() { Assert.True(true); }\n    [Fact(Skip'),
+                 "dotnet", ["Tests.Cases.NewRegression"], {"Tests.Cases.NewRegression": 1}),
+                ("changed one-line body before unchanged theory", cs + "Cases.cs",
+                 original_cs.replace("Assert.True(true)", "Assert.False(false)"),
+                 "dotnet", ["Tests.Cases.Unchanged"], {"Tests.Cases.Unchanged": 1}),
+                ("changed one-line body with intervening blank line", cs + "Cases.cs",
+                 original_cs.replace("Assert.True(true); }\n", "Assert.False(false); }\n\n"),
+                 "dotnet", ["Tests.Cases.Unchanged"], {"Tests.Cases.Unchanged": 1}),
                 ("static Jest body", js + "test/Cases.test.ts", original_js.replace("expect(1)", "expect(2)"),
-                 "jest", ["group changed"]),
+                 "jest", ["group changed"], None),
                 ("skipped new Jest case", js + "test/Cases.test.ts",
                  original_js.replace("\n});", "\n  test.skip('new regression', () => { expect(false).toBe(true); });\n});"),
-                 "jest", ["group new regression"])
+                 "jest", ["group new regression"], None)
             ]
             try:
-                for label, name, content, kind, selected in cases:
+                for label, name, content, kind, selected, rows in cases:
                     with self.subTest(label=label):
                         git("reset", "--hard", base)
                         write(name, content)
@@ -174,8 +183,8 @@ public class Cases
                         plan = json.loads((output / "execution.json").read_text())["plan"][0]
                         self.assertEqual(selected, plan.get("methods" if kind == "dotnet" else "names", []))
                         if kind == "dotnet":
-                            self.assertEqual({"Tests.Cases.Changed": 2}, plan["expectedRows"])
-                            self.assertEqual("FullyQualifiedName=Tests.Cases.Changed", plan["filter"])
+                            self.assertEqual(rows, plan["expectedRows"])
+                            self.assertEqual("FullyQualifiedName=" + selected[0], plan["filter"])
                         else:
                             self.assertEqual("^" + selected[0].replace(" ", "\\ ") + "$", plan["filter"])
             finally:
