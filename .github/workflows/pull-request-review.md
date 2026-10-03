@@ -1,5 +1,5 @@
 ---
-if: ${{ github.repository == 'PureWeen/aspnetcore' }}
+if: github.repository == 'PureWeen/aspnetcore'
 
 on:
   # Deliberately use direct slash commands: v0.88.7 centralized membership rejects community
@@ -271,16 +271,54 @@ jobs:
           path: ${{ runner.temp }}/review-publication-gate
       - name: Reject incomplete or partial publication sets
         uses: actions/github-script@v9.0.0
+        env:
+          REVIEW_HEAD: ${{ needs.freeze_pr_head.outputs.head_sha }}
         with:
           script: |
             const fs = require('fs');
             const path = require('path');
             const filename = path.join(process.env.RUNNER_TEMP, 'review-publication-gate', 'agent_output.json');
-            const output = JSON.parse(fs.readFileSync(filename, 'utf8'));
-            const execution = JSON.parse(fs.readFileSync(path.join(
-              process.env.RUNNER_TEMP, 'review-publication-gate', 'execution.json'), 'utf8'));
+            let output;
+            try {
+              output = JSON.parse(fs.readFileSync(filename, 'utf8'));
+            } catch {
+              core.setFailed('The agent output is not valid JSON.');
+              return;
+            }
+            const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+            if (!isObject(output)) {
+              core.setFailed('The agent output root must be an object.');
+              return;
+            }
             if (!Array.isArray(output.items)) {
               core.setFailed('The agent output has no complete items list.');
+              return;
+            }
+            if (Object.hasOwn(output, 'errors')) {
+              if (!Array.isArray(output.errors) || !output.errors.every(error => typeof error === 'string')) {
+                core.setFailed('The agent output errors field is malformed.');
+                return;
+              }
+              if (output.errors.length > 0) {
+                core.setFailed('The agent output contains collection errors.');
+                return;
+              }
+            }
+            if (!output.items.every(item => isObject(item) && typeof item.type === 'string')) {
+              core.setFailed('Every agent output item must be an object with a string type.');
+              return;
+            }
+            const supported = new Set([
+              'add_comment',
+              'create_pull_request_review_comment',
+              'missing_data',
+              'missing_tool',
+              'noop',
+              'report_incomplete',
+              'submit_pull_request_review',
+            ]);
+            if (output.items.some(item => !supported.has(item.type))) {
+              core.setFailed('The agent output contains an unsupported item type.');
               return;
             }
             const count = type => output.items.filter(item => item.type === type).length;
@@ -290,36 +328,57 @@ jobs:
             const statusComments = output.items.filter(item => item.type === 'add_comment');
             const incompleteItems = output.items.filter(item =>
               ['report_incomplete', 'missing_data', 'missing_tool'].includes(item.type));
-            const incomplete = incompleteItems.length > 0;
-            const statusMatch = statusComments.length === 1 && typeof statusComments[0].body === 'string'
-              ? statusComments[0].body.match(
-                /^Review not published \((BLOCKED|INCOMPLETE)\): ([^\r\n]{1,240})\n\nNo partial findings were published\.$/)
-              : null;
-            const unavailableMatch = statusComments.length === 1 && typeof statusComments[0].body === 'string'
-              ? statusComments[0].body.match(/^Review completed source-only with no new findings; execution evidence unavailable \((head-red|red-compile|zero-tests|infra-failure|unsupported|mixed)\): ([^\r\n]{1,240})$/)
-              : null;
-            const unavailableOnly = unavailableMatch && execution.available === false &&
-              unavailableMatch[0] === statusComments[0].body &&
-              unavailableMatch[1] === execution.classification && unavailableMatch[2] === execution.reason &&
-              output.items.length === 1;
-            const executionSection = output.items.filter(item => item.type === 'submit_pull_request_review')
-              .every(item => typeof item.body === 'string' &&
-                item.body.includes(`Execution: ${execution.classification}`));
             const incompleteReason = incompleteItems.length === 1 &&
               typeof incompleteItems[0].reason === 'string'
               ? incompleteItems[0].reason
               : null;
-            const allowed = ['noop', 'add_comment', 'create_pull_request_review_comment',
-              'submit_pull_request_review', 'report_incomplete', 'missing_data', 'missing_tool'];
-            if (output.items.length === 0 || output.items.some(item => !allowed.includes(item.type)) ||
-                (noop > 0 && (comments || reviews || incomplete || statusComments.length)) ||
-                (incomplete && (comments || reviews || noop !== 0 || incompleteItems.length !== 1 ||
-                  !statusMatch || statusMatch[2] !== incompleteReason)) ||
-                (!incomplete && statusComments.length > 0 && !unavailableOnly) ||
-                (!incomplete && noop > 0 && execution.available !== true) ||
-                (!incomplete && !executionSection) ||
-                (comments > 0 && reviews !== 1) ||
-                (reviews > 0 && (comments < 1 || comments > 5))) {
+            const reasonIsValid = incompleteReason !== null && incompleteReason.length >= 1 &&
+              incompleteReason.length <= 240 && !/[\r\n]/.test(incompleteReason);
+            const expectedStatusBodies = reasonIsValid
+              ? ['BLOCKED', 'INCOMPLETE'].map(status =>
+                  `Review not published (${status}): ${incompleteReason}\n\nNo partial findings were published.`)
+              : [];
+            const findings = comments >= 1 && comments <= 5 && reviews === 1 &&
+              output.items.length === comments + 1;
+            const clean = noop === 1 && output.items.length === 1;
+            const stopped = incompleteItems.length === 1 && statusComments.length === 1 &&
+              output.items.length === 2 && typeof statusComments[0].body === 'string' &&
+              expectedStatusBodies.includes(statusComments[0].body);
+            if (stopped) {
+              return;
+            }
+            let execution;
+            try {
+              execution = JSON.parse(fs.readFileSync(path.join(
+                process.env.RUNNER_TEMP, 'review-publication-gate', 'execution.json'), 'utf8'));
+            } catch {
+              core.setFailed('The validated execution status is not valid JSON.');
+              return;
+            }
+            const availableClasses = new Set(['red-green', 'green-green', 'not-applicable']);
+            const unavailableClasses = new Set(['head-red', 'red-compile', 'zero-tests', 'infra-failure', 'unsupported', 'mixed']);
+            if (!isObject(execution) || execution.schemaVersion !== 1 ||
+                execution.supportingEvidenceOnly !== true ||
+                !/^[a-f0-9]{40}$/.test(process.env.REVIEW_HEAD) ||
+                execution.headSha !== process.env.REVIEW_HEAD ||
+                !/^[a-f0-9]{40}$/.test(execution.mergeBaseSha) ||
+                !/^[a-f0-9]{40}$/.test(execution.baseTipSha) ||
+                !(execution.available === true && availableClasses.has(execution.classification) ||
+                  execution.available === false && unavailableClasses.has(execution.classification)) ||
+                typeof execution.reason !== 'string' || execution.reason.length < 1 ||
+                execution.reason.length > 240 || /[\r\n]/.test(execution.reason)) {
+              core.setFailed('The validated execution status is malformed.');
+              return;
+            }
+            const unavailable = execution.available === false && output.items.length === 1 &&
+              statusComments.length === 1 && statusComments[0].body ===
+                `Review completed source-only with no new findings; execution evidence unavailable (${execution.classification}): ${execution.reason}`;
+            const executionSection = findings && output.items
+              .filter(item => item.type === 'submit_pull_request_review')
+              .every(item => typeof item.body === 'string' &&
+                new RegExp(`(?:^|\\n)Execution: ${execution.classification}(?=\\s|;|$)`).test(item.body) &&
+                (execution.available || item.body.includes(execution.reason)));
+            if (!(findings && executionSection) && !(clean && execution.available === true) && !unavailable) {
               core.setFailed('Incomplete or partial review output cannot be published.');
             }
       - name: Reject a moved pull request before safe outputs
@@ -504,8 +563,8 @@ Deduplicate against the complete prepared feedback and list true-positive duplic
 separately with their existing comment or review reference. Feedback posted after
 preparation cannot be observed by this agent; do not claim a fresh-feedback check.
 Format each inline comment with only a one-line claim, `file:line`, severity, a minimal
-consumer repro using app or user code that reaches the line, what goes wrong in at most
-two lines, and a fix snippet when possible.
+repro using app/user code, CLI commands, or workflow inputs that reaches the affected
+behavior, what goes wrong in at most two lines, and a fix snippet when possible.
 
 The trusted `verify_live_head` gate must pass before the safe-output job begins, and a
 supported `jobs.safe_outputs.pre-steps` hook rechecks the live head inside that job before
