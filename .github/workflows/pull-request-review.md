@@ -299,6 +299,7 @@ jobs:
               ? statusComments[0].body.match(/^Review completed source-only with no new findings; execution evidence unavailable \((head-red|red-compile|zero-tests|infra-failure|unsupported|mixed)\): ([^\r\n]{1,240})$/)
               : null;
             const unavailableOnly = unavailableMatch && execution.available === false &&
+              unavailableMatch[0] === statusComments[0].body &&
               unavailableMatch[1] === execution.classification && unavailableMatch[2] === execution.reason &&
               output.items.length === 1;
             const executionSection = output.items.filter(item => item.type === 'submit_pull_request_review')

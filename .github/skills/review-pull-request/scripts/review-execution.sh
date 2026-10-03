@@ -78,7 +78,7 @@ if mode == 'init':
                 item['classes'] = sorted(set(item['classes']))
                 item['filter'] = '|'.join('FullyQualifiedName~'+c for c in item['classes'])
             else:
-                unsupported.append({'path': name, 'reason': 'no unambiguous owning test project / attributed public class'})
+                unsupported.append({'path': name, 'reason': 'outside measured QuickGrid planner or no attributed public test class'})
         elif re.search(r'\.(?:test\.(?:ts|js)|spec\.ts)$', name):
             pkg = None
             for parent in (root / p).parents:
@@ -100,7 +100,7 @@ if mode == 'init':
                 item['files'].append(name)
                 item['paths'].append((root/p).relative_to(pkg).as_posix())
             else:
-                unsupported.append({'path': name, 'reason': 'no owning npm workspace with Jest test entry point'})
+                unsupported.append({'path': name, 'reason': 'outside measured Web.JS planner or no owning Jest workspace'})
         else:
             unsupported.append({'path': name, 'reason': 'support/testassets change is not a directly runnable test'})
     for f in files:
@@ -115,7 +115,7 @@ if mode == 'init':
         'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
         'changedFiles': files, 'plan': list(plans.values()), 'unsupported': unsupported, 'steps': [],
         'results': [], 'revertedFiles': [], 'classification': 'pending',
-        'scope': 'changed test classes / Jest paths only; project-to-project dependencies allowed',
+        'scope': 'changed QuickGrid test classes / Web.JS Jest paths only; project-to-project dependencies allowed',
         'cachePolicy': 'fresh checkout-local NuGet/npm caches; no Actions cache'}
     if not plans:
         if any(f['kind'] != 'docs-only' for f in files) and not unsupported:

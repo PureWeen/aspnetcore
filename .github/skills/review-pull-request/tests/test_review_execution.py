@@ -53,6 +53,7 @@ const cases = [
   [available, [{type:'noop'}], true],
   [unavailable, [{type:'add_comment',body:fixed},{type:'noop'}], false],
   [unavailable, [{type:'add_comment',body:fixed+'\\nextra'}], false],
+  [unavailable, [{type:'add_comment',body:fixed+'\\n'}], false],
   [unavailable, [{type:'add_comment',body:fixed.replace('restore failed','invented')}], false],
   [available, [{type:'add_comment',body:fixed}], false],
   [unavailable, [{type:'create_pull_request_review_comment'},
