@@ -221,8 +221,6 @@ jobs:
           bash "$GITHUB_WORKSPACE/review-execution-infrastructure/review-execution.sh" \
             "$checkout" "$REVIEW_HEAD" "$REVIEW_MERGE_BASE" "$output" "$REVIEW_BASE" \
             > "$output/logs/wrapper.log" 2>&1
-          # Fork-only acceptance: completed source review must survive a failed execution job.
-          exit 1
       - name: Upload optional untrusted execution evidence even after failure
         if: always()
         uses: actions/upload-artifact@v4
