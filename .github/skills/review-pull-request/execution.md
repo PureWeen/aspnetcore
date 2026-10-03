@@ -48,7 +48,7 @@ head/tail excerpts. A job's success is **not** a test-pass classification.
 
 | Classification | Meaning |
 |---|---|
-| `red-green` | Head passes; same selected cases fail assertions or throw from their test body after product reversion |
+| `red-green` | Head passes; the same selected cases execute after product reversion, with at least one assertion failure or exception propagating through a test method |
 | `green-green` | Same tests pass both trees; no red proof |
 | `head-red` | Tests fail at frozen head; not automatically a finding |
 | `red-compile` | Reverted compiler diagnostics; not runtime regression proof |
@@ -63,7 +63,9 @@ allows silent `NO_FINDINGS` noop. Other classifications remain unavailable for t
 publication decision, even when they retain useful execution observations.
 
 Failed cases retain `assertion`, `test-body-exception`, or
-`setup-or-unclassified` origin and bounded diagnostic text. Jest hook failures,
+`setup-or-unclassified` origin and bounded diagnostic text. `test-body-exception`
+means an exception propagated through the test method; the exception can originate
+in product or framework code, not necessarily in that method. Jest hook failures,
 unclassified failures, timeouts (even with a completed JSON report), duplicate
 identities, missing rows, changed executed/skipped cohorts, and contradictory
 counts/exits are unavailable. A reverted compile failure is never runtime proof.
