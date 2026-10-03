@@ -9,30 +9,29 @@ import subprocess
 import textwrap
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(os.environ.get("REVIEW_EXECUTION_TEST_ROOT", pathlib.Path(__file__).resolve().parents[1]))
 SCRIPTS = ROOT / "scripts"
 
 
 class ExecutionTests(unittest.TestCase):
     def test_supported_scope_and_bounds(self):
         text = (SCRIPTS / "review-execution.sh").read_text()
-        self.assertIn("Microsoft.AspNetCore.Components.QuickGrid.Tests.csproj", text)
-        self.assertIn("src/Components/Web.JS/", text)
-        self.assertIn("timeout --signal=TERM", text)
-        self.assertIn("deadline=", text)
-        self.assertNotIn("BREAK_RESTORE", text)
+        for required in ("Microsoft.AspNetCore.Components.QuickGrid.Tests.csproj",
+                         "src/Components/Web.JS/", "timeout --signal=TERM", "deadline="):
+            self.assertTrue(required in text, required)
+        self.assertFalse("BREAK_RESTORE" in text)
 
     def test_workflow_failure_does_not_skip_source_review(self):
         text = (ROOT.parents[1] / "workflows" / "pull-request-review.md").read_text()
-        self.assertIn("needs: [freeze_pr_head, review_execution]", text)
-        self.assertIn("if: always() && needs.activation.result == 'success'", text)
-        self.assertIn("persist-credentials: false", text)
-        self.assertIn("if: ${{ github.event.repository.fork == false }}", text)
+        for required in ("needs: [freeze_pr_head, review_execution]",
+                         "if: always() && needs.activation.result == 'success'",
+                         "persist-credentials: false", "if: ${{ github.event.repository.fork == false }}"):
+            self.assertTrue(required in text, required)
 
     def test_packer_execution_exclusions_are_actor_specific(self):
         text = (SCRIPTS / "prepare-review.cs").read_text()
-        self.assertIn("Hosted agent and workers executing PR code", text)
-        self.assertNotIn('"Running PR code, tests, CI, browser workflows, or implementation samples"', text)
+        self.assertTrue("Hosted agent and workers executing PR code" in text)
+        self.assertFalse('"Running PR code, tests, CI, browser workflows, or implementation samples"' in text)
 
     def test_artifact_normalizer_and_gate_fixtures(self):
         subprocess.run(["python", str(SCRIPTS / "execution-evidence.py"), "--self-test"], check=True)
@@ -60,6 +59,9 @@ const cases = [
   [unavailable, [{type:'create_pull_request_review_comment'},
     {type:'submit_pull_request_review',body:'no execution section'}], false],
   [available, [{type:'create_pull_request_review_comment'}], false],
+  [available, [], false],
+  [available, [{type:'add_comment',body:'arbitrary text'}], false],
+  [available, [{type:'noop'},{type:'unsupported_public_shape'}], false],
   [unavailable, [{type:'report_incomplete',reason:'missing guide'},
     {type:'add_comment',body:'Review not published (INCOMPLETE): missing guide\\n\\nNo partial findings were published.'}], true],
 ];
@@ -70,9 +72,57 @@ for (const [execution, items, expected] of cases) {
     process:{env:{RUNNER_TEMP:'.'}},core:{setFailed:()=>{failed=true;}}});
   if ((!failed)!==expected) throw new Error(JSON.stringify({items,expected,failed}));
 }
-console.log('Publication gate: 11 allowed/rejected shape fixtures passed');
+console.log('Publication gate: '+cases.length+' allowed/rejected shape fixtures passed');
 """
         subprocess.run(["node", "-e", wrapper, json.dumps(code)], check=True)
+
+    def test_fallback_file_boundaries_preserve_required_source_failures(self):
+        scratch = ROOT.parents[2] / "artifacts" / "review-execution-fallback-fixtures"
+        scratch.mkdir(parents=True, exist_ok=True)
+        report, manifest, output = (scratch / n for n in ("input.json", "manifest.json", "execution.json"))
+        target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
+        manifest.write_text(json.dumps({"target": target}))
+        command = ["python", str(SCRIPTS / "execution-evidence.py"), str(report), str(manifest), str(output)]
+        try:
+            if report.exists():
+                report.unlink()
+            subprocess.run(command, check=True)
+            result = json.loads(output.read_text())
+            self.assertFalse(result["available"])
+            self.assertEqual("execution artifact is missing; job may have failed or timed out", result["reason"])
+            report.write_text("not json")
+            subprocess.run(command, check=True)
+            self.assertEqual("execution artifact is unreadable or malformed", json.loads(output.read_text())["reason"])
+            report.write_text(json.dumps({"schemaVersion": 1, "headSha": "d" * 40}))
+            subprocess.run(command, check=True)
+            self.assertEqual("execution report headSha does not match the frozen source bundle",
+                             json.loads(output.read_text())["reason"])
+            manifest.write_text("not json")
+            self.assertNotEqual(0, subprocess.run(command, stderr=subprocess.DEVNULL).returncode)
+        finally:
+            shutil.rmtree(scratch)
+
+    def test_subprocess_deadline_records_timeout(self):
+        runner = (SCRIPTS / "review-execution.sh").read_text()
+        run_step = "run_step() {" + runner.split("run_step() {", 1)[1].split("\nfinish() {", 1)[0]
+        bash = pathlib.Path(r"C:\Program Files\Git\bin\bash.exe") if os.name == "nt" else pathlib.Path("/bin/bash")
+        scratch = ROOT.parents[2] / "artifacts" / "review-execution-timeout"
+        scratch.mkdir(parents=True, exist_ok=True)
+        # Exercise the real trusted command wrapper with an inert sleep, not PR code.
+        code = """set -euo pipefail
+output=artifacts/review-execution-timeout
+mkdir -p "$output/logs"
+deadline=$((SECONDS + 1))
+report() { printf '%s\\n' "$*" > "$output/record.txt"; }
+""" + run_step + """
+run_step deadline head sleep 3
+test "$step_code" = 124
+grep -q 'sleep 3' "$output/record.txt"
+"""
+        try:
+            subprocess.run([str(bash), "-c", code], cwd=ROOT.parents[2], check=True, timeout=15)
+        finally:
+            shutil.rmtree(scratch)
 
     def test_runner_planner_results_and_restoration(self):
         runner = (SCRIPTS / "review-execution.sh").read_text()
@@ -160,6 +210,19 @@ console.log('Publication gate: 11 allowed/rejected shape fixtures passed');
                 jest.write_text(json.dumps({"numTotalTests": 2, "numPassedTests": 2 - failed, "numFailedTests": failed}))
                 report("test", "jest", tree, jest, failed, 0)
             self.assertEqual("mixed", report("finish")["classification"])
+            # The measured planner must distinguish docs-only from unsupported product-only changes.
+            git("reset", "--hard", base)
+            write("docs/Example.md", "docs")
+            git("add", ".")
+            git("commit", "-qm", "docs")
+            head = git("rev-parse", "HEAD")
+            self.assertEqual("not-applicable", report("init")["classification"])
+            git("reset", "--hard", base)
+            write(prefix + "src/Value.cs", "product")
+            git("add", ".")
+            git("commit", "-qm", "product")
+            head = git("rev-parse", "HEAD")
+            self.assertEqual("unsupported", report("init")["classification"])
         finally:
             shutil.rmtree(scratch, onexc=remove_readonly)
 

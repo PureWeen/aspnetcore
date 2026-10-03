@@ -92,6 +92,7 @@ def self_test():
     for outcome in CLASSES - AVAILABLE:
         normalized = normalize({**base, "classification": outcome, "reason": "line\nother" * 100}, target)
         assert not normalized["available"] and len(normalized["reason"]) <= 240 and "\n" not in normalized["reason"]
+    assert not normalize({**base, "classification": "red-green", "plan": []}, target)["available"]
     pair = {**base, "classification": "red-green", "plan": [{"files": ["test.cs"]}],
             "unsupported": [], "restoredHead": True, "results": []}
     for tree, passed, failed in (("head", 2, 0), ("reverted", 1, 1)):

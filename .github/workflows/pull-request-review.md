@@ -221,6 +221,8 @@ jobs:
           bash "$GITHUB_WORKSPACE/review-execution-infrastructure/review-execution.sh" \
             "$checkout" "$REVIEW_HEAD" "$REVIEW_MERGE_BASE" "$output" "$REVIEW_BASE" \
             > "$output/logs/wrapper.log" 2>&1
+          # Fork-only acceptance: prove source review continues after a failed execution job.
+          exit 1
       - name: Upload optional untrusted execution evidence even after failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -308,7 +310,10 @@ jobs:
               typeof incompleteItems[0].reason === 'string'
               ? incompleteItems[0].reason
               : null;
-            if ((noop > 0 && (comments || reviews || incomplete || statusComments.length)) ||
+            const allowed = ['noop', 'add_comment', 'create_pull_request_review_comment',
+              'submit_pull_request_review', 'report_incomplete', 'missing_data', 'missing_tool'];
+            if (output.items.length === 0 || output.items.some(item => !allowed.includes(item.type)) ||
+                (noop > 0 && (comments || reviews || incomplete || statusComments.length)) ||
                 (incomplete && (comments || reviews || noop !== 0 || incompleteItems.length !== 1 ||
                   !statusMatch || statusMatch[2] !== incompleteReason)) ||
                 (!incomplete && statusComments.length > 0 && !unavailableOnly) ||

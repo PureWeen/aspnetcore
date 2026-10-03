@@ -301,6 +301,8 @@ PY
   target=${fields[1]}
   if [[ "$kind" == dotnet ]]; then
     restore_args=(./eng/build.sh --restore --no-build --build-managed --no-build-native --no-build-nodejs --no-build-java --no-build-installers --projects "$checkout/$target" -p:UseIisNativeAssets=false -p:BuildNodeJS=false)
+    # Fork-only acceptance: a real restore failure, not a synthetic report.
+    restore_args+=(-p:RestoreSources=http://127.0.0.1:9/nuget/v3/index.json)
     run_step "restore-$i" head "${restore_args[@]}"
   else
     npm_args=(npm ci "--workspace=$target" --include-workspace-root --loglevel=http)
