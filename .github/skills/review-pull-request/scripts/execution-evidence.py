@@ -31,7 +31,8 @@ def normalize(report, target):
         if classification == "red-green" and not report.get("revertedFiles"):
             return unavailable(target, "execution report has no reverted product change")
         plans, results = report.get("plan"), report.get("results")
-        if not isinstance(plans, list) or not plans or not isinstance(results, list):
+        if (not isinstance(plans, list) or not plans or not isinstance(results, list) or
+                len(results) != 2 * len(plans)):
             return unavailable(target, "execution report has no complete test plan/results")
         if report.get("unsupported") or report.get("restoredHead") is not True:
             return unavailable(target, "execution report has unsupported selections or an unrestored tree")
@@ -67,7 +68,7 @@ def normalize(report, target):
     if classification == "not-applicable":
         files = report.get("changedFiles")
         if (not isinstance(files, list) or any(f.get("kind") != "docs-only" for f in files) or
-                report.get("plan") or report.get("unsupported") or report.get("steps")):
+                report.get("plan") or report.get("unsupported") or report.get("steps") or report.get("results")):
             return unavailable(target, "execution report does not establish docs-only non-applicability")
     result = copy.deepcopy(report)
     result["available"] = classification in AVAILABLE
@@ -92,6 +93,7 @@ def self_test():
     assert not normalize(None, target)["available"]
     assert not normalize({**base, "classification": "pending"}, target)["available"]
     assert not normalize({**base, "changedFiles": [{"kind": "product"}]}, target)["available"]
+    assert not normalize({**base, "results": [{"failed": 1}]}, target)["available"]
     for outcome in CLASSES - AVAILABLE:
         normalized = normalize({**base, "classification": outcome, "reason": "line\nother" * 100}, target)
         assert not normalized["available"] and len(normalized["reason"]) <= 240 and "\n" not in normalized["reason"]
@@ -121,6 +123,7 @@ def self_test():
     altered = {**pair, "unsupported": [{"path": "other"}]}
     assert not normalize(altered, target)["available"]
     assert not normalize({**pair, "revertedFiles": []}, target)["available"]
+    assert not normalize({**pair, "results": pair["results"] + [{"planIndex": 99, "failed": 1}]}, target)["available"]
     print("Normalizer: identities, all classifications, counts, all-skipped, missing reports, partial unsupported: passed")
 
 
