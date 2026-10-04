@@ -94,7 +94,9 @@ class, three frozen trees, aggregate validated rows and assertion/exception spli
 fixed supporting-evidence boundary, and current Actions run containing the
 `review-execution` artifact's verbatim commands and results. Unavailable classes
 omit unchecked counts and encode the exact reason as a JSON string. Producer-supplied
-summary text is overwritten. The gate binds the summary to the current trees/run
+summary text is overwritten. Missing/unavailable and docs-only summaries reference
+report/log artifacts only if recorded; they do not claim commands or full results exist.
+The gate binds the summary to the current trees/run
 and rejects missing, reformatted, duplicated or extended execution sections.
 Models must not reconstruct commands or results in other public prose.
 Artifact access requires a signed-in repository reader and follows the repository's

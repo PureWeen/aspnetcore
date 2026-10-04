@@ -144,12 +144,14 @@ def public_summary(report, run_url):
     else:
         reason = json.dumps(report["reason"], ensure_ascii=True).replace("@", "\\u0040").replace("`", "\\u0060")
         lines.append("Unavailable reason (JSON string): " + reason)
+    reference = ("Recorded commands and full results: " if report["available"] and
+                 report["classification"] != "not-applicable" else "Execution report/logs, if recorded: ")
     if run_url:
         if not re.fullmatch(r"https://[A-Za-z0-9.:-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/runs/[0-9]+", run_url) or len(run_url) > 500:
             raise ValueError("invalid trusted execution run URL")
-        lines.append("Recorded commands and full results: review-execution artifact at " + run_url)
+        lines.append(reference + "review-execution artifact at " + run_url)
     else:
-        lines.append("Recorded commands and full results: local execution.json and execution.md.")
+        lines.append(reference + "local execution.json and execution.md.")
     lines.append("Supporting evidence only; source findings are not execution-verified.")
     return "\n".join(lines)
 

@@ -96,6 +96,22 @@ class ExecutionTests(unittest.TestCase):
             self.assertIn("JSONDecodeError", required_failure.stderr)
             self.assertFalse(output_file.exists())
 
+    def test_missing_report_does_not_claim_recorded_commands(self):
+        target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            manifest, output = root / "manifest.json", root / "execution.json"
+            manifest.write_text(json.dumps({"target": target}))
+            subprocess.run([sys.executable, str(SCRIPTS / "execution-evidence.py"),
+                            str(root / "missing.json"), str(manifest), str(output)],
+                           env={**os.environ, "REVIEW_EXECUTION_RUN_URL":
+                                "https://github.com/PureWeen/aspnetcore/actions/runs/123"}, check=True)
+            report = json.loads(output.read_text())
+            self.assertFalse(report["available"])
+            self.assertIn("artifact is missing", report["reason"])
+            self.assertNotIn("Recorded commands and full results:", report["publicSummary"])
+            self.assertIn("Execution report/logs, if recorded:", report["publicSummary"])
+
     def test_public_summary_is_bound_deterministic_and_not_producer_text(self):
         target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
         base = {"schemaVersion": 1, "headSha": target["head"], "mergeBaseSha": target["mergeBase"],

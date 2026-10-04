@@ -37,7 +37,9 @@ const unavailable = { ...identity, available: false, classification: 'infra-fail
 const summary = execution => `Execution: ${execution.classification}\n` +
   `Frozen trees: head ${execution.headSha}; merge base ${execution.mergeBaseSha}; base tip ${execution.baseTipSha}.\n` +
   (execution.available ? '' : `Unavailable reason (JSON string): ${JSON.stringify(execution.reason)}\n`) +
-  `Recorded commands and full results: review-execution artifact at https://github.com/PureWeen/aspnetcore/actions/runs/123\n` +
+  (execution.available && execution.classification !== 'not-applicable'
+    ? 'Recorded commands and full results: ' : 'Execution report/logs, if recorded: ') +
+  `review-execution artifact at https://github.com/PureWeen/aspnetcore/actions/runs/123\n` +
   `Supporting evidence only; source findings are not execution-verified.`;
 available.publicSummary = summary(available);
 unavailable.publicSummary = summary(unavailable);
@@ -263,6 +265,12 @@ const cases = [
   ['execution summary stale current run', findings(1), false, available, identity.headSha, 'https://github.com/PureWeen/aspnetcore/actions/runs/456'],
   ['unavailable summary wrong reason', { items: [comment(), { type: 'submit_pull_request_review', body: unavailable.publicSummary.replace('restore failed', 'different') }] }, false,
     { ...unavailable, publicSummary: unavailable.publicSummary.replace('restore failed', 'different') }],
+  ['unavailable summary falsely claims complete recorded results', { items: [comment(), { type: 'submit_pull_request_review',
+    body: unavailable.publicSummary.replace('Execution report/logs, if recorded:', 'Recorded commands and full results:') }] }, false,
+    { ...unavailable, publicSummary: unavailable.publicSummary.replace('Execution report/logs, if recorded:', 'Recorded commands and full results:') }],
+  ['not-applicable summary uses optional report reference', { items: [comment(), { type: 'submit_pull_request_review',
+    body: summary({ ...available, classification: 'not-applicable' }) }] }, true,
+    { ...available, classification: 'not-applicable', publicSummary: summary({ ...available, classification: 'not-applicable' }) }],
 ];
 
 for (const runDirectory of process.argv.slice(2)) {

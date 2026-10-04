@@ -378,12 +378,14 @@ jobs:
               `Frozen trees: head ${execution.headSha}; merge base ${execution.mergeBaseSha}; base tip ${execution.baseTipSha}.\n`;
             const encodedReason = JSON.stringify(execution.reason).replace(/[^\x20-\x7e]|[@`]/g,
               character => '\\u' + character.charCodeAt(0).toString(16).padStart(4, '0'));
+            const artifactPrefix = execution.available && execution.classification !== 'not-applicable'
+              ? 'Recorded commands and full results: ' : 'Execution report/logs, if recorded: ';
             const summaryIsValid = typeof execution.publicSummary === 'string' &&
               execution.publicSummary.length <= 2400 &&
               !/[^\x20-\x7e\n]|[@`]/.test(execution.publicSummary) &&
               /^https:\/\/[A-Za-z0-9.:-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/runs\/[0-9]+$/.test(process.env.REVIEW_EXECUTION_RUN_URL) &&
               execution.publicSummary.startsWith(summaryPrefix) &&
-              execution.publicSummary.includes('\nRecorded commands and full results: review-execution artifact at ' +
+              execution.publicSummary.includes('\n' + artifactPrefix + 'review-execution artifact at ' +
                 process.env.REVIEW_EXECUTION_RUN_URL + '\n') &&
               execution.publicSummary.endsWith('Supporting evidence only; source findings are not execution-verified.') &&
               (execution.available || execution.publicSummary.includes('\nUnavailable reason (JSON string): ' + encodedReason + '\n'));
