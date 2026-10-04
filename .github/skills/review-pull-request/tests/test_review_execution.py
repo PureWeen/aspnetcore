@@ -96,6 +96,59 @@ class ExecutionTests(unittest.TestCase):
             self.assertIn("JSONDecodeError", required_failure.stderr)
             self.assertFalse(output_file.exists())
 
+    def test_public_summary_is_bound_deterministic_and_not_producer_text(self):
+        target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
+        base = {"schemaVersion": 1, "headSha": target["head"], "mergeBaseSha": target["mergeBase"],
+                "baseTipSha": target["baseTip"], "classification": "not-applicable",
+                "changedFiles": [{"kind": "docs-only"}], "publicSummary": "Invented producer commands.",
+                "reason": "unavailable @mention `command` \u263a"}
+        run_url = "https://github.com/PureWeen/aspnetcore/actions/runs/123"
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            manifest, input_file, output = root / "manifest.json", root / "input.json", root / "execution.json"
+            manifest.write_text(json.dumps({"target": target}))
+            for classification in ("not-applicable", "head-red", "red-compile", "zero-tests",
+                                   "infra-failure", "unsupported", "mixed", "red-green", "green-green"):
+                with self.subTest(classification=classification):
+                    report = {**base, "classification": classification}
+                    if classification in {"red-green", "green-green"}:
+                        report.update(plan=[], results=[], revertedFiles=["src/Product.cs"], restoredHead=True)
+                        for index, failure_kind in enumerate(("assertion", "test-body-exception")):
+                            method = "Tests.Cases.Sample" + str(index)
+                            report["plan"].append({"kind": "dotnet", "methods": [method]})
+                            for tree in ("head", "reverted"):
+                                failed = tree == "reverted" and classification == "red-green"
+                                report["results"].append({
+                                    "planIndex": index, "tree": tree, "kind": "dotnet",
+                                    "passed": 0 if failed else 1, "failed": 1 if failed else 0,
+                                    "total": 1, "skipped": 0, "exitCode": 1 if failed else 0,
+                                    "classification": "fail" if failed else "pass", "reportFound": True,
+                                    "preservedHeadInputs": True, "testCases": [{"name": method,
+                                        "outcome": "Failed" if failed else "Passed", "failureKind": failure_kind}]})
+                    input_file.write_text(json.dumps(report))
+                    texts = []
+                    for _ in range(2):
+                        subprocess.run([sys.executable, str(SCRIPTS / "execution-evidence.py"),
+                                        str(input_file), str(manifest), str(output)],
+                                       env={**os.environ, "REVIEW_EXECUTION_RUN_URL": run_url}, check=True)
+                        result = json.loads(output.read_text())
+                        texts.append(result["publicSummary"])
+                    self.assertEqual(texts[0], texts[1])
+                    self.assertTrue(texts[0].startswith("Execution: " + classification + "\n"))
+                    self.assertTrue(texts[0].isascii())
+                    self.assertLessEqual(len(texts[0]), 2400)
+                    for value in (*target.values(), run_url):
+                        self.assertIn(value, texts[0])
+                    for value in ("Invented producer", "@", "`"):
+                        self.assertNotIn(value, texts[0])
+                    self.assertIn("source findings are not execution-verified", texts[0])
+                    if classification == "red-green":
+                        self.assertIn("head 2 passed, 0 failed, 0 skipped", texts[0])
+                        self.assertIn("1 assertions, 1 test-method-stack exceptions", texts[0])
+                    elif classification not in {"green-green", "not-applicable"}:
+                        self.assertNotIn("Recorded rows:", texts[0])
+                    self.assertEqual(texts[0], (root / "execution-public-summary.txt").read_text())
+
     def test_normalizer_rejects_inconsistent_rows_and_inputs(self):
         normalize = runpy.run_path(str(SCRIPTS / "execution-evidence.py"))["normalize"]
         target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}

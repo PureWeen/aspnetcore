@@ -88,10 +88,18 @@ with a bounded exact reason. No report string is assigned to Actions outputs,
 environment variables or instructions. Source-bundle failures retain their existing
 failure handling. Live-head publication checks remain in place.
 
-With findings, the COMMENT review includes `Execution: <class>` and its boundary.
-Use that exact plain-text line. The gate also accepts balanced bold labels, Markdown
-headings, an inline-code class and sentence punctuation, but not class suffixes,
-wrong classes or mid-line mentions. The unavailable reason must still match exactly.
+With findings, the COMMENT review ends with the trusted validator's exact
+`publicSummary`, also supplied as `execution-public-summary.txt`. It records the
+class, three frozen trees, aggregate validated rows and assertion/exception split,
+fixed supporting-evidence boundary, and current Actions run containing the
+`review-execution` artifact's verbatim commands and results. Unavailable classes
+omit unchecked counts and encode the exact reason as a JSON string. Producer-supplied
+summary text is overwritten. The gate binds the summary to the current trees/run
+and rejects missing, reformatted, duplicated or extended execution sections.
+Models must not reconstruct commands or results in other public prose.
+Artifact access requires a signed-in repository reader and follows the repository's
+Actions retention window; it is not permanent evidence hosting. Copy fidelity is
+fail-closed, and source prose/inline findings remain model-authored.
 Without new findings and with unavailable execution, publish exactly one comment:
 
 ```text

@@ -120,6 +120,40 @@ def normalize(report, target):
     return result
 
 
+def public_summary(report, run_url):
+    lines = ["Execution: " + report["classification"],
+             "Frozen trees: head " + report["headSha"] + "; merge base " +
+             report["mergeBaseSha"] + "; base tip " + report["baseTipSha"] + "."]
+    if report["available"] and report["classification"] != "not-applicable":
+        rows = []
+        for tree in ("head", "reverted"):
+            selected = [r for r in report["results"] if r["tree"] == tree]
+            counts = [sum(r[k] for r in selected) for k in ("passed", "failed", "skipped")]
+            rows.append(tree + " " + ", ".join(str(n) + " " + k for n, k in zip(
+                counts, ("passed", "failed", "skipped"))))
+        lines.append("Recorded rows: " + "; ".join(rows) + ".")
+        failed = [c for r in report["results"] if r["tree"] == "reverted"
+                  for c in r["testCases"] if c["outcome"].lower() == "failed"]
+        lines.append("Reverted failures: " + str(sum(c["failureKind"] == "assertion" for c in failed)) +
+                     " assertions, " + str(sum(c["failureKind"] == "test-body-exception" for c in failed)) +
+                     " test-method-stack exceptions (may originate in product/framework code).")
+        lines.append("Selected cases pass at head; " + ("at least one fails after product reversion."
+                     if report["classification"] == "red-green" else "they also pass after product reversion; no red proof."))
+    elif report["classification"] == "not-applicable":
+        lines.append("Docs-only: no tests selected or executed.")
+    else:
+        reason = json.dumps(report["reason"], ensure_ascii=True).replace("@", "\\u0040").replace("`", "\\u0060")
+        lines.append("Unavailable reason (JSON string): " + reason)
+    if run_url:
+        if not re.fullmatch(r"https://[A-Za-z0-9.:-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/runs/[0-9]+", run_url) or len(run_url) > 500:
+            raise ValueError("invalid trusted execution run URL")
+        lines.append("Recorded commands and full results: review-execution artifact at " + run_url)
+    else:
+        lines.append("Recorded commands and full results: local execution.json and execution.md.")
+    lines.append("Supporting evidence only; source findings are not execution-verified.")
+    return "\n".join(lines)
+
+
 def self_test():
     target = {"head": "a" * 40, "mergeBase": "b" * 40, "baseTip": "c" * 40}
     base = {"schemaVersion": 1, "headSha": target["head"], "mergeBaseSha": target["mergeBase"],
@@ -190,7 +224,9 @@ def main():
         result = unavailable(target, "execution artifact is missing; review_execution job result: " + job_result)
     except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError):
         result = unavailable(target, "execution artifact is unreadable or malformed")
+    result["publicSummary"] = public_summary(result, os.environ.get("REVIEW_EXECUTION_RUN_URL"))
     output_path.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+    output_path.with_name("execution-public-summary.txt").write_text(result["publicSummary"])
 
 
 if __name__ == "__main__":
