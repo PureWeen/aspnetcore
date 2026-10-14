@@ -1,0 +1,239 @@
+{
+  "schema_version": "2.0",
+  "assessment_id": "synthetic-ready-for-fix-investigation-1",
+  "generated_at": "2026-08-20T20:00:00Z",
+  "instrumentation": {
+    "protocol": {
+      "evaluation_protocol_version": "1.0",
+      "cohort_version": "synthetic-contract-tests-v1"
+    },
+    "source": {
+      "skill_commit_sha": "1111111111111111111111111111111111111111",
+      "artifacts": {
+        "skill_md_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "disposition_policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "receipt_schema_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "validator_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "manifest_sha256": "bc0dcdfe4d9970bfd7792961959740c899355f8bf2f78d925eb3838a6656cf25"
+    },
+    "timing": {
+      "started_at": "2026-08-20T19:59:00Z",
+      "ended_at": "2026-08-20T20:00:00Z",
+      "wall_clock_seconds": 60,
+      "active_execution": {
+        "value": 10.5,
+        "unknown_reason": null
+      }
+    },
+    "tools": {
+      "python": {
+        "used": true,
+        "version": "3.14.0",
+        "unknown_reason": null
+      },
+      "git": {
+        "used": true,
+        "version": "2.51.0",
+        "unknown_reason": null
+      },
+      "dotnet_sdk": {
+        "used": true,
+        "version": "10.0.100",
+        "unknown_reason": null
+      },
+      "browser": {
+        "used": false,
+        "version": null,
+        "unknown_reason": "not_used"
+      },
+      "playwright": {
+        "used": false,
+        "version": null,
+        "unknown_reason": "not_used"
+      },
+      "domain_validator": {
+        "used": false,
+        "version": null,
+        "unknown_reason": "not_used"
+      }
+    },
+    "model": {
+      "engine": {
+        "identifier": "copilot-cli",
+        "version": "1.0.80",
+        "unknown_reason": null
+      },
+      "model": {
+        "identifier": "gpt-5.6-sol",
+        "version": null,
+        "unknown_reason": "provider model revision was not exposed"
+      }
+    },
+    "attempts": {
+      "acquisition": {
+        "value": 1,
+        "unknown_reason": null
+      },
+      "assessment": {
+        "value": 1,
+        "unknown_reason": null
+      },
+      "reproduction": {
+        "value": 1,
+        "unknown_reason": null
+      }
+    },
+    "cost": {
+      "amount": null,
+      "currency": null,
+      "unit": null,
+      "source": null,
+      "unknown_reason": "cost telemetry unavailable"
+    }
+  },
+  "artifact_root": "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1",
+  "source_repository": "dotnet/aspnetcore",
+  "issue": {
+    "number": 1,
+    "url": "https://github.com/dotnet/aspnetcore/issues/1",
+    "revision": {
+      "updated_at": "2026-08-20T19:00:00Z",
+      "state": "OPEN",
+      "state_reason": null
+    }
+  },
+  "assessed_repository": {
+    "sha": "1111111111111111111111111111111111111111",
+    "dirty": false,
+    "path": "/workspaces/aspnetcore-user"
+  },
+  "environment": {
+    "sdk": "10.0.100",
+    "tfm": "net10.0",
+    "os": "Linux",
+    "render_mode": "not_applicable"
+  },
+  "upstream_triage": {
+    "labels": ["area-hosting"],
+    "issue_type": "Bug",
+    "milestone": null,
+    "missing_signals": ["milestone"]
+  },
+  "investigation": {
+    "highest_tier": 3,
+    "runtime_evidence_feasible": true,
+    "released_sdk_first": true,
+    "components_validator_delegated": false,
+    "customer_signal": "normal",
+    "release_signal": "normal",
+    "budget_minutes": 30,
+    "search_budget": 3,
+    "execution_attempt_budget": 2
+  },
+  "decision_signals": {
+    "security_report": false,
+    "verified_duplicate": false,
+    "verified_already_fixed": false,
+    "verified_by_design": false,
+    "unsupported_usage": false,
+    "invalid_or_incomplete_setup": false,
+    "documentation_gap": false,
+    "product_or_design_decision_required": false,
+    "runtime_reproduced": true,
+    "structural_failure_verified": false,
+    "required_reporter_evidence_missing": false,
+    "infrastructure_blocked": false,
+    "runtime_attempted": true,
+    "below_threshold": false
+  },
+  "checks": [
+    {
+      "id": "triage",
+      "category": "triage",
+      "status": "passed",
+      "command_ids": [],
+      "evidence_refs": ["issue-snapshot"],
+      "details": "Consumed the existing upstream area and issue type."
+    },
+    {
+      "id": "released-repro",
+      "category": "reproduction",
+      "status": "passed",
+      "command_ids": ["run-repro"],
+      "evidence_refs": ["repro-output"],
+      "details": "The released-SDK standalone repro observed the reported behavior."
+    }
+  ],
+  "check_summary": {
+    "attempted": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0
+  },
+  "commands": [
+    {
+      "id": "run-repro",
+      "command": "dotnet run --project Repro.csproj",
+      "working_directory": "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/worktree/repro",
+      "status": "passed",
+      "exit_code": 0,
+      "stdout_ref": "repro-output",
+      "stderr_ref": null
+    }
+  ],
+  "evidence": [
+    {
+      "id": "issue-snapshot",
+      "kind": "issue_snapshot",
+      "path": "evidence/issue.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "source": "https://github.com/dotnet/aspnetcore/issues/1"
+    },
+    {
+      "id": "repro-output",
+      "kind": "command_output",
+      "path": "evidence/repro.log",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source": "command:run-repro"
+    }
+  ],
+  "confidence": "high",
+  "reason_code": "runtime_failure_reproduced",
+  "primary_disposition": "ready_for_fix_investigation",
+  "supporting_findings": [],
+  "missing_evidence": ["milestone"],
+  "blockers": [],
+  "resolution_reference": null,
+  "next_route": "fix_investigation",
+  "safety": {
+    "input_mode": "provided_offline_snapshot",
+    "assessment_mode": "offline_no_credentials",
+    "execution_boundary": "isolated_no_credentials_no_write_tools",
+    "hard_no_mutation_guarantee": true,
+    "github_access": "none",
+    "github_mutations": [],
+    "microsoft_365_writes": [],
+    "fixes_proposed": false,
+    "fixes_implemented": false,
+    "reproduction_isolation": "sandboxed_no_credentials",
+    "credentials_removed": true,
+    "acquisition_external_network_access": "none",
+    "assessment_external_network_access": "none",
+    "loopback_network_access": false,
+    "writable_roots": [
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1",
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/worktree",
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/cache",
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/tmp"
+    ],
+    "disposable_worktree_root": "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/worktree",
+    "cache_roots": [
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/cache"
+    ],
+    "temp_roots": [
+      "/tmp/assess-issue-readiness/synthetic-ready-for-fix-investigation-1/tmp"
+    ]
+  }
+}
