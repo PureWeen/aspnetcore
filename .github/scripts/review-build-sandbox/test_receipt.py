@@ -1,3 +1,4 @@
+import ast
 import copy
 import hashlib
 import json
@@ -7,10 +8,11 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
 import receipt
-from contract import PROFILES, commands
+from contract import PROFILES, commands, validate_test_classes
 
 
 class ReceiptTests(unittest.TestCase):
@@ -166,6 +168,83 @@ class ReceiptTests(unittest.TestCase):
             self.assertEqual(exported["publicSummary"], summary)
             self.assertIn("No baseline, product reversion, browser workflow, or newly authored repro", summary)
             self.assertLessEqual(len(summary), 2400)
+
+
+class TestClassContractTests(unittest.TestCase):
+    def setUp(self):
+        self.expected_assembly = PROFILES[0]["assembly"]
+        self.product = ET.Element("test", {
+            "type": self.expected_assembly + ".ResponseCachingMiddlewareTests",
+            "method": "CacheResponse", "result": "Pass",
+        })
+        self.sentinel = ET.Element("test", {
+            "type": "AlwaysTestTests.SuccessfulTests",
+            "method": "GuaranteedUnquarantinedTest", "result": "Pass",
+        })
+
+    def _validate_report(self, attributes):
+        root = ET.Element("assemblies")
+        assembly = ET.SubElement(root, "assembly", attributes)
+        assembly.extend([self.product, self.sentinel])
+        path = Path(__file__).with_name("host.py")
+        module = ast.parse(path.read_text(encoding="utf-8"))
+        body = next(node.body for node in module.body if isinstance(node, ast.Try))
+        start = next(index for index, node in enumerate(body) if isinstance(node, ast.Assign)
+                     and ast.unparse(node.targets[0]) == "assemblies")
+        end = next(index for index, node in enumerate(body) if isinstance(node, ast.Assign)
+                   and ast.unparse(node.targets[0]) == "receipt['tests']")
+        scope = {
+            "xml": ET.tostring(root), "ET": ET, "PROFILE": PROFILES[0],
+            "receipt": {}, "validate_test_classes": validate_test_classes,
+        }
+        exec(compile(ast.Module(body=body[start:end + 1], type_ignores=[]), str(path), "exec"), scope)
+        return scope["receipt"]["tests"]
+
+    def test_product_tests_do_not_require_shared_sentinel(self):
+        validate_test_classes([self.product], self.expected_assembly)
+
+    def test_shared_sentinel_is_allowed_with_executed_product_tests(self):
+        for result in ("Pass", "Skip"):
+            with self.subTest(sentinel_result=result):
+                self.sentinel.set("result", result)
+                validate_test_classes([self.product, self.sentinel], self.expected_assembly)
+
+    def test_shared_sentinel_does_not_establish_product_execution(self):
+        for product_result in (None, "Skip"):
+            with self.subTest(product_result=product_result):
+                tests = [self.sentinel]
+                if product_result is not None:
+                    self.product.set("result", product_result)
+                    tests.append(self.product)
+                with self.assertRaisesRegex(RuntimeError, "No executed product tests"):
+                    validate_test_classes(tests, self.expected_assembly)
+
+    def test_unexpected_classes_are_rejected(self):
+        for test_type, method in (
+            ("Other.Tests.Example", "Test"),
+            (self.expected_assembly + "Other.Example", "Test"),
+            ("AlwaysTestTests.SuccessfulTests", "GuaranteedQuarantinedTest"),
+        ):
+            with self.subTest(test_type=test_type, method=method):
+                unexpected = ET.Element("test", {"type": test_type, "method": method, "result": "Pass"})
+                with self.assertRaisesRegex(RuntimeError, "Unexpected test class"):
+                    validate_test_classes([self.product, unexpected], self.expected_assembly)
+
+    def test_host_reads_and_reconciles_xml_count_attributes(self):
+        result = self._validate_report({
+            "name": self.expected_assembly + ".dll", "total": "2", "passed": "2",
+            "failed": "0", "skipped": "0", "errors": "0",
+        })
+        self.assertEqual({"executed": 2, "passed": 2, "failed": 0, "skipped": 0},
+                         {key: result[key] for key in ("executed", "passed", "failed", "skipped")})
+        for field, value in (("total", "3"), ("passed", "1"), ("failed", "1"), ("skipped", "1")):
+            with self.subTest(field=field):
+                attributes = {
+                    "name": self.expected_assembly + ".dll", "total": "2", "passed": "2",
+                    "failed": "0", "skipped": "0", "errors": "0", field: value,
+                }
+                with self.assertRaisesRegex(RuntimeError, "Contradictory test result counts"):
+                    self._validate_report(attributes)
 
 
 if __name__ == "__main__":

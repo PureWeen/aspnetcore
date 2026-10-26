@@ -12,7 +12,7 @@ import sys
 import threading
 import time
 import xml.etree.ElementTree as ET
-from contract import ROOT as ROOT_PATH, PROFILES
+from contract import ROOT as ROOT_PATH, PROFILES, validate_test_classes
 
 ROOT = Path(ROOT_PATH)
 SOURCE = ROOT / "work"
@@ -318,12 +318,11 @@ try:
         raise RuntimeError("No executed tests or an assembly-level test error")
     if any(test.get("result") not in ("Pass", "Fail", "Skip") for test in tests):
         raise RuntimeError("Unknown test outcome")
-    if any(not test.get("type", "").startswith(PROFILE["assembly"] + ".") for test in tests):
-        raise RuntimeError("Unexpected test class")
+    validate_test_classes(tests, PROFILE["assembly"])
     if any(test.get("result") != "Pass" for test in executed):
         raise RuntimeError("Tests failed")
-    if (int(assembly["total"]) != len(tests) or int(assembly["passed"]) != len(executed)
-            or int(assembly["failed"]) != 0 or int(assembly["skipped"]) != len(tests) - len(executed)):
+    if (int(assembly.attrib["total"]) != len(tests) or int(assembly.attrib["passed"]) != len(executed)
+            or int(assembly.attrib["failed"]) != 0 or int(assembly.attrib["skipped"]) != len(tests) - len(executed)):
         raise RuntimeError("Contradictory test result counts")
     receipt["tests"] = {
         "executed": len(executed), "skipped": len(tests) - len(executed),

@@ -556,8 +556,11 @@ Missing or failed execution does not make the source review incomplete and is ne
 Do not infer a finding from a red result or call a source finding execution-verified.
 Workers may consume the typed command/result records but must not execute target code.
 
-First finish the skill's structured local result in your own reasoning/conversation, whose first
-line must be `STATUS: <value>`. Do not write it or any other review state to a file, and do not
+Determine the skill's structured result before selecting the safe output below. Your final
+assistant message must contain the complete structured result required by the skill, starting
+with `STATUS: <value>` and including every required field. A safe-output call or short prose
+verdict does not replace that readable result; do not retain it only in private reasoning.
+Do not write it or any other review state to a file, and do not
 use any file create/edit/write tool at any point in the hosted run. Only this final adapter may use safe-output tools.
 
 ## Stage only after complete validation
@@ -576,7 +579,7 @@ whose absent evidence is external to the bundle; use the normal review outputs b
 not the status comment or `report_incomplete`. If all routed guides completed but no new
 finding survives, use `noop` regardless of optional execution availability.
 Existing-feedback duplicates and unresolved candidates
-must remain visible in the structured result retained in your reasoning/conversation.
+must remain visible in the structured result in your final assistant message.
 Report excluded scope separately from completed work.
 
 Before calling any review output, validate the entire selected finding set: at most five,
