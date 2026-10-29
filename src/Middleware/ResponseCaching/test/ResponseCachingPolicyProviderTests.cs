@@ -41,6 +41,7 @@ public class ResponseCachingPolicyProviderTests
                 {
                     HttpMethods.Post,
                     HttpMethods.Put,
+                    HttpMethods.Get,
                     HttpMethods.Delete,
                     HttpMethods.Trace,
                     HttpMethods.Connect,
