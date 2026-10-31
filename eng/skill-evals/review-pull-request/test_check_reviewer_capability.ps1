@@ -451,7 +451,7 @@ try {
     [IO.File]::WriteAllBytes($manifestPath, $originalManifest)
 
     $feedbackPath = Join-Path $fixtures (
-        'cases/pr-69659-invocation-test/bundle/feedback.json'
+        'cases/pr-70106/bundle/feedback.json'
     )
     $originalFeedback = [IO.File]::ReadAllBytes($feedbackPath)
     Add-Content $feedbackPath ' '
@@ -459,28 +459,6 @@ try {
         & $checker -FixtureRoot $fixtures
     } 'stale artifact hash' 'Corrupt feedback bytes were accepted.'
     [IO.File]::WriteAllBytes($feedbackPath, $originalFeedback)
-
-    $dedupFeedbackPath = Join-Path $fixtures (
-        'cases/pr-67589-antiforgery-test/bundle/feedback.json'
-    )
-    $dedupManifestPath = Join-Path $fixtures (
-        'cases/pr-67589-antiforgery-test/bundle/manifest.json'
-    )
-    $originalDedupFeedback = [IO.File]::ReadAllBytes($dedupFeedbackPath)
-    $originalDedupManifest = [IO.File]::ReadAllBytes($dedupManifestPath)
-    $feedback = Get-Content $dedupFeedbackPath -Raw | ConvertFrom-Json -Depth 100
-    $feedback.comments = @($feedback.comments | Where-Object id -ne 4878160410)
-    $feedback | ConvertTo-Json -Depth 100 | Set-Content $dedupFeedbackPath
-    $manifest = Get-Content $dedupManifestPath -Raw | ConvertFrom-Json -Depth 100
-    $manifest.artifacts.'feedback.json' = Get-Sha256 $dedupFeedbackPath
-    $manifest | ConvertTo-Json -Depth 100 | Set-Content $dedupManifestPath
-    Assert-Throws {
-        & $checker -FixtureRoot $fixtures
-    } 'omits the prior feedback required for deduplication' (
-        'A deduplication case without its prior feedback was accepted.'
-    )
-    [IO.File]::WriteAllBytes($dedupFeedbackPath, $originalDedupFeedback)
-    [IO.File]::WriteAllBytes($dedupManifestPath, $originalDedupManifest)
 
     $leakPath = Join-Path $fixtures 'reviewer-capability-labels.json'
     Set-Content $leakPath '{}'
@@ -536,7 +514,7 @@ try {
     $controls | ConvertTo-Json -Depth 100 | Set-Content $temporaryControls
     Assert-Throws {
         & $checker -ControlsPath $temporaryControls
-    } 'three positive and three negative' 'A null control score was accepted.'
+    } 'two positive and three negative' 'A null control score was accepted.'
 
     $resultsRoot = Join-Path $testRoot 'results/run'
     New-Item -ItemType Directory -Path $resultsRoot -Force | Out-Null

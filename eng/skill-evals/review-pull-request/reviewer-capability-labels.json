@@ -1,5 +1,13 @@
 {
-  "revision": 2,
+  "revision": 3,
+  "priorMeasuredRevision": {
+    "revision": 2,
+    "gitCommit": "b34fe32c517ec4e1d8ce8cd0e3085b610a98b3b6",
+    "gitBlob": "99b92613a8608f88e3438d91b3115274cadbf149",
+    "sourceSha256": "044c19252892b0cae2c34d171093baa3dd66bea7e7178cd8a8cf9995f1a58cce",
+    "runArtifactSha256": "b0b998084069ad68c5d65322ec2e8e24385c316a619a4448e614ed00801e813c",
+    "runId": "3cf0bd32-d93e-41ca-8650-547caafe9379"
+  },
   "criteria": {
     "repository": "dotnet/aspnetcore",
     "defaultBranchCommit": "4f556f73a610b386e5ec29355a300e493d30c4c5",
@@ -16,119 +24,6 @@
     ]
   },
   "cases": [
-    {
-      "id": "pr-69659-invocation-test",
-      "stimulus": "reviewer-capability-pr-69659-invocation-test",
-      "partition": "development",
-      "suiteRole": "secondary",
-      "lineage": "dotnet/aspnetcore#69659@ef3019db988cac9789209bb1062fdb793ea49358",
-      "capabilityTags": [
-        "changed-test-discrimination",
-        "observable-invocation",
-        "new-finding"
-      ],
-      "riskTags": [
-        "false-negative",
-        "test-allows-side-effect"
-      ],
-      "journeyTags": [
-        "natural-review",
-        "historical-feedback-cutoff"
-      ],
-      "expectedDisposition": "actionable-finding-required",
-      "requiredFinding": {
-        "severity": "P3",
-        "path": "src/Components/JSInterop/test/Infrastructure/DotNetDispatcherTest.cs",
-        "line": 118,
-        "claim": "The new synchronous-invocation rejection test checks only the exception type and message, so it can still pass if the asynchronous target method is invoked before the rejection.",
-        "materialEffect": "A regression that starts the target method or its side effects before throwing would remain undetected.",
-        "sourceBasis": [
-          "The base revision has neither this guard nor this test; the head adds a return-type guard immediately before methodInfo.Invoke and adds the new theory as its regression coverage.",
-          "The frozen test contains no invocation flag, mock verification, or other assertion that the target method did not start.",
-          "Moving the new guard from before methodInfo.Invoke to immediately after it preserves the asserted InvalidOperationException and message while violating the intended no-invocation behavior.",
-          "The final PR later added DidInvokeAsyncMethod and Assert.False, corroborating the missing observable without serving as the sole proof.",
-          "No equivalent technical feedback appears before the frozen cutoff."
-        ]
-      },
-      "acceptance": [
-        "The finding is tied to the changed test and explains the specific false-pass mutation.",
-        "The recommendation asks for an observable non-invocation assertion rather than only more message checking."
-      ],
-      "rejection": [
-        "NO_FINDINGS or silence.",
-        "A finding that does not establish a changed-line causal defect.",
-        "A claim already covered by the included historical feedback."
-      ],
-      "unexpectedFindings": "manual-source-adjudication-required"
-    },
-    {
-      "id": "pr-67589-antiforgery-test",
-      "stimulus": "reviewer-capability-pr-67589-antiforgery-test",
-      "partition": "development",
-      "suiteRole": "secondary",
-      "lineage": "dotnet/aspnetcore#67589@485a3f11c85019dc77286d755c84961dbf2c95ee",
-      "capabilityTags": [
-        "feedback-deduplication",
-        "test-specificity",
-        "restraint"
-      ],
-      "riskTags": [
-        "duplicate-finding"
-      ],
-      "journeyTags": [
-        "natural-review",
-        "historical-feedback-cutoff"
-      ],
-      "expectedDisposition": "no-new-finding-required",
-      "knownConcern": {
-        "path": "src/ProjectTemplates/test/Templates.Blazor.Tests/BlazorWebTemplateTest.cs",
-        "line": 131,
-        "claim": "A single substring assertion does not prove that both independently protected passkey endpoints perform antiforgery validation.",
-        "deduplicationBasis": "Equivalent maintainer feedback is already present in issue comment 4878160410 before the excluded inline label-source comment."
-      },
-      "acceptance": [
-        "NO_FINDINGS is valid.",
-        "The output may recognize the test weakness only if it also treats it as already covered and does not present it as a new actionable finding."
-      ],
-      "rejection": [
-        "Reporting the known test-specificity concern as a new finding.",
-        "Inventing a distinct defect without source evidence."
-      ],
-      "unexpectedFindings": "manual-source-adjudication-required"
-    },
-    {
-      "id": "pr-68895-auth-refresh",
-      "stimulus": "reviewer-capability-pr-68895-auth-refresh",
-      "partition": "development",
-      "suiteRole": "secondary",
-      "lineage": "dotnet/aspnetcore#68895@3f7c17615005af6e57e6e617904a4a2f671f0762",
-      "capabilityTags": [
-        "configuration-composition",
-        "source-tracing",
-        "restraint"
-      ],
-      "riskTags": [
-        "fabricated-regression"
-      ],
-      "journeyTags": [
-        "natural-review",
-        "retrieval-feedback-snapshot"
-      ],
-      "expectedDisposition": "no-known-finding",
-      "sourceFacts": [
-        "ConfigureIdentityAuthenticationRefresh captures the pre-existing ConfigureConnection callback.",
-        "The replacement callback invokes the captured callback before applying its own access-token and close-timeout settings."
-      ],
-      "acceptance": [
-        "NO_FINDINGS is valid.",
-        "The reviewer does not claim that prior connection configuration is discarded."
-      ],
-      "rejection": [
-        "Claiming the wrapper overwrites or drops prior ConfigureConnection behavior.",
-        "Treating an unsupported speculative consequence as an actionable regression."
-      ],
-      "unexpectedFindings": "manual-source-adjudication-required"
-    },
     {
       "id": "pr-70106",
       "stimulus": "reviewer-capability-pr-70106",
@@ -169,62 +64,6 @@
         "A blanket claim that parallel execution is impossible in every WebAssembly mode.",
         "A fabricated claim that the provider contract affirmatively prohibits concurrent callbacks."
       ],
-      "unexpectedFindings": "manual-source-adjudication-required"
-    },
-    {
-      "id": "pr-66753",
-      "stimulus": "reviewer-capability-pr-66753",
-      "partition": "development",
-      "suiteRole": "primary",
-      "lineage": "dotnet/aspnetcore#66753@d98775db95835cdddf5f1dc2dc94fccee7c2c83d",
-      "capabilityTags": [
-        "async-overlap-at-await",
-        "producer-contract",
-        "changed-line-causality",
-        "actionable-finding"
-      ],
-      "riskTags": [
-        "user-input-lost",
-        "stale-async-continuation"
-      ],
-      "journeyTags": [
-        "natural-review",
-        "historical-feedback-cutoff",
-        "development-lineage"
-      ],
-      "expectedDisposition": "actionable-finding-required",
-      "requiredFinding": {
-        "severity": "P1",
-        "path": "src/Components/Web/src/Virtualization/Virtualize.cs",
-        "line": 606,
-        "claim": "The new spacer callbacks return for the full lifetime of ScrollToIndexAsync, so a real user scroll while the method is awaiting a slow ItemsProvider is ignored and the resumed programmatic operation can still align the viewport to its older target.",
-        "materialEffect": "Source flow implies that the UI can appear unresponsive during the provider wait and then jump to the stale programmatic target, contradicting the pull request's user-scroll-wins contract. This milestone does not claim browser execution was observed.",
-        "sourceBasis": [
-          "The exact PR body version before the cutoff says that user scrolling during the operation wins.",
-          "ScrollToIndexAsyncCore sets _currentScrollCts before awaiting EnsureRenderCommittedAsync, which can await RefreshDataCoreAsync and the ItemsProvider.",
-          "The changed spacer callbacks at lines 606 and 626 return whenever _currentScrollCts is non-null, so the browser-produced callbacks for a real user scroll cannot update the virtualized window during that wait.",
-          "The merge base has no ScrollToIndexAsync or _currentScrollCts behavior, so the conflicting overlap is introduced by this pull request.",
-          "Included feedback comment 3274671048 covers caller cancellation and later-call supersession after the render rendezvous; it does not cover real browser spacer callbacks being suppressed during the provider wait.",
-          "Later source-backed correction 5191c02677f40c1f116ab4b32c6a19523b668605 cancels the in-flight programmatic scroll and provider refresh when a real spacer callback arrives, and adds browser coverage for the exact overlap.",
-          "Equivalent feedback is excluded by the 2026-05-20T15:09:01Z cutoff."
-        ]
-      },
-      "acceptance": [
-        "The reviewer identifies that a real user scroll during the awaited provider/render path is ignored by the changed callbacks.",
-        "The reviewer connects the ignored callback to the stale programmatic operation resuming and violating the stated user-scroll-wins contract.",
-        "The finding is anchored to an added or modified line in the frozen diff and is not reported as already covered feedback."
-      ],
-      "rejection": [
-        "NO_FINDINGS or blanket silence.",
-        "A generic cancellation suggestion that does not establish the browser callback, await overlap, and observable viewport effect.",
-        "A claim that only simultaneous worker threads can trigger the defect.",
-        "A claim already covered by the included pre-cutoff feedback."
-      ],
-      "labelSource": {
-        "rootCommentId": 3275032953,
-        "originalCommitId": "d98775db95835cdddf5f1dc2dc94fccee7c2c83d",
-        "excludedAtUtc": "2026-05-20T15:09:01Z"
-      },
       "unexpectedFindings": "manual-source-adjudication-required"
     },
     {

@@ -1,4 +1,0 @@
-
-> @copilot we need to validate the CSRF feature / item in the HttpContext is valid and has passed. The endpoint must be annotated with requires antiforgery
-
-Updated the scaffolded passkey endpoints to opt into the new CSRF validation path by applying [RequireAntiforgeryToken] to both POST endpoints, so they now require the middleware-provided antiforgery validation. This is covered in commit fa8f11ee.

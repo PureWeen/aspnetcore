@@ -1,1 +1,0 @@
-@copilot we need to validate the CSRF feature / item in the HttpContext is valid and has passed. The endpoint must be annotated with requires antiforgery

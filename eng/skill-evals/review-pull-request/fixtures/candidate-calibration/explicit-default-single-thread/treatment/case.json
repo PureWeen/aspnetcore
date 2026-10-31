@@ -1,6 +1,0 @@
-{
-  "packet": "explicit-default-single-thread",
-  "description": "The exact candidate is evaluated under an explicit default single-threaded execution premise.",
-  "executionPremise": "Assume no true parallel managed execution and no reentrant application callback between the cancellation check and the following cache stores.",
-  "suppliedSupportHistory": false
-}

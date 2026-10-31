@@ -1,1 +1,0 @@
-When it comes to `scrollTo({ behavior: 'instant' })` vs the proposed `scrollElement.scrollTop += delta;` : setting scroll top behaves like 'auto' so it's not an equivalent of 'instant`. See: https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollTop

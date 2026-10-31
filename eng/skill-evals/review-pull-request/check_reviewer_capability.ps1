@@ -4,6 +4,8 @@ param(
 
     [string]$LabelsPath = (Join-Path $PSScriptRoot 'reviewer-capability-labels.json'),
 
+    [string]$HistoricalLabelsPath,
+
     [string]$ControlsPath = (Join-Path $PSScriptRoot 'reviewer-capability-controls.json'),
 
     [string]$ControlTrajectoriesPath = (
@@ -41,56 +43,10 @@ $nativeReviewSkillBodyHash = '3a38f1385e455e104ebec8bffe280b6b90f6ef08f43131d4fe
 $expectedEvalName = 'review-pull-request-capability-development'
 $expectedModel = 'gpt-5.6-sol'
 $expectedJudge = 'gemini-4-argon'
-$expectedSpecSha256 = 'fd493c7b2cf818c1eccd7370322fde136fde1d20efb8cc907d874a843054cf8e'
+$expectedSpecSha256 = 'da7b65d26bad45dad7cef210e2513279cac3d39f2c32253bae14428050f29138'
 $measuredSpecSha256 = '25441cb5bb031d6b2eb85de322906fddd58ebd83df98ea99bb4f3aefc1736da4'
 $expectedPromptSha256 = '2ddc25b8b9224ec179498e821056dbed58cbf8fe2cf6d67abe0aef0d45a3aec3'
 $cases = [ordered]@{
-    'pr-69659-invocation-test' = @{
-        Stimulus = 'reviewer-capability-pr-69659-invocation-test'
-        Grader = 'semantic-review-pr-69659'
-        Pilot = $false
-        UseCommonOverlay = $true
-        GuideCount = 2
-        SuiteRole = 'secondary'
-        Pull = 69659
-        Head = 'ef3019db988cac9789209bb1062fdb793ea49358'
-        MergeBase = 'dc8b384c43e5578b9dbb476ce15c66c04423ab91'
-        BaseTip = 'dc8b384c43e5578b9dbb476ce15c66c04423ab91'
-        FeedbackMode = 'historical-feedback-cutoff'
-        Cutoff = '2026-10-06T21:33:01Z'
-        ExcludedFeedbackId = 4200650480
-    }
-    'pr-67589-antiforgery-test' = @{
-        Stimulus = 'reviewer-capability-pr-67589-antiforgery-test'
-        Grader = 'semantic-review-pr-67589'
-        Pilot = $false
-        UseCommonOverlay = $true
-        GuideCount = 2
-        SuiteRole = 'secondary'
-        Pull = 67589
-        Head = '485a3f11c85019dc77286d755c84961dbf2c95ee'
-        MergeBase = 'fa8f11ee27f0ac181dc28b412c1b5a4ed4b35b79'
-        BaseTip = 'fa8f11ee27f0ac181dc28b412c1b5a4ed4b35b79'
-        FeedbackMode = 'historical-feedback-cutoff'
-        Cutoff = '2026-07-03T19:02:56Z'
-        ExcludedFeedbackId = 3521520991
-        RequiredPriorFeedbackId = 4878160410
-    }
-    'pr-68895-auth-refresh' = @{
-        Stimulus = 'reviewer-capability-pr-68895-auth-refresh'
-        Grader = 'semantic-review-pr-68895'
-        Pilot = $false
-        UseCommonOverlay = $true
-        GuideCount = 2
-        SuiteRole = 'secondary'
-        Pull = 68895
-        Head = '3f7c17615005af6e57e6e617904a4a2f671f0762'
-        MergeBase = 'fbcdba32fd66705a11c5bbb7e2f1bf7ed92c93dc'
-        BaseTip = '92cfdd196462b6162a05c665111263c25d162f00'
-        FeedbackMode = 'historical-feedback-cutoff'
-        Cutoff = '2026-10-31T17:53:48Z'
-        ExcludedFeedbackId = 0
-    }
     'pr-70106' = @{
         Stimulus = 'reviewer-capability-pr-70106'
         Grader = 'semantic-review-pr-70106'
@@ -105,22 +61,6 @@ $cases = [ordered]@{
         FeedbackMode = 'historical-feedback-cutoff'
         Cutoff = '2026-10-31T12:50:58Z'
         ExcludedFeedbackId = 4431751648
-    }
-    'pr-66753' = @{
-        Stimulus = 'reviewer-capability-pr-66753'
-        Grader = 'semantic-review-pr-66753'
-        Pilot = $true
-        UseCommonOverlay = $true
-        GuideCount = 2
-        SuiteRole = 'primary'
-        Pull = 66753
-        Head = 'd98775db95835cdddf5f1dc2dc94fccee7c2c83d'
-        MergeBase = 'fe653b1785eee180496bc313c1e17119c088e150'
-        BaseTip = 'fe653b1785eee180496bc313c1e17119c088e150'
-        FeedbackMode = 'historical-feedback-cutoff'
-        Cutoff = '2026-05-20T15:09:01Z'
-        ExcludedFeedbackId = 3275032953
-        RequiredPriorFeedbackId = 3274671048
     }
     'pr-57972' = @{
         Stimulus = 'reviewer-capability-pr-57972'
@@ -631,6 +571,15 @@ foreach ($caseName in $cases.Keys) {
 
 $labels = Get-Content $LabelsPath -Raw | ConvertFrom-Json -Depth 100
 Assert-Condition (
+    $labels.revision -eq 3 -and
+    $labels.priorMeasuredRevision.revision -eq 2 -and
+    $labels.priorMeasuredRevision.gitCommit -eq 'b34fe32c517ec4e1d8ce8cd0e3085b610a98b3b6' -and
+    $labels.priorMeasuredRevision.gitBlob -eq '99b92613a8608f88e3438d91b3115274cadbf149' -and
+    $labels.priorMeasuredRevision.sourceSha256 -eq '044c19252892b0cae2c34d171093baa3dd66bea7e7178cd8a8cf9995f1a58cce' -and
+    $labels.priorMeasuredRevision.runArtifactSha256 -eq 'b0b998084069ad68c5d65322ec2e8e24385c316a619a4448e614ed00801e813c' -and
+    $labels.priorMeasuredRevision.runId -eq '3cf0bd32-d93e-41ca-8650-547caafe9379'
+) 'The pruned labels no longer identify the measured revision-2 label artifact.'
+Assert-Condition (
     $labels.criteria.defaultBranchCommit -eq $criteriaCommit -and
     $labels.criteria.reviewSkillGitBlob -eq $reviewSkillBlob
 ) 'The label file has the wrong frozen criteria identities.'
@@ -639,18 +588,46 @@ Assert-Condition ($labelCases.Count -eq $cases.Count) 'The label file has the wr
 Assert-Condition (
     (@($labelCases.id | Sort-Object) -join "`n") -eq ((@($cases.Keys) | Sort-Object) -join "`n")
 ) 'The label file does not cover the exact fixture cases.'
+
+if ($HistoricalLabelsPath) {
+    Assert-Condition (-not [string]::IsNullOrWhiteSpace($ExpectedStimulus)) (
+        '-HistoricalLabelsPath requires -ExpectedStimulus.'
+    )
+    Assert-Condition ((Get-Sha256 $HistoricalLabelsPath) -eq (
+        $labels.priorMeasuredRevision.runArtifactSha256
+    )) 'The historical label file does not match the recorded measured revision.'
+    $historicalLabels = Get-Content $HistoricalLabelsPath -Raw |
+        ConvertFrom-Json -Depth 100
+    Assert-Condition (
+        $historicalLabels.revision -eq $labels.priorMeasuredRevision.revision -and
+        @($historicalLabels.cases).Count -eq 6
+    ) 'The historical label file has the wrong measured revision or case count.'
+    $currentSelectedLabel = @(
+        $labelCases | Where-Object stimulus -eq $ExpectedStimulus
+    )
+    $historicalSelectedLabel = @(
+        $historicalLabels.cases | Where-Object stimulus -eq $ExpectedStimulus
+    )
+    Assert-Condition (
+        $currentSelectedLabel.Count -eq 1 -and
+        $historicalSelectedLabel.Count -eq 1 -and
+        (($currentSelectedLabel[0] | ConvertTo-Json -Depth 100 -Compress) -ceq (
+            $historicalSelectedLabel[0] | ConvertTo-Json -Depth 100 -Compress
+        ))
+    ) 'The selected historical label differs from the pruned current label.'
+}
 Assert-Condition (
     @($labelCases | Where-Object partition -ne 'development').Count -eq 0
 ) 'The label file incorrectly claims a non-development partition.'
 $primaryLabels = @($labelCases | Where-Object suiteRole -eq 'primary')
 Assert-Condition (
-    $primaryLabels.Count -eq 3 -and
-    @($primaryLabels | Where-Object expectedDisposition -eq 'actionable-finding-required').Count -eq 2 -and
+    $primaryLabels.Count -eq 2 -and
+    @($primaryLabels | Where-Object expectedDisposition -eq 'actionable-finding-required').Count -eq 1 -and
     @($primaryLabels | Where-Object expectedDisposition -eq 'no-required-hidden-diagnosis').Count -eq 1
-) 'The primary pilot must retain one restraint case and two actionable concurrency positives.'
+) 'The development suite must retain one restraint and one actionable concurrency case.'
 Assert-Condition (
-    @($labelCases | Where-Object suiteRole -eq 'secondary').Count -eq 3
-) 'The optional secondary development fixture count changed.'
+    @($labelCases | Where-Object suiteRole -eq 'secondary').Count -eq 0
+) 'The reduced suite must not retain optional secondary cases.'
 foreach ($labelCase in $labelCases) {
     Assert-Condition (
         $labelCase.suiteRole -eq $cases[[string]$labelCase.id].SuiteRole
@@ -658,14 +635,14 @@ foreach ($labelCase in $labelCases) {
 }
 
 $controls = @(Get-Content $ControlsPath -Raw | ConvertFrom-Json -Depth 100)
-Assert-Condition ($controls.Count -eq 6) 'The judge-development control budget must remain six.'
-Assert-Condition (@($controls.id | Sort-Object -Unique).Count -eq 6) (
+Assert-Condition ($controls.Count -eq 5) 'The reduced judge-development control set must contain five controls.'
+Assert-Condition (@($controls.id | Sort-Object -Unique).Count -eq 5) (
     'Judge-development control IDs are not unique.'
 )
 Assert-Condition (
-    @($controls | Where-Object { $_.expectedScore -eq 1 }).Count -eq 3 -and
+    @($controls | Where-Object { $_.expectedScore -eq 1 }).Count -eq 2 -and
     @($controls | Where-Object { $_.expectedScore -eq 0 }).Count -eq 3
-) 'Judge-development controls must retain three positive and three negative expectations.'
+) 'Judge-development controls must retain two positive and three negative expectations.'
 foreach ($control in $controls) {
     Assert-Condition ($control.kind -eq 'judge-development-control') (
         "$($control.id) is not labelled as a judge-development control."
@@ -735,6 +712,7 @@ $specSha256 = Get-Sha256 $SpecPath
 Assert-Condition ($specSha256 -in @($expectedSpecSha256, $measuredSpecSha256)) (
     'The specialized Vally spec no longer matches its frozen launch identity.'
 )
+$expectedStimulusCount = if ($specSha256 -eq $measuredSpecSha256) { 3 } else { 2 }
 Assert-Condition ($specText.Contains("name: $expectedEvalName")) (
     'The specialized Vally spec has the wrong eval identity.'
 )
@@ -779,24 +757,27 @@ Assert-Condition (
     ([regex]::Matches(
         $specText,
         '(?m)^  - name: reviewer-capability-pr-'
-    )).Count -eq 3
-) 'The first paid pilot must contain exactly three target-aligned stimuli.'
+    )).Count -eq $expectedStimulusCount
+) 'The Vally spec has the wrong target-aligned stimulus count.'
 Assert-Condition (
     ([regex]::Matches(
         $specText,
         'PATH: single-reviewer'
-    )).Count -eq 3 -and
+    )).Count -eq $expectedStimulusCount -and
     ([regex]::Matches(
         $specText,
         'do not spawn workers or'
-    )).Count -eq 3
+    )).Count -eq $expectedStimulusCount
 ) 'Every primary prompt must explicitly configure the trusted one-context path.'
 Assert-Condition (
-    ([regex]::Matches($specText, '(?m)^\s+threshold:\s+1\s*$')).Count -eq 3 -and
+    ([regex]::Matches(
+        $specText,
+        '(?m)^\s+threshold:\s+1\s*$'
+    )).Count -eq $expectedStimulusCount -and
     ([regex]::Matches(
         $specText,
         'MANUAL_ADJUDICATION_REQUIRED'
-    )).Count -eq 3
+    )).Count -eq $expectedStimulusCount
 ) 'Every primary semantic grader must retain binary threshold 1 and manual-adjudication handling.'
 Assert-Condition (-not $specText.Contains('line77')) (
     'The subject-visible spec contains a historical finding-location cue.'

@@ -1,1 +1,0 @@
-`AlignToItemAsync` doesn't accept a CancellationToken, so `ScrollToIndexAsync(..., cancellationToken)` can't cancel the JS interop portion. Consider adding an optional CancellationToken parameter here and using the `IJSRuntime.InvokeVoidAsync(identifier, cancellationToken, args...)` overload so cancellations/superseding requests can stop before the DOM scroll occurs.
