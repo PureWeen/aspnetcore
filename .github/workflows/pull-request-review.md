@@ -1,5 +1,5 @@
 ---
-if: ${{ github.event.repository.fork == false }}
+if: github.repository == 'PureWeen/aspnetcore'
 
 on:
   # Deliberately use direct slash commands: v0.88.7 centralized membership rejects community
@@ -18,8 +18,8 @@ description: >
   Maintainer-invoked pull request review using the repository's review-pull-request
   skill, a trusted frozen bundle, and coordinator-selected targeted validation inside
   the gh-aw agent sandbox. Validated findings become at most five inline
-  comments and one COMMENT-only review, pinned to the reviewed commit. Findings are posted directly
-  to the pull request; this is advisory, never a merge gate.
+  comments and one COMMENT-only review, pinned to the reviewed commit. Fork validation keeps
+  these outputs staged for inspection; this is advisory, never a merge gate.
 
 permissions:
   contents: read
@@ -200,7 +200,7 @@ safe-outputs:
   # Its detector tracking helper can still attempt issue writes on warning/failure.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   needs: [freeze_pr_head, verify_live_head]
-  staged: false
+  staged: true
   activation-comments: false
   report-incomplete:
     create-issue: false
@@ -594,6 +594,31 @@ its `NuGet.config`, when that is a faithful boundary. Do not inject package-feed
 into the sandbox or widen egress. If JavaScript dependencies are not already available and
 the configured npm feed requires authentication, record that validation path as unavailable.
 
+This staged fork canary must prove the restricted worker and narrowed network paths rather
+than merely describe them. After collecting every guide worker:
+
+1. Create at least one temporary diagnostic test or repro source file relevant to the pull
+   request's changed behavior and run the smallest repository-supported .NET command that
+   consumes it.
+2. Record `gradle --version` when a system Gradle is already available. If it cannot
+   initialize, record the exact failure as an intentionally unavailable validation path.
+   Do not run the checked-in wrapper because its cold bootstrap requires non-Microsoft
+   distribution hosts.
+3. In a temporary directory outside the review worktree, create a minimal `net12.0`
+   console project referencing `Microsoft.Playwright` 1.62.0. Restore it with the frozen
+   worktree's `NuGet.config`, set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, locate an
+   already-installed system Chrome or Chromium executable, and run a minimal headless
+   Playwright page with that explicit executable. Do not download Chrome for Testing from
+   a non-Microsoft host and do not use npm for this canary.
+4. Record whether `command -v safeoutputs` finds the safe-output CLI, but do not invoke it
+   from target code.
+
+Record each command, exit status, relevant download host, and observed behavior in
+`TEST_BOUNDARY`. If the worktree is unavailable or not writable, or the required .NET or
+Playwright canary cannot run, preserve the precise limitation and return `INCOMPLETE`; do
+not substitute a source-only success. A failed system Gradle inventory is a recorded
+limitation, not a required-canary failure.
+
 A failing build or test is not automatically a finding. Establish its source cause or
 baseline behavior before acceptance. A passing test is evidence against a candidate, not
 an automatic discard. Record exact commands, working directory, frozen SHA, exit codes,
@@ -611,7 +636,7 @@ write review state into the frozen bundle. File edits are permitted only in the 
 worktree for temporary diagnostic tests or repros.
 All GitHub-visible output must go through this final adapter's configured safe-output tools.
 
-## Publish only after complete validation
+## Stage only after complete validation
 
 Map only the skill's exact structured status:
 
@@ -656,8 +681,8 @@ Each RIGHT-side line, including every line in a range, must be added or modified
 frozen diff; never anchor a comment to a nearby unchanged line.
 Never submit `APPROVE` or `REQUEST_CHANGES`.
 
-Review outputs publish advisory comments directly to the triggering pull request.
-To return to preview-only operation, set `safe-outputs.staged: true` and recompile the workflow.
+This fork validation stages advisory review outputs without posting them to the pull request.
+Do not change staging or repository targeting during the review.
 The adapter formats an already validated result; safe outputs cannot prove worker independence
 or completeness on their own.
 
