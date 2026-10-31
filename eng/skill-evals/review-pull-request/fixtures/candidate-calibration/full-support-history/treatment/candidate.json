@@ -1,0 +1,13 @@
+{
+  "kind": "untrusted-supplied-review-candidate",
+  "rootCommentId": 4431751648,
+  "replyCommentId": 4431799752,
+  "path": "src/Components/WebAssembly/WebAssembly.Authentication/src/Services/AuthorizationMessageHandler.cs",
+  "line": 77,
+  "originalCommitId": "2edf3761692afe15475075eb2fc0088566162045",
+  "body": {
+    "path": "candidate.source",
+    "utf8Bytes": 895,
+    "sha256": "c0d3eeb0a69a11cec80f6fae7bf939d19589122c409f7770a68aa89bdc270a6b"
+  }
+}

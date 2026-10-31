@@ -1,0 +1,1145 @@
+diff --git a/src/Components/Web.JS/src/Virtualize.ts b/src/Components/Web.JS/src/Virtualize.ts
+index 703628420ce3ef0fd6cea0d71593bd95c2a887d9..77769e70fe622f773d7210152ba16baf36194ba1 100644
+--- a/src/Components/Web.JS/src/Virtualize.ts
++++ b/src/Components/Web.JS/src/Virtualize.ts
+@@ -10,6 +10,7 @@ export const Virtualize = {
+   refreshObservers,
+   setAnchorMode,
+   restoreAnchor,
++  alignToItem,
+ };
+ 
+ const dispatcherObserversByDotNetIdPropname = Symbol();
+@@ -300,19 +301,10 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
+       return;
+     }
+ 
+-    let current = spacerBefore.nextElementSibling;
+-    for (let i = 0; i < snapshot.anchorItemIndex && current && current !== spacerAfter; i++) {
+-      current = current.nextElementSibling;
+-    }
+-
+-    if (!current || current === spacerAfter) {
++    const newOffset = measureLocalChildOffset(snapshot.anchorItemIndex);
++    if (Number.isNaN(newOffset)) {
+       return;
+     }
+-
+-    const containerTop = scrollContainer
+-      ? scrollContainer.getBoundingClientRect().top
+-      : 0;
+-    const newOffset = current.getBoundingClientRect().top - containerTop;
+     const delta = newOffset - snapshot.anchorOffset;
+ 
+     // Suppress spacer IO until next user scroll. Save anchor for drift correction.
+@@ -335,8 +327,10 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
+ 
+     // Save anchor offset AFTER scrollTop adjustment for drift correction.
+     if (pendingScrollCorrection) {
+-      const containerTop = scrollContainer ? scrollContainer.getBoundingClientRect().top : 0;
+-      scrollCorrectionOffset = current.getBoundingClientRect().top - containerTop;
++      const correctedOffset = measureLocalChildOffset(snapshot.anchorItemIndex);
++      if (!Number.isNaN(correctedOffset)) {
++        scrollCorrectionOffset = correctedOffset;
++      }
+     }
+ 
+     if (preserveWasAtBottom) {
+@@ -427,6 +421,46 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
+   let pendingCallbacks: Map<Element, IntersectionObserverEntry> = new Map();
+   let callbackTimeout: ReturnType<typeof setTimeout> | null = null;
+ 
++  // Walks `localIndex` siblings forward from spacerBefore to find the rendered child,
++  // returning its viewport-relative top measured against the scroll container (or 0 for
++  // the window-scroll case). Returns NaN when the slot is missing — e.g., the row hasn't
++  // rendered yet, or the local index falls outside the currently rendered window.
++  function measureLocalChildOffset(localIndex: number): number {
++    let el: Element | null = spacerBefore.nextElementSibling;
++    for (let i = 0; i < localIndex && el && el !== spacerAfter; i++) {
++      el = el.nextElementSibling;
++    }
++    if (!el || el === spacerAfter) {
++      return Number.NaN;
++    }
++    const containerTop = scrollElement === document.documentElement
++      ? 0
++      : scrollElement.getBoundingClientRect().top;
++    return el.getBoundingClientRect().top - containerTop;
++  }
++
++  // Measures the target's viewport-relative top and aligns it to containerTop.
++  function alignToItemAt(localIndex: number): void {
++    const delta = measureLocalChildOffset(localIndex);
++    if (Number.isNaN(delta)) {
++      return;
++    }
++    if (Math.abs(delta) > 0.5) {
++      ignoreAnchorScroll = true;
++      suppressSpacerCallbacks = true;
++      // Programmatic scroll establishes a new explicit position — invalidate any pending anchor snapshot and cancel in-progress convergence.
++      observersByDotNetObjectId[id].anchorSnapshot = null;
++      if (convergingToTop || convergingToBottom) {
++        convergingToTop = false;
++        convergingToBottom = false;
++        stopConvergenceObserving();
++      }
++      pendingJumpToStart = false;
++      pendingJumpToEnd = false;
++      scrollElement.scrollTo({ top: scrollElement.scrollTop + delta, behavior: 'instant' });
++    }
++  }
++
+   observersByDotNetObjectId[id] = {
+     intersectionObserver,
+     resizeObserver,
+@@ -436,6 +470,7 @@ function init(dotNetHelper: DotNet.DotNetObject, spacerBefore: HTMLElement, spac
+     setConvergingToBottom: () => { convergingToBottom = true; },
+     setAnchorMode: (mode: number) => { anchorMode = mode; },
+     restoreAnchor: restoreAnchorForShift,
++    alignToItem: alignToItemAt,
+     anchorSnapshot: null as { anchorItemIndex: number; anchorOffset: number; scrollTop: number } | null,
+     onDispose: () => {
+       stopConvergenceObserving();
+@@ -659,6 +694,11 @@ function restoreAnchor(dotNetHelper: DotNet.DotNetObject): void {
+   entry?.restoreAnchor?.();
+ }
+ 
++function alignToItem(dotNetHelper: DotNet.DotNetObject, localIndex: number): void {
++  const { observersByDotNetObjectId, id } = getObserversMapEntry(dotNetHelper);
++  observersByDotNetObjectId[id]?.alignToItem?.(localIndex);
++}
++
+ function getObserversMapEntry(dotNetHelper: DotNet.DotNetObject): { observersByDotNetObjectId: {[id: number]: any }, id: number } {
+   const dotNetHelperDispatcher = dotNetHelper['_callDispatcher'];
+   const dotNetHelperId = dotNetHelper['_id'];
+diff --git a/src/Components/Web/src/PublicAPI.Unshipped.txt b/src/Components/Web/src/PublicAPI.Unshipped.txt
+index 1f1a71e0b1da37303e0b0df350021a25b82ee8dd..79f196125f758feff4b2926ba221f28a49894642 100644
+--- a/src/Components/Web/src/PublicAPI.Unshipped.txt
++++ b/src/Components/Web/src/PublicAPI.Unshipped.txt
+@@ -82,8 +82,11 @@ Microsoft.AspNetCore.Components.Web.Media.MediaSource.MimeType.get -> string!
+ Microsoft.AspNetCore.Components.Web.Media.MediaSource.Stream.get -> System.IO.Stream!
+ Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<TItem>.AnchorMode.get -> Microsoft.AspNetCore.Components.Web.Virtualization.VirtualizeAnchorMode
+ Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<TItem>.AnchorMode.set -> void
++Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<TItem>.InitialIndex.get -> int
++Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<TItem>.InitialIndex.set -> void
+ Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<TItem>.ItemComparer.get -> System.Collections.Generic.IEqualityComparer<TItem>!
+ Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<TItem>.ItemComparer.set -> void
++Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<TItem>.ScrollToIndexAsync(int itemIndex, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+ Microsoft.AspNetCore.Components.Web.Virtualization.VirtualizeAnchorMode
+ Microsoft.AspNetCore.Components.Web.Virtualization.VirtualizeAnchorMode.Beginning = 1 -> Microsoft.AspNetCore.Components.Web.Virtualization.VirtualizeAnchorMode
+ Microsoft.AspNetCore.Components.Web.Virtualization.VirtualizeAnchorMode.End = 2 -> Microsoft.AspNetCore.Components.Web.Virtualization.VirtualizeAnchorMode
+diff --git a/src/Components/Web/src/Virtualization/Virtualize.cs b/src/Components/Web/src/Virtualization/Virtualize.cs
+index 37d9cbd93ba0e51aaf5da5b3963101befdcc7841..bfab245ff0c9094f1a26ec908a95bf0baf66ad89 100644
+--- a/src/Components/Web/src/Virtualization/Virtualize.cs
++++ b/src/Components/Web/src/Virtualization/Virtualize.cs
+@@ -53,6 +53,12 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+ 
+     private CancellationTokenSource? _refreshCts;
+ 
++    private CancellationTokenSource? _currentScrollCts;
++
++    private TaskCompletionSource? _nextRenderTcs;
++
++    private bool _initialScrollApplied;
++
+     private bool _skipNextDistributionRefresh;
+ 
+     private Exception? _refreshException;
+@@ -193,6 +199,15 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+         }
+     }
+ 
++    /// <summary>
++    /// Gets or sets the zero-based index of the item to scroll to on first interactive render.
++    /// Applied once when the component first knows its item count and ignored on subsequent re-renders;
++    /// to scroll programmatically at any later point, call <see cref="ScrollToIndexAsync(int, CancellationToken)"/>.
++    /// Out-of-range values are clamped. The default value, <c>0</c>, means no initial scroll.
++    /// </summary>
++    [Parameter]
++    public int InitialIndex { get; set; }
++
+     private IEqualityComparer<TItem> _itemComparer = EqualityComparer<TItem>.Default;
+ 
+     /// <summary>
+@@ -211,6 +226,145 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+         await RefreshDataCoreAsync(renderOnSuccess: false);
+     }
+ 
++    /// <summary>
++    /// Scrolls the viewport so the item at <paramref name="itemIndex"/> is aligned to the start of the visible area.
++    /// </summary>
++    /// <remarks>
++    /// Each call cancels any previously-running <see cref="ScrollToIndexAsync(int, CancellationToken)"/> (last call wins).
++    /// Must be called on the renderer's synchronization context; background-thread callers should wrap with
++    /// <see cref="ComponentBase.InvokeAsync(Func{Task})"/> to await completion.
++    /// </remarks>
++    /// <param name="itemIndex">The zero-based index of the item to scroll to.</param>
++    /// <param name="cancellationToken">A token that lets the caller request cancellation.</param>
++    /// <returns>A <see cref="Task"/> that completes when the target is aligned or superseded by another call,
++    /// or faults with <see cref="OperationCanceledException"/> if <paramref name="cancellationToken"/> is cancelled.</returns>
++    public Task ScrollToIndexAsync(int itemIndex, CancellationToken cancellationToken = default)
++    {
++        if (_jsInterop is null)
++        {
++            // Throw synchronously so misuse is reported on the call site, not on the Task.
++            throw new InvalidOperationException(
++                $"{nameof(ScrollToIndexAsync)} cannot be called before the {nameof(Virtualize<TItem>)} has been initialized for interactive rendering. " +
++                $"Use the {nameof(InitialIndex)} parameter to set the initial scroll position.");
++        }
++
++        return ScrollToIndexAsyncCore(itemIndex, cancellationToken);
++    }
++
++    private async Task ScrollToIndexAsyncCore(int itemIndex, CancellationToken cancellationToken)
++    {
++        // Cancel-and-switch (last call wins); finally block guards cleanup by ref-equality.
++        _currentScrollCts?.Cancel();
++
++        var ourCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
++        _currentScrollCts = ourCts;
++        var token = ourCts.Token;
++
++        try
++        {
++            token.ThrowIfCancellationRequested();
++            var refetchRequired = MoveWindowToContain(itemIndex);
++            await EnsureRenderCommittedAsync(refetchRequired, token);
++            await AlignToTargetAsync(itemIndex, token);
++        }
++        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
++        {
++            // Ignore exceptions caused by cancellations.
++        }
++        finally
++        {
++            // Only the current owner clears shared state; orphaned operations leave it alone.
++            if (ReferenceEquals(_currentScrollCts, ourCts))
++            {
++                _currentScrollCts = null;
++            }
++            ourCts.Dispose();
++        }
++    }
++
++    private bool MoveWindowToContain(int itemIndex)
++    {
++        var clamped = ClampToItemRange(itemIndex);
++        var capacity = _visibleItemCapacity > 0 ? _visibleItemCapacity : OverscanCount * 2 + 1;
++        var desiredItemsBefore = Math.Max(0, clamped - OverscanCount);
++        if (_itemCount > 0 && desiredItemsBefore + capacity > _itemCount)
++        {
++            desiredItemsBefore = Math.Max(0, _itemCount - capacity);
++        }
++
++        var windowChanged = desiredItemsBefore != _itemsBefore;
++        if (_visibleItemCapacity <= 0)
++        {
++            // Seed capacity when called before any spacer-observer feedback so RefreshDataCoreAsync asks for a meaningful slice.
++            _visibleItemCapacity = capacity;
++        }
++        if (windowChanged)
++        {
++            _itemsBefore = desiredItemsBefore;
++            _skipNextDistributionRefresh = false;
++        }
++
++        var alreadyLoadedForWindow = _loadedItems is not null && _loadedItemsStartIndex == _itemsBefore;
++        return windowChanged || !alreadyLoadedForWindow;
++    }
++
++    private async Task EnsureRenderCommittedAsync(bool refetchRequired, CancellationToken token)
++    {
++        // Register the render-commit rendezvous BEFORE any render: on WASM, OnAfterRenderAsync fires synchronously inside RefreshDataCoreAsync.
++        var renderCommitTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
++        _nextRenderTcs = renderCommitTcs;
++        using var renderReg = token.Register(static state => ((TaskCompletionSource)state!).TrySetCanceled(), renderCommitTcs);
++
++        if (refetchRequired)
++        {
++            await RefreshDataCoreAsync(renderOnSuccess: true);
++            token.ThrowIfCancellationRequested();
++        }
++        else
++        {
++            // Window already loaded — request one render so OnAfterRenderAsync can rendezvous on a committed DOM.
++            StateHasChanged();
++        }
++
++        // OnAfterRenderAsync signals only once the loaded slice matches our window, so one await suffices.
++        await renderCommitTcs.Task;
++        token.ThrowIfCancellationRequested();
++    }
++
++    private async ValueTask AlignToTargetAsync(int itemIndex, CancellationToken token)
++    {
++        // Re-clamp in case _itemCount shifted during the fetch.
++        var localIndex = ClampToItemRange(itemIndex) - _itemsBefore;
++        if (localIndex < 0 || localIndex >= _visibleItemCapacity || _lastRenderedItemCount == 0)
++        {
++            // Window doesn't contain the target (e.g., empty provider result) — bail cleanly.
++            return;
++        }
++
++        // Pixel-exact one-shot scroll: JS reads getBoundingClientRect() and sets scrollTop.
++        if (_jsInterop is not null)
++        {
++            await _jsInterop.AlignToItemAsync(localIndex, token);
++        }
++    }
++
++    private int ClampToItemRange(int requested)
++    {
++        if (_itemCount <= 0)
++        {
++            return Math.Max(0, requested);
++        }
++        if (requested < 0)
++        {
++            return 0;
++        }
++        if (requested >= _itemCount)
++        {
++            return _itemCount - 1;
++        }
++        return requested;
++    }
++
+     /// <inheritdoc />
+     protected override void OnParametersSet()
+     {
+@@ -272,6 +426,14 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+     /// <inheritdoc />
+     protected override async Task OnAfterRenderAsync(bool firstRender)
+     {
++        // Wait until the loaded slice matches the window; earlier renders measure stale DOM.
++        var pendingRenderTcs = _nextRenderTcs;
++        if (pendingRenderTcs is not null && _lastRenderedItemCount > 0 && _loadedItemsStartIndex == _itemsBefore)
++        {
++            _nextRenderTcs = null;
++            pendingRenderTcs.TrySetResult();
++        }
++
+         if (firstRender)
+         {
+             _jsInterop = new VirtualizeJsInterop(this, JSRuntime);
+@@ -294,9 +456,10 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+                 await _jsInterop.SetAnchorModeAsync((int)AnchorMode);
+             }
+ 
+-            // If a mutation captured an anchor snapshot before render,
+-            // restore it now to keep the same row at the same viewport offset.
+-            var shouldRestore = _pendingAnchorRestore && !_pendingScrollToBottom;
++            // If a mutation captured an anchor snapshot, restore it to keep the same row at the
++            // same viewport offset. Skip while a ScrollToIndexAsync is in flight — we are
++            // intentionally moving the viewport.
++            var shouldRestore = _pendingAnchorRestore && !_pendingScrollToBottom && _currentScrollCts is null;
+             _pendingAnchorRestore = false;
+ 
+             if (shouldRestore)
+@@ -306,6 +469,13 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+ 
+             await _jsInterop.RefreshObserversAsync();
+         }
++
++        // Apply InitialIndex once, when the count is known.
++        if (!_initialScrollApplied && _jsInterop is not null && InitialIndex > 0 && _itemCount > 0)
++        {
++            _initialScrollApplied = true;
++            await ScrollToIndexAsync(InitialIndex);
++        }
+     }
+ 
+     /// <inheritdoc />
+@@ -433,7 +603,7 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+ 
+     void IVirtualizeJsCallbacks.OnBeforeSpacerVisible(float spacerSize, float spacerSeparation, float containerSize)
+     {
+-        if (_pendingAnchorRestore)
++        if (_pendingAnchorRestore || _currentScrollCts is not null)
+         {
+             return;
+         }
+@@ -453,7 +623,7 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+ 
+     void IVirtualizeJsCallbacks.OnAfterSpacerVisible(float spacerSize, float spacerSeparation, float containerSize)
+     {
+-        if (_pendingAnchorRestore)
++        if (_pendingAnchorRestore || _currentScrollCts is not null)
+         {
+             return;
+         }
+@@ -730,6 +900,9 @@ public sealed class Virtualize<TItem> : ComponentBase, IVirtualizeJsCallbacks, I
+     {
+         _refreshCts?.Cancel();
+ 
++        _currentScrollCts?.Cancel();
++        _nextRenderTcs?.TrySetCanceled(CancellationToken.None);
++
+         if (_jsInterop != null)
+         {
+             await _jsInterop.DisposeAsync();
+diff --git a/src/Components/Web/src/Virtualization/VirtualizeJsInterop.cs b/src/Components/Web/src/Virtualization/VirtualizeJsInterop.cs
+index 4503d31434f1b200021c2451970240cc38e3607a..8502f218248f950987a4e883fc80ee633d11168c 100644
+--- a/src/Components/Web/src/Virtualization/VirtualizeJsInterop.cs
++++ b/src/Components/Web/src/Virtualization/VirtualizeJsInterop.cs
+@@ -62,6 +62,11 @@ internal sealed class VirtualizeJsInterop : IAsyncDisposable
+         return _jsRuntime.InvokeVoidAsync($"{JsFunctionsPrefix}.restoreAnchor", _selfReference);
+     }
+ 
++    public ValueTask AlignToItemAsync(int localIndex, CancellationToken cancellationToken = default)
++    {
++        return _jsRuntime.InvokeVoidAsync($"{JsFunctionsPrefix}.alignToItem", cancellationToken, _selfReference, localIndex);
++    }
++
+     public async ValueTask DisposeAsync()
+     {
+         if (_selfReference != null)
+diff --git a/src/Components/Web/test/Virtualization/VirtualizeTest.cs b/src/Components/Web/test/Virtualization/VirtualizeTest.cs
+index 17d0b176378d5a4f717a853f674d1611bd057b67..7f94a5f534d9565e2cd92ee313125cd5dce39d96 100644
+--- a/src/Components/Web/test/Virtualization/VirtualizeTest.cs
++++ b/src/Components/Web/test/Virtualization/VirtualizeTest.cs
+@@ -963,4 +963,139 @@ public class VirtualizeTest
+             $"In-memory append on value-type TItem must not trigger prepend detection (shift by countDelta). " +
+             $"Before: {itemsBeforeAfterInit}, After: {renderedVirtualize._itemsBefore}, Shift: {shift}");
+     }
++
++    [Fact]
++    public void ScrollToIndexAsync_ThrowsBeforeJsInteropInitialized()
++    {
++        var virtualize = new Virtualize<int>();
++
++        var ex = Assert.Throws<InvalidOperationException>(
++            (Action)(() => { _ = virtualize.ScrollToIndexAsync(0); }));
++        Assert.Contains(nameof(Virtualize<int>.ScrollToIndexAsync), ex.Message);
++        Assert.Contains(nameof(Virtualize<int>.InitialIndex), ex.Message);
++    }
++
++    [Fact]
++    public async Task ScrollToIndexAsync_NegativeIndexDoesNotThrow()
++    {
++        var (virtualize, renderer) = await CreateRenderedVirtualize(itemSize: 50f, totalItems: 100);
++        Task task = null;
++        await renderer.Dispatcher.InvokeAsync(() => { task = virtualize.ScrollToIndexAsync(-5); });
++        await task;
++        Assert.True(task.IsCompletedSuccessfully);
++    }
++
++    [Fact]
++    public async Task ScrollToIndexAsync_IndexBeyondCountDoesNotThrow()
++    {
++        var (virtualize, renderer) = await CreateRenderedVirtualize(itemSize: 50f, totalItems: 100);
++
++        var callbacks = (IVirtualizeJsCallbacks)virtualize;
++        await renderer.Dispatcher.InvokeAsync(() =>
++            callbacks.OnAfterSpacerVisible(0f, 500f, 500f));
++
++        Task task = null;
++        await renderer.Dispatcher.InvokeAsync(() => { task = virtualize.ScrollToIndexAsync(99_999); });
++
++        await task;
++        Assert.True(task.IsCompletedSuccessfully);
++    }
++
++    [Fact]
++    public async Task ScrollToIndexAsync_AlreadyCancelledTokenProducesCancelledTask()
++    {
++        var (virtualize, renderer) = await CreateRenderedVirtualize(itemSize: 50f, totalItems: 100);
++
++        using var cts = new CancellationTokenSource();
++        cts.Cancel();
++
++        Task task = null;
++        await renderer.Dispatcher.InvokeAsync(() => { task = virtualize.ScrollToIndexAsync(10, cts.Token); });
++
++        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
++    }
++
++    [Fact]
++    public async Task ScrollToIndexAsync_SecondCallDoesNotFaultFirstTask()
++    {
++        var (virtualize, renderer) = await CreateRenderedVirtualize(itemSize: 50f, totalItems: 1000);
++
++        var callbacks = (IVirtualizeJsCallbacks)virtualize;
++        await renderer.Dispatcher.InvokeAsync(() =>
++            callbacks.OnAfterSpacerVisible(0f, 500f, 500f));
++
++        var (firstTask, secondTask) = await renderer.Dispatcher.InvokeAsync(() =>
++        {
++            var first = virtualize.ScrollToIndexAsync(500);
++            var second = virtualize.ScrollToIndexAsync(750);
++            return (first, second);
++        });
++
++        await firstTask;
++        Assert.True(firstTask.IsCompletedSuccessfully);
++
++        if (secondTask.IsCompleted)
++        {
++            Assert.True(secondTask.IsCompletedSuccessfully, secondTask.Exception?.ToString());
++        }
++    }
++
++    [Fact]
++    public async Task InitialIndex_ParameterRoundTrip()
++    {
++        Virtualize<int> renderedVirtualize = null;
++        var rootComponent = new VirtualizeTestHostcomponent
++        {
++            InnerContent = builder =>
++            {
++                builder.OpenComponent<Virtualize<int>>(0);
++                builder.AddComponentParameter(1, "ItemSize", 50f);
++                builder.AddComponentParameter(2, "Items", (ICollection<int>)Enumerable.Range(1, 100).ToList());
++                builder.AddComponentParameter(3, "InitialIndex", 42);
++                builder.AddComponentParameter(4, "ChildContent", (RenderFragment<int>)(item => b =>
++                {
++                    b.OpenElement(0, "span");
++                    b.AddContent(1, item);
++                    b.CloseElement();
++                }));
++                builder.AddComponentReferenceCapture(5, c => renderedVirtualize = (Virtualize<int>)c);
++                builder.CloseComponent();
++            }
++        };
++
++        var serviceProvider = new ServiceCollection()
++            .AddTransient((sp) => Mock.Of<IJSRuntime>())
++            .BuildServiceProvider();
++
++        var testRenderer = new TestRenderer(serviceProvider);
++        var componentId = testRenderer.AssignRootComponentId(rootComponent);
++        await testRenderer.RenderRootComponentAsync(componentId);
++
++        Assert.NotNull(renderedVirtualize);
++        Assert.Equal(42, renderedVirtualize.InitialIndex);
++    }
++
++    [Fact]
++    public async Task InitialIndex_DefaultZeroMeansNoInitialScroll()
++    {
++        Virtualize<int> renderedVirtualize = null;
++        var rootComponent = new VirtualizeTestHostcomponent
++        {
++            InnerContent = BuildVirtualizeWithContent(50f, Enumerable.Range(1, 100).ToList(),
++                v => renderedVirtualize = v)
++        };
++
++        var serviceProvider = new ServiceCollection()
++            .AddTransient((sp) => Mock.Of<IJSRuntime>())
++            .BuildServiceProvider();
++
++        var testRenderer = new TestRenderer(serviceProvider);
++        var componentId = testRenderer.AssignRootComponentId(rootComponent);
++        await testRenderer.RenderRootComponentAsync(componentId);
++
++        Assert.NotNull(renderedVirtualize);
++        Assert.Equal(0, renderedVirtualize.InitialIndex);
++        // No initial-scroll request was issued; component opens at item 0.
++        Assert.Equal(0, renderedVirtualize._itemsBefore);
++    }
+ }
+diff --git a/src/Components/test/E2ETest/Tests/VirtualizationTest.cs b/src/Components/test/E2ETest/Tests/VirtualizationTest.cs
+index deac6109d4cd96fb3e328b1d86b33595344393bf..306ce5f478fd08f49a47de88dc7328b5e5ab62f4 100644
+--- a/src/Components/test/E2ETest/Tests/VirtualizationTest.cs
++++ b/src/Components/test/E2ETest/Tests/VirtualizationTest.cs
+@@ -3941,4 +3941,335 @@ public class VirtualizationTest : ServerTestBase<ToggleExecutionModeServerFixtur
+ 
+         return (Dictionary<string, object>)((IJavaScriptExecutor)Browser).ExecuteAsyncScript(script);
+     }
++
++    private void MountAnchorModeForScrollToItem(bool variableHeight = false, bool delay = false)
++    {
++        Browser.MountTestComponent<VirtualizationAnchorMode>();
++        var container = Browser.Exists(By.Id("scroll-container"));
++        Browser.True(() => GetElementCount(container, ".item") > 0);
++
++        // All ScrollToItem tests use ItemsProvider per design.
++        Browser.Exists(By.Id("toggle-provider")).Click();
++        Browser.True(() => GetElementCount(container, ".item") > 0);
++
++        if (variableHeight)
++        {
++            Browser.Exists(By.Id("toggle-height")).Click();
++            Browser.True(() => GetElementCount(container, ".item") > 0);
++        }
++
++        if (delay)
++        {
++            Browser.Exists(By.Id("toggle-delay")).Click();
++        }
++    }
++
++    private void SetScrollTargetIndex(int index) => SetNumberInputAndWaitForBind("scroll-target-index", index);
++
++    private void SetManualInitialIndex(int index) => SetNumberInputAndWaitForBind("manual-initial-index", index);
++
++    // Types into <input type=number @bind=...> and polls the sibling {id}-bound span until the bound model commits (needed on Server where @bind round-trips over SignalR).
++    private void SetNumberInputAndWaitForBind(string elementId, int value)
++    {
++        var expected = value.ToString(CultureInfo.InvariantCulture);
++        var input = Browser.Exists(By.Id(elementId));
++        // Clear() on <input type=number> is unreliable across drivers; Ctrl+A + Delete works.
++        input.SendKeys(Keys.Control + "a");
++        input.SendKeys(Keys.Delete);
++        input.SendKeys(expected);
++        input.SendKeys(Keys.Tab);
++        var js = (IJavaScriptExecutor)Browser;
++        Browser.True(() => (string)js.ExecuteScript(
++            "return document.getElementById(arguments[0] + '-bound')?.getAttribute('data-value');",
++            elementId) == expected);
++    }
++
++    private void WaitForScrollStatus(string expected, int timeoutSeconds = 30)
++    {
++        try
++        {
++            Browser.True(() =>
++                Browser.Exists(By.Id("scroll-status")).Text.StartsWith(expected, StringComparison.Ordinal),
++                TimeSpan.FromSeconds(timeoutSeconds));
++        }
++        catch (Exception ex)
++        {
++            string actual;
++            try { actual = Browser.Exists(By.Id("scroll-status")).Text; }
++            catch { actual = "<unable to read>"; }
++            string targetInputVal;
++            try
++            {
++                targetInputVal = (string)((IJavaScriptExecutor)Browser).ExecuteScript(
++                    "return document.getElementById('scroll-target-index')?.value ?? '<missing>';");
++            }
++            catch { targetInputVal = "<unable to read>"; }
++            throw new Exception(
++                $"WaitForScrollStatus timeout: expected status to start with '{expected}', " +
++                $"actual='{actual}', scroll-target-index value='{targetInputVal}'", ex);
++        }
++    }
++
++    // Returns the data-index of the topmost rendered .item visible inside #scroll-container.
++    // If the topmost rendered child is a placeholder, returns -1.
++    private long GetTopRenderedIndex(IJavaScriptExecutor js)
++    {
++        return (long)js.ExecuteScript(@"
++            var container = document.getElementById('scroll-container');
++            var rect = container.getBoundingClientRect();
++            var items = container.querySelectorAll('.item, .loading-placeholder');
++            var best = null;
++            var bestTop = Number.POSITIVE_INFINITY;
++            for (var i = 0; i < items.length; i++) {
++                var ir = items[i].getBoundingClientRect();
++                if (ir.bottom <= rect.top) continue; // above viewport
++                if (ir.top < bestTop) { bestTop = ir.top; best = items[i]; }
++            }
++            if (!best) return -1;
++            if (best.classList.contains('loading-placeholder')) return -1;
++            var idx = best.getAttribute('data-index');
++            return idx === null ? -1 : parseInt(idx, 10);
++        ");
++    }
++
++    private long GetScrollTop(IJavaScriptExecutor js, IWebElement container)
++        => (long)js.ExecuteScript("return Math.round(arguments[0].scrollTop)", container);
++
++    [Fact]
++    public void ScrollToItem_FixedHeight_LandsAtTop()
++    {
++        MountAnchorModeForScrollToItem();
++        var container = Browser.Exists(By.Id("scroll-container"));
++        var js = (IJavaScriptExecutor)Browser;
++
++        SetScrollTargetIndex(200);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 200");
++
++        Browser.True(() => GetTopRenderedIndex(js) == 200,
++            $"Top rendered item should be 200 but was {GetTopRenderedIndex(js)}, scrollTop={GetScrollTop(js, container)}");
++    }
++
++    [Fact]
++    public void ScrollToItem_VariableHeight_LandsAtTop()
++    {
++        MountAnchorModeForScrollToItem(variableHeight: true);
++        var container = Browser.Exists(By.Id("scroll-container"));
++        var js = (IJavaScriptExecutor)Browser;
++
++        SetScrollTargetIndex(200);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 200");
++
++        Browser.True(() => GetTopRenderedIndex(js) == 200,
++            $"Variable-height: top rendered item should be 200 but was {GetTopRenderedIndex(js)}, scrollTop={GetScrollTop(js, container)}");
++    }
++
++    [Fact]
++    public void ScrollToItem_NegativeIndex_ScrollsToTop()
++    {
++        MountAnchorModeForScrollToItem();
++        var container = Browser.Exists(By.Id("scroll-container"));
++        var js = (IJavaScriptExecutor)Browser;
++
++        // First scroll forward so we have somewhere to come back from.
++        SetScrollTargetIndex(150);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 150");
++
++        SetScrollTargetIndex(-1);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: -1");
++
++        Browser.True(() => GetScrollTop(js, container) <= 1,
++            $"Negative index should clamp to top; scrollTop={GetScrollTop(js, container)}");
++        Browser.True(() => GetTopRenderedIndex(js) == 0);
++    }
++
++    [Fact]
++    public void ScrollToItem_MaxIntIndex_ScrollsToLast()
++    {
++        MountAnchorModeForScrollToItem();
++        var container = Browser.Exists(By.Id("scroll-container"));
++        var js = (IJavaScriptExecutor)Browser;
++
++        SetScrollTargetIndex(int.MaxValue);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: " + int.MaxValue.ToString(CultureInfo.InvariantCulture));
++
++        // 1000 items total; last is index 999. After clamp it should be visible at the top of the viewport
++        // (or as close as possible — at the very end the page can't scroll further).
++        Browser.True(() =>
++        {
++            var st = GetScrollTop(js, container);
++            var sh = (long)js.ExecuteScript("return arguments[0].scrollHeight", container);
++            var ch = (long)js.ExecuteScript("return arguments[0].clientHeight", container);
++            return st > 0 && st >= sh - ch - 2;
++        }, message: "Scroll should be at the bottom (last item region) after clamp to MaxValue.");
++
++        // The last item must be present in the DOM and inside the viewport.
++        Browser.True(() =>
++            (bool)js.ExecuteScript(@"
++                var el = document.querySelector('#scroll-container .item[data-index=""999""]');
++                if (!el) return false;
++                var cr = document.getElementById('scroll-container').getBoundingClientRect();
++                var er = el.getBoundingClientRect();
++                return er.top < cr.bottom && er.bottom > cr.top;
++            "));
++    }
++
++    [Fact]
++    public void ScrollToItem_ForwardThenBackward()
++    {
++        MountAnchorModeForScrollToItem();
++        var js = (IJavaScriptExecutor)Browser;
++
++        SetScrollTargetIndex(300);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 300");
++
++        SetScrollTargetIndex(50);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 50");
++
++        Browser.True(() => GetTopRenderedIndex(js) == 50,
++            $"Top rendered item should be 50 after backward scroll but was {GetTopRenderedIndex(js)}");
++    }
++
++    [Fact]
++    public void ScrollToItem_WithProviderDelay_NoPlaceholderAtTarget()
++    {
++        // When ScrollToIndexAsync completes, the target row must show content, not placeholder.
++        MountAnchorModeForScrollToItem(delay: true);
++        var js = (IJavaScriptExecutor)Browser;
++
++        SetScrollTargetIndex(300);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 300", timeoutSeconds: 30);
++
++        Browser.True(() => GetTopRenderedIndex(js) == 300,
++            $"Top rendered should be real item 300 (not placeholder); got {GetTopRenderedIndex(js)}");
++
++        // Sanity: the .loading-placeholder template must be wired.
++        var topIsPlaceholder = (bool)js.ExecuteScript(@"
++            var container = document.getElementById('scroll-container');
++            var rect = container.getBoundingClientRect();
++            var els = container.querySelectorAll('.item, .loading-placeholder');
++            for (var i = 0; i < els.length; i++) {
++                var er = els[i].getBoundingClientRect();
++                if (er.bottom > rect.top && er.top < rect.top + 5) {
++                    return els[i].classList.contains('loading-placeholder');
++                }
++            }
++            return false;
++        ");
++        Assert.False(topIsPlaceholder, "Topmost element at viewport top must not be a loading placeholder.");
++    }
++
++    [Theory]
++    [InlineData(1)]
++    [InlineData(5)]
++    [InlineData(500)]
++    public void InitialIndex_OpensAtTargetWithRealContent(int initialIndex)
++    {
++        // Regression: when InitialIndex < OverscanCount, desiredItemsBefore collapses to 0 and the early bounds check used to bail before AlignToItemAsync.
++        MountAnchorModeForScrollToItem(delay: false);
++        var js = (IJavaScriptExecutor)Browser;
++
++        Browser.Exists(By.Id("unload-list")).Click();
++        Browser.Exists(By.Id("list-not-loaded"));
++        js.ExecuteScript("document.getElementById('scroll-container').scrollTop = 0;");
++        SetManualInitialIndex(initialIndex);
++        Browser.Exists(By.Id("reload-with-initial-index")).Click();
++
++        // The target item must sit at the top of the viewport even for small indices.
++        Browser.True(() => GetTopRenderedIndex(js) == initialIndex);
++    }
++
++    [Fact]
++    public void ScrollToItem_RapidCalls_OnlyLastTargetReached()
++    {
++        // Q4: cancel-and-switch — even with 5 calls back-to-back, the final target wins.
++        MountAnchorModeForScrollToItem(delay: true);
++        var js = (IJavaScriptExecutor)Browser;
++
++        Browser.Exists(By.Id("scroll-to-item-rapid")).Click();
++        // 5 calls fired back-to-back: supersession completes normally, so all 5 tasks finish.
++        WaitForScrollStatus("Completed: 250 (canceled=0, completed=5, faulted=0)", timeoutSeconds: 30);
++
++        Browser.True(() => GetTopRenderedIndex(js) == 250,
++            $"After rapid-fire scroll, top should be 250 but was {GetTopRenderedIndex(js)}");
++    }
++
++    [Fact]
++    public void ScrollToItem_ExternalCancellation_TaskCancels()
++    {
++        MountAnchorModeForScrollToItem(delay: true);
++        var js = (IJavaScriptExecutor)Browser;
++
++        SetScrollTargetIndex(450);
++        Browser.Exists(By.Id("scroll-to-item-cancellable")).Click();
++        // Cancel before the 500ms provider delay completes.
++        Browser.Exists(By.Id("cancel-scroll")).Click();
++        WaitForScrollStatus("Canceled");
++
++        // Component should still respond to a fresh scroll.
++        SetScrollTargetIndex(120);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 120", timeoutSeconds: 30);
++        Browser.True(() => GetTopRenderedIndex(js) == 120);
++    }
++
++    [Fact]
++    public void ScrollToItem_AnchorBeginning_AtTop_LandsAtTarget()
++    {
++        // Anchor restore must NOT fight an active scroll.
++        MountAnchorModeForScrollToItem();
++        var container = Browser.Exists(By.Id("scroll-container"));
++        var js = (IJavaScriptExecutor)Browser;
++
++        // AnchorMode is Beginning by default; verify we're at the top.
++        Browser.True(() => GetScrollTop(js, container) == 0);
++
++        SetScrollTargetIndex(2);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        WaitForScrollStatus("Completed: 2");
++
++        Browser.True(() => GetTopRenderedIndex(js) == 2,
++            $"With AnchorMode=Beginning, top should be 2 but was {GetTopRenderedIndex(js)}");
++    }
++
++    [Fact]
++    public void WindowScroll_ScrollToItem_LandsAtTarget()
++    {
++        Browser.MountTestComponent<VirtualizationAnchorModeWindowScroll>();
++        var root = Browser.Exists(By.Id("virtualize-root"));
++        Browser.True(() => GetElementCount(root, ".item") > 0);
++
++        Browser.Exists(By.Id("toggle-provider")).Click();
++        Browser.True(() => GetElementCount(root, ".item") > 0);
++
++        var input = Browser.Exists(By.Id("scroll-target-index"));
++        input.SendKeys(Keys.Control + "a");
++        input.SendKeys(Keys.Delete);
++        input.SendKeys("100");
++        input.SendKeys(Keys.Tab);
++        Browser.Exists(By.Id("scroll-to-item")).Click();
++        Browser.True(() =>
++            Browser.Exists(By.Id("scroll-status")).Text.StartsWith("Completed: 100", StringComparison.Ordinal),
++            TimeSpan.FromSeconds(15));
++
++        var js = (IJavaScriptExecutor)Browser;
++        var scrollY = (long)js.ExecuteScript("return Math.round(window.scrollY)");
++        Assert.True(scrollY > 0, $"Window scroll should have moved; scrollY={scrollY}");
++
++        // Item 100 must be visible in the viewport.
++        Browser.True(() =>
++            (bool)js.ExecuteScript(@"
++                var el = document.querySelector('.item[data-index=""100""]');
++                if (!el) return false;
++                var er = el.getBoundingClientRect();
++                return er.top < window.innerHeight && er.bottom > 0;
++            "), "Item 100 must be visible in window viewport.");
++    }
+ }
+diff --git a/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorMode.razor b/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorMode.razor
+index e46da1494f3ec5b9ba675fd9658669f9953f0c99..26a86ecb37d1b56e7495d7c87a1a156879a8beb9 100644
+--- a/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorMode.razor
++++ b/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorMode.razor
+@@ -1,4 +1,6 @@
+ @using Microsoft.AspNetCore.Components.Web.Virtualization
++@using System.Linq
++@using System.Threading
+ 
+ <h1>Virtualization Anchor Mode</h1>
+ 
+@@ -13,30 +15,65 @@
+ </div>
+ 
+ <div id="scroll-container" style="height: 300px; overflow-y: auto; border: 1px solid black;">
+-    @if (useItemsProvider)
++    @if (listLoaded)
+     {
+-        <Virtualize @ref="virtualizeRef" ItemsProvider="@GetItemsAsync" ItemSize="50" AnchorMode="@anchorMode" ItemComparer="@_itemComparer" Context="item">
+-            <div class="item"
+-                 data-index="@item.Index"
+-                 data-anchor-mode="@((int)anchorMode)"
+-                 style="border: 1px solid gray; padding: 5px; min-height: @(item.Height)px;">
+-                <div>Item @item.Index</div>
+-            </div>
+-        </Virtualize>
++        @if (useItemsProvider)
++        {
++            <Virtualize @ref="virtualizeRef" ItemsProvider="@GetItemsAsync" ItemSize="50" AnchorMode="@anchorMode" ItemComparer="@_itemComparer" InitialIndex="@initialIndex" Context="item">
++                <ItemContent>
++                    <div class="item"
++                         data-index="@item.Index"
++                         data-anchor-mode="@((int)anchorMode)"
++                         style="border: 1px solid gray; padding: 5px; min-height: @(item.Height)px;">
++                        <div>Item @item.Index</div>
++                    </div>
++                </ItemContent>
++                <Placeholder>
++                    <div class="loading-placeholder"
++                         style="border: 1px dashed orange; padding: 5px; min-height: 50px; background: #fff8e6;">
++                        <span>Loading...</span>
++                    </div>
++                </Placeholder>
++            </Virtualize>
++        }
++        else
++        {
++            <Virtualize @ref="virtualizeRef" Items="@items" ItemSize="50" AnchorMode="@anchorMode" InitialIndex="@initialIndex" Context="item">
++                <div class="item"
++                     data-index="@item.Index"
++                     data-anchor-mode="@((int)anchorMode)"
++                     style="border: 1px solid gray; padding: 5px; min-height: @(item.Height)px;">
++                    <div>Item @item.Index</div>
++                </div>
++            </Virtualize>
++        }
+     }
+     else
+     {
+-        <Virtualize Items="@items" ItemSize="50" AnchorMode="@anchorMode" Context="item">
+-            <div class="item"
+-                 data-index="@item.Index"
+-                 data-anchor-mode="@((int)anchorMode)"
+-                 style="border: 1px solid gray; padding: 5px; min-height: @(item.Height)px;">
+-                <div>Item @item.Index</div>
+-            </div>
+-        </Virtualize>
++        <p id="list-not-loaded" style="padding: 10px; color: #666;">List not loaded. Set an Initial Index below and click "Load list".</p>
+     }
+ </div>
+ 
++<div style="margin-top: 6px;">
++    <label>Initial Index:
++        <input id="manual-initial-index" type="number" @bind="manualInitialIndex" style="width: 80px;" />
++    </label>
++    <button id="reload-with-initial-index" @onclick="ReloadWithInitialIndex">Load list with Initial Index</button>
++    <button id="unload-list" @onclick="UnloadList">Unload list</button>
++    <span id="manual-initial-index-bound" data-value="@manualInitialIndex" style="margin-left: 8px; color:#888;">bound:@manualInitialIndex</span>
++</div>
++
++<div style="margin-top: 6px;">
++    <input id="scroll-target-index" type="number" @bind="scrollTargetIndex" style="width: 80px;" />
++    <span id="scroll-target-index-bound" data-value="@scrollTargetIndex" style="margin-left: 8px; color:#888;">bound:@scrollTargetIndex</span>
++    <button id="scroll-to-item" @onclick="ScrollToTarget">Scroll To Item</button>
++    <button id="scroll-to-item-rapid" @onclick="ScrollRapid">Scroll Rapid (final=250)</button>
++    <button id="scroll-to-item-cancellable" @onclick="ScrollCancellable">Scroll Cancellable</button>
++    <button id="cancel-scroll" @onclick="CancelScroll">Cancel Scroll</button>
++</div>
++
++<p id="scroll-status" style="margin: 0; font-size: 12px;">@scrollStatus</p>
++
+ <div style="margin-top: 10px;">
+     <button id="prepend-items" @onclick="PrependItems">Prepend 10 Items</button>
+     <button id="prepend-many-items" @onclick="PrependManyItems">Prepend 100 Items</button>
+@@ -69,6 +106,12 @@
+     private bool useItemsProvider = false;
+     private bool useProviderDelay = false;
+     private Virtualize<DynamicItem> virtualizeRef;
++    private int initialIndex;
++    private int manualInitialIndex;
++    private bool listLoaded = true;
++    private int scrollTargetIndex = 200;
++    private string scrollStatus = "Idle";
++    private CancellationTokenSource _userScrollCts;
+     private static readonly IEqualityComparer<DynamicItem> _itemComparer =
+         EqualityComparer<DynamicItem>.Create((a, b) => a.Index == b.Index, item => item.Index);
+ 
+@@ -80,7 +123,7 @@
+ 
+     protected override void OnInitialized()
+     {
+-        items = Enumerable.Range(0, 500)
++        items = Enumerable.Range(0, 1000)
+             .Select(i => new DynamicItem { Index = i, Height = GetHeight(i) })
+             .ToList();
+     }
+@@ -110,7 +153,7 @@
+     }
+ 
+     private int nextPrependIndex = -1;
+-    private int nextAppendIndex = 500;
++    private int nextAppendIndex = 1000;
+ 
+     private async Task PrependItems()
+     {
+@@ -310,6 +353,91 @@
+         statusMessage = useProviderDelay ? "Provider delay: 500ms" : "Provider delay: None";
+     }
+ 
++    private async Task ReloadWithInitialIndex()
++    {
++        listLoaded = false;
++        StateHasChanged();
++        await Task.Yield();
++        initialIndex = manualInitialIndex;
++        listLoaded = true;
++    }
++
++    private void UnloadList()
++    {
++        listLoaded = false;
++    }
++
++    private async Task ScrollToTarget()
++    {
++        if (virtualizeRef == null) { scrollStatus = "Faulted: no virtualizeRef"; return; }
++        scrollStatus = $"Scrolling to {scrollTargetIndex}...";
++        try
++        {
++            await virtualizeRef.ScrollToIndexAsync(scrollTargetIndex);
++            scrollStatus = $"Completed: {scrollTargetIndex}";
++        }
++        catch (OperationCanceledException)
++        {
++            scrollStatus = $"Canceled: {scrollTargetIndex}";
++        }
++        catch (Exception ex)
++        {
++            scrollStatus = $"Faulted: {ex.Message}";
++        }
++    }
++
++    private async Task ScrollRapid()
++    {
++        if (virtualizeRef == null) { scrollStatus = "Faulted: no virtualizeRef"; return; }
++        scrollStatus = "Rapid scrolling...";
++        // Fire 5 calls back-to-back; each subsequent call supersedes the previous.
++        // Superseded tasks complete normally — only the final target lands in the viewport.
++        var tasks = new[]
++        {
++            virtualizeRef.ScrollToIndexAsync(50),
++            virtualizeRef.ScrollToIndexAsync(400),
++            virtualizeRef.ScrollToIndexAsync(100),
++            virtualizeRef.ScrollToIndexAsync(350),
++            virtualizeRef.ScrollToIndexAsync(250),
++        };
++        foreach (var t in tasks) { await SafeAwait(t); }
++        var canceled = tasks.Count(t => t.IsCanceled);
++        var completed = tasks.Count(t => t.Status == TaskStatus.RanToCompletion);
++        var faulted = tasks.Count(t => t.IsFaulted);
++        scrollStatus = $"Completed: 250 (canceled={canceled}, completed={completed}, faulted={faulted})";
++    }
++
++    private static async Task SafeAwait(Task t)
++    {
++        try { await t; } catch (OperationCanceledException) { }
++    }
++
++    private async Task ScrollCancellable()
++    {
++        if (virtualizeRef == null) { scrollStatus = "Faulted: no virtualizeRef"; return; }
++        _userScrollCts?.Dispose();
++        _userScrollCts = new CancellationTokenSource();
++        scrollStatus = $"Scrolling to {scrollTargetIndex} (cancellable)...";
++        try
++        {
++            await virtualizeRef.ScrollToIndexAsync(scrollTargetIndex, _userScrollCts.Token);
++            scrollStatus = $"Completed: {scrollTargetIndex}";
++        }
++        catch (OperationCanceledException)
++        {
++            scrollStatus = "Canceled";
++        }
++        catch (Exception ex)
++        {
++            scrollStatus = $"Faulted: {ex.Message}";
++        }
++    }
++
++    private void CancelScroll()
++    {
++        _userScrollCts?.Cancel();
++    }
++
+     private class DynamicItem
+     {
+         public int Index { get; set; }
+diff --git a/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorModeWindowScroll.razor b/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorModeWindowScroll.razor
+index 1e0f9e6893f0690e78cfc314f71c89e66b52314a..1134f190ae49e2c366b69a9d91d29346f6aa8e9b 100644
+--- a/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorModeWindowScroll.razor
++++ b/src/Components/test/testassets/BasicTestApp/VirtualizationAnchorModeWindowScroll.razor
+@@ -27,9 +27,12 @@
+         <button id="toggle-height" @onclick="ToggleVariableHeight">
+             Heights: @(useVariableHeight ? "Variable (10-200px)" : "Fixed (50px)")
+         </button>
++        <input id="scroll-target-index" type="number" @bind="scrollTargetIndex" style="width: 80px;" />
++        <button id="scroll-to-item" @onclick="ScrollToTarget">Scroll To Item</button>
+     </div>
+     <p id="status" style="margin: 0; font-size: 12px;">@statusMessage</p>
+     <p id="current-mode" style="margin: 0; font-size: 12px;">@((int)anchorMode)</p>
++    <p id="scroll-status" style="margin: 0; font-size: 12px;">@scrollStatus</p>
+ </div>
+ 
+ <div id="virtualize-root" style="margin-top: 90px;">
+@@ -65,6 +68,8 @@
+     private bool useVariableHeight = false;
+     private bool useItemsProvider = false;
+     private Virtualize<DynamicItem> virtualizeRef;
++    private int scrollTargetIndex = 100;
++    private string scrollStatus = "Idle";
+     private static readonly IEqualityComparer<DynamicItem> _itemComparer =
+         EqualityComparer<DynamicItem>.Create((a, b) => a.Index == b.Index, item => item.Index);
+ 
+@@ -231,6 +236,21 @@
+         return new ItemsProviderResult<DynamicItem>(result, items.Count);
+     }
+ 
++    private async Task ScrollToTarget()
++    {
++        if (virtualizeRef == null) { scrollStatus = "Faulted: no virtualizeRef"; return; }
++        scrollStatus = $"Scrolling to {scrollTargetIndex}...";
++        try
++        {
++            await virtualizeRef.ScrollToIndexAsync(scrollTargetIndex);
++            scrollStatus = $"Completed: {scrollTargetIndex}";
++        }
++        catch (Exception ex)
++        {
++            scrollStatus = $"Faulted: {ex.Message}";
++        }
++    }
++
+     private class DynamicItem
+     {
+         public int Index { get; set; }

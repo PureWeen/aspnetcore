@@ -1,0 +1,288 @@
+{
+  "revision": 2,
+  "criteria": {
+    "repository": "dotnet/aspnetcore",
+    "defaultBranchCommit": "4f556f73a610b386e5ec29355a300e493d30c4c5",
+    "reviewSkillGitBlob": "b11fe9fe79b5d848687ba1c93362f4aaf22bfe53"
+  },
+  "measurement": {
+    "claim": "Exploratory discovery and restraint behavior in one-context natural review of curated genuine PR source projections.",
+    "notClaims": [
+      "Historical hosted-review replay",
+      "Coordinator or per-guide-worker fidelity",
+      "Population accuracy or reliability",
+      "Model-family superiority",
+      "Demonstrated reviewer repair"
+    ]
+  },
+  "cases": [
+    {
+      "id": "pr-69659-invocation-test",
+      "stimulus": "reviewer-capability-pr-69659-invocation-test",
+      "partition": "development",
+      "suiteRole": "secondary",
+      "lineage": "dotnet/aspnetcore#69659@ef3019db988cac9789209bb1062fdb793ea49358",
+      "capabilityTags": [
+        "changed-test-discrimination",
+        "observable-invocation",
+        "new-finding"
+      ],
+      "riskTags": [
+        "false-negative",
+        "test-allows-side-effect"
+      ],
+      "journeyTags": [
+        "natural-review",
+        "historical-feedback-cutoff"
+      ],
+      "expectedDisposition": "actionable-finding-required",
+      "requiredFinding": {
+        "severity": "P3",
+        "path": "src/Components/JSInterop/test/Infrastructure/DotNetDispatcherTest.cs",
+        "line": 118,
+        "claim": "The new synchronous-invocation rejection test checks only the exception type and message, so it can still pass if the asynchronous target method is invoked before the rejection.",
+        "materialEffect": "A regression that starts the target method or its side effects before throwing would remain undetected.",
+        "sourceBasis": [
+          "The base revision has neither this guard nor this test; the head adds a return-type guard immediately before methodInfo.Invoke and adds the new theory as its regression coverage.",
+          "The frozen test contains no invocation flag, mock verification, or other assertion that the target method did not start.",
+          "Moving the new guard from before methodInfo.Invoke to immediately after it preserves the asserted InvalidOperationException and message while violating the intended no-invocation behavior.",
+          "The final PR later added DidInvokeAsyncMethod and Assert.False, corroborating the missing observable without serving as the sole proof.",
+          "No equivalent technical feedback appears before the frozen cutoff."
+        ]
+      },
+      "acceptance": [
+        "The finding is tied to the changed test and explains the specific false-pass mutation.",
+        "The recommendation asks for an observable non-invocation assertion rather than only more message checking."
+      ],
+      "rejection": [
+        "NO_FINDINGS or silence.",
+        "A finding that does not establish a changed-line causal defect.",
+        "A claim already covered by the included historical feedback."
+      ],
+      "unexpectedFindings": "manual-source-adjudication-required"
+    },
+    {
+      "id": "pr-67589-antiforgery-test",
+      "stimulus": "reviewer-capability-pr-67589-antiforgery-test",
+      "partition": "development",
+      "suiteRole": "secondary",
+      "lineage": "dotnet/aspnetcore#67589@485a3f11c85019dc77286d755c84961dbf2c95ee",
+      "capabilityTags": [
+        "feedback-deduplication",
+        "test-specificity",
+        "restraint"
+      ],
+      "riskTags": [
+        "duplicate-finding"
+      ],
+      "journeyTags": [
+        "natural-review",
+        "historical-feedback-cutoff"
+      ],
+      "expectedDisposition": "no-new-finding-required",
+      "knownConcern": {
+        "path": "src/ProjectTemplates/test/Templates.Blazor.Tests/BlazorWebTemplateTest.cs",
+        "line": 131,
+        "claim": "A single substring assertion does not prove that both independently protected passkey endpoints perform antiforgery validation.",
+        "deduplicationBasis": "Equivalent maintainer feedback is already present in issue comment 4878160410 before the excluded inline label-source comment."
+      },
+      "acceptance": [
+        "NO_FINDINGS is valid.",
+        "The output may recognize the test weakness only if it also treats it as already covered and does not present it as a new actionable finding."
+      ],
+      "rejection": [
+        "Reporting the known test-specificity concern as a new finding.",
+        "Inventing a distinct defect without source evidence."
+      ],
+      "unexpectedFindings": "manual-source-adjudication-required"
+    },
+    {
+      "id": "pr-68895-auth-refresh",
+      "stimulus": "reviewer-capability-pr-68895-auth-refresh",
+      "partition": "development",
+      "suiteRole": "secondary",
+      "lineage": "dotnet/aspnetcore#68895@3f7c17615005af6e57e6e617904a4a2f671f0762",
+      "capabilityTags": [
+        "configuration-composition",
+        "source-tracing",
+        "restraint"
+      ],
+      "riskTags": [
+        "fabricated-regression"
+      ],
+      "journeyTags": [
+        "natural-review",
+        "retrieval-feedback-snapshot"
+      ],
+      "expectedDisposition": "no-known-finding",
+      "sourceFacts": [
+        "ConfigureIdentityAuthenticationRefresh captures the pre-existing ConfigureConnection callback.",
+        "The replacement callback invokes the captured callback before applying its own access-token and close-timeout settings."
+      ],
+      "acceptance": [
+        "NO_FINDINGS is valid.",
+        "The reviewer does not claim that prior connection configuration is discarded."
+      ],
+      "rejection": [
+        "Claiming the wrapper overwrites or drops prior ConfigureConnection behavior.",
+        "Treating an unsupported speculative consequence as an actionable regression."
+      ],
+      "unexpectedFindings": "manual-source-adjudication-required"
+    },
+    {
+      "id": "pr-70106",
+      "stimulus": "reviewer-capability-pr-70106",
+      "partition": "development",
+      "suiteRole": "primary",
+      "lineage": "dotnet/aspnetcore#70106@2edf3761692afe15475075eb2fc0088566162045",
+      "capabilityTags": [
+        "async-overlap",
+        "support-boundary",
+        "old-versus-head",
+        "restraint"
+      ],
+      "riskTags": [
+        "unsupported-applicability",
+        "preexisting-effect",
+        "blanket-impossibility"
+      ],
+      "journeyTags": [
+        "natural-review",
+        "same-lineage-as-supplied-candidate-calibration"
+      ],
+      "expectedDisposition": "no-required-hidden-diagnosis",
+      "sourceFacts": [
+        "On the merge base, an authentication event during the awaited RequestAccessToken call can clear the cache before that older request resumes and stores its token and header.",
+        "At the reviewed head, SendAsync captures the current authentication-state cancellation token before awaiting RequestAccessToken. If an event occurs during that await, the event cancels the captured token and the resumed request skips the _lastToken and _cachedHeader stores.",
+        "The current request can still use the locally computed header after an event; the change prevents that request from repopulating the shared cache, not from using its local result.",
+        "A residual stale-cache interleaving requires an authentication event to run concurrently after IsCancellationRequested is checked and before the immediately following stores, a segment with no await.",
+        "The materially equivalent stale-cache effect from an event during RequestAccessToken already existed before this pull request.",
+        "The frozen evidence does not establish arbitrary off-thread provider events as a supported Blazor WebAssembly product contract, while unsupported Blazor multithreading does not prove an explicit provider-concurrency prohibition."
+      ],
+      "acceptance": [
+        "NO_FINDINGS is valid and is not evidence of latent threading understanding.",
+        "A conditional discussion may distinguish the fixed event-during-await schedule from the residual post-check schedule while withholding an actionable PR finding because supported applicability and PR-introduced material effect are not established."
+      ],
+      "rejection": [
+        "Claiming that the reviewed head still repopulates the shared cache when the authentication event occurs during the awaited token request.",
+        "An actionable locking or cancellation demand based on the pre-existing conditional mechanism.",
+        "A blanket claim that parallel execution is impossible in every WebAssembly mode.",
+        "A fabricated claim that the provider contract affirmatively prohibits concurrent callbacks."
+      ],
+      "unexpectedFindings": "manual-source-adjudication-required"
+    },
+    {
+      "id": "pr-66753",
+      "stimulus": "reviewer-capability-pr-66753",
+      "partition": "development",
+      "suiteRole": "primary",
+      "lineage": "dotnet/aspnetcore#66753@d98775db95835cdddf5f1dc2dc94fccee7c2c83d",
+      "capabilityTags": [
+        "async-overlap-at-await",
+        "producer-contract",
+        "changed-line-causality",
+        "actionable-finding"
+      ],
+      "riskTags": [
+        "user-input-lost",
+        "stale-async-continuation"
+      ],
+      "journeyTags": [
+        "natural-review",
+        "historical-feedback-cutoff",
+        "development-lineage"
+      ],
+      "expectedDisposition": "actionable-finding-required",
+      "requiredFinding": {
+        "severity": "P1",
+        "path": "src/Components/Web/src/Virtualization/Virtualize.cs",
+        "line": 606,
+        "claim": "The new spacer callbacks return for the full lifetime of ScrollToIndexAsync, so a real user scroll while the method is awaiting a slow ItemsProvider is ignored and the resumed programmatic operation can still align the viewport to its older target.",
+        "materialEffect": "Source flow implies that the UI can appear unresponsive during the provider wait and then jump to the stale programmatic target, contradicting the pull request's user-scroll-wins contract. This milestone does not claim browser execution was observed.",
+        "sourceBasis": [
+          "The exact PR body version before the cutoff says that user scrolling during the operation wins.",
+          "ScrollToIndexAsyncCore sets _currentScrollCts before awaiting EnsureRenderCommittedAsync, which can await RefreshDataCoreAsync and the ItemsProvider.",
+          "The changed spacer callbacks at lines 606 and 626 return whenever _currentScrollCts is non-null, so the browser-produced callbacks for a real user scroll cannot update the virtualized window during that wait.",
+          "The merge base has no ScrollToIndexAsync or _currentScrollCts behavior, so the conflicting overlap is introduced by this pull request.",
+          "Included feedback comment 3274671048 covers caller cancellation and later-call supersession after the render rendezvous; it does not cover real browser spacer callbacks being suppressed during the provider wait.",
+          "Later source-backed correction 5191c02677f40c1f116ab4b32c6a19523b668605 cancels the in-flight programmatic scroll and provider refresh when a real spacer callback arrives, and adds browser coverage for the exact overlap.",
+          "Equivalent feedback is excluded by the 2026-05-20T15:09:01Z cutoff."
+        ]
+      },
+      "acceptance": [
+        "The reviewer identifies that a real user scroll during the awaited provider/render path is ignored by the changed callbacks.",
+        "The reviewer connects the ignored callback to the stale programmatic operation resuming and violating the stated user-scroll-wins contract.",
+        "The finding is anchored to an added or modified line in the frozen diff and is not reported as already covered feedback."
+      ],
+      "rejection": [
+        "NO_FINDINGS or blanket silence.",
+        "A generic cancellation suggestion that does not establish the browser callback, await overlap, and observable viewport effect.",
+        "A claim that only simultaneous worker threads can trigger the defect.",
+        "A claim already covered by the included pre-cutoff feedback."
+      ],
+      "labelSource": {
+        "rootCommentId": 3275032953,
+        "originalCommitId": "d98775db95835cdddf5f1dc2dc94fccee7c2c83d",
+        "excludedAtUtc": "2026-05-20T15:09:01Z"
+      },
+      "unexpectedFindings": "manual-source-adjudication-required"
+    },
+    {
+      "id": "pr-57972",
+      "stimulus": "reviewer-capability-pr-57972",
+      "partition": "development",
+      "suiteRole": "primary",
+      "lineage": "dotnet/aspnetcore#57972@0a8373f036c151ae2773f4e5a1cb4aeccade6bce",
+      "capabilityTags": [
+        "supported-parallel-execution",
+        "shared-singleton-state",
+        "binding-fix-obligation",
+        "actionable-finding"
+      ],
+      "riskTags": [
+        "concurrent-dictionary-mutation",
+        "request-failure"
+      ],
+      "journeyTags": [
+        "natural-review",
+        "historical-feedback-cutoff",
+        "development-lineage"
+      ],
+      "expectedDisposition": "actionable-finding-required",
+      "requiredFinding": {
+        "severity": "P1",
+        "path": "src/OpenApi/test/Microsoft.AspNetCore.OpenApi.Tests/Integration/OpenApiDocumentConcurrentRequestTests.cs",
+        "line": 24,
+        "claim": "The concurrency fix and its new test leave _operationTransformerContextCache as a plain Dictionary even though OpenApiDocumentService is a keyed singleton and every concurrent document request calls TryAdd on that shared cache.",
+        "materialEffect": "Supported concurrent HTTP requests can still race in the shared Dictionary, so the pull request's promised concurrent document generation can throw, corrupt cache state, or return a non-success response.",
+        "sourceBasis": [
+          "The exact pre-cutoff PR body promises to allow concurrent OpenAPI document requests and names the other shared dictionaries converted by this revision.",
+          "OpenApiDocumentService is registered as a keyed singleton, so requests for the same document name share one service instance.",
+          "GetOpenApiDocumentAsync executes _operationTransformerContextCache.TryAdd for every operation while the field remains Dictionary<string, OpenApiOperationTransformerContext> at the reviewed head.",
+          "The new changed test starts concurrent requests but uses only three tasks, which does not reliably exercise the remaining shared Dictionary.",
+          "The unsafe field predates the pull request, but converting all shared mutable caches is a binding omission obligation for the pull request's advertised concurrency fix.",
+          "Follow-up cb01ee07234372356dbd64cffd575e0603c91a38 converts the field to ConcurrentDictionary and changes the test to Parallel.ForAsync with 150 requests; the author reports that the stronger test exposed the omitted cache.",
+          "Equivalent feedback is excluded by the 2024-09-19T20:14:43Z cutoff."
+        ]
+      },
+      "acceptance": [
+        "The reviewer identifies the remaining plain _operationTransformerContextCache and traces concurrent HTTP requests through the shared keyed singleton to TryAdd.",
+        "The reviewer treats the omitted conversion as necessary to complete the pull request's promised concurrency fix, rather than falsely calling the pre-existing field a newly introduced dictionary.",
+        "The finding is anchored to a changed test line or another changed line that bears the incomplete concurrency obligation."
+      ],
+      "rejection": [
+        "NO_FINDINGS or blanket silence.",
+        "Only requesting a larger stress test without identifying the remaining shared Dictionary and its request path.",
+        "Calling the field itself newly introduced by the pull request.",
+        "A concurrency concern that assumes an unsupported host or provider contract."
+      ],
+      "labelSource": {
+        "rootCommentId": 1767539860,
+        "originalCommitId": "0a8373f036c151ae2773f4e5a1cb4aeccade6bce",
+        "excludedAtUtc": "2024-09-19T20:14:43Z",
+        "corroboratingReplyId": 1768605065
+      },
+      "unexpectedFindings": "manual-source-adjudication-required"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+[
+  {
+    "filename": "src/Components/Web.JS/src/Virtualize.ts",
+    "status": "modified",
+    "sha": "77769e70fe622f773d7210152ba16baf36194ba1",
+    "additions": 53,
+    "deletions": 13,
+    "changes": 66
+  },
+  {
+    "filename": "src/Components/Web/src/PublicAPI.Unshipped.txt",
+    "status": "modified",
+    "sha": "79f196125f758feff4b2926ba221f28a49894642",
+    "additions": 3,
+    "deletions": 0,
+    "changes": 3
+  },
+  {
+    "filename": "src/Components/Web/src/Virtualization/Virtualize.cs",
+    "status": "modified",
+    "sha": "bfab245ff0c9094f1a26ec908a95bf0baf66ad89",
+    "additions": 178,
+    "deletions": 5,
+    "changes": 183
+  },
+  {
+    "filename": "src/Components/Web/src/Virtualization/VirtualizeJsInterop.cs",
+    "status": "modified",
+    "sha": "8502f218248f950987a4e883fc80ee633d11168c",
+    "additions": 5,
+    "deletions": 0,
+    "changes": 5
+  },
+  {
+    "filename": "src/Components/Web/test/Virtualization/VirtualizeTest.cs",
+    "status": "modified",
+    "sha": "7f94a5f534d9565e2cd92ee313125cd5dce39d96",
+    "additions": 135,
+    "deletions": 0,
+    "changes": 135
+  },
+  {
+    "filename": "src/Components/test/E2ETest/Tests/VirtualizationTest.cs",
+    "status": "modified",
+    "sha": "306ce5f478fd08f49a47de88dc7328b5e5ab62f4",
+    "additions": 331,
+    "deletions": 0,
+    "changes": 331
+  },
+  {
+    "filename": "src/Components/test/testassets/BasicTestApp/VirtualizationAnchorMode.razor",
+    "status": "modified",
+    "sha": "26a86ecb37d1b56e7495d7c87a1a156879a8beb9",
+    "additions": 147,
+    "deletions": 19,
+    "changes": 166
+  },
+  {
+    "filename": "src/Components/test/testassets/BasicTestApp/VirtualizationAnchorModeWindowScroll.razor",
+    "status": "modified",
+    "sha": "1134f190ae49e2c366b69a9d91d29346f6aa8e9b",
+    "additions": 20,
+    "deletions": 0,
+    "changes": 20
+  }
+]

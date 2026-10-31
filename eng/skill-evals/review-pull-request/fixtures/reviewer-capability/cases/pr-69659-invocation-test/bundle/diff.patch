@@ -1,0 +1,79 @@
+diff --git a/src/Components/JSInterop/src/Infrastructure/DotNetDispatcher.cs b/src/Components/JSInterop/src/Infrastructure/DotNetDispatcher.cs
+index afc48165fef3a438e9483860db85f7150f215f7f..61737f96523996b5da288e23b08601c3574f0aec 100644
+--- a/src/Components/JSInterop/src/Infrastructure/DotNetDispatcher.cs
++++ b/src/Components/JSInterop/src/Infrastructure/DotNetDispatcher.cs
+@@ -56,7 +56,7 @@ public static class DotNetDispatcher
+             targetInstance = jsRuntime.GetObjectReference(invocationInfo.DotNetObjectId);
+         }
+ 
+-        var syncResult = InvokeSynchronously(jsRuntime, invocationInfo, targetInstance, argsJson, out _);
++        var syncResult = InvokeSynchronously(jsRuntime, invocationInfo, targetInstance, argsJson, out _, isSynchronousInvocation: true);
+         if (syncResult == null)
+         {
+             return null;
+@@ -163,7 +163,7 @@ public static class DotNetDispatcher
+         jsRuntime.EndInvokeDotNet(invocationInfo, new DotNetInvocationResult(resultJson));
+     }
+ 
+-    private static object? InvokeSynchronously(JSRuntime jsRuntime, in DotNetInvocationInfo callInfo, IDotNetObjectReference? objectReference, string argsJson, out Type? returnType)
++    private static object? InvokeSynchronously(JSRuntime jsRuntime, in DotNetInvocationInfo callInfo, IDotNetObjectReference? objectReference, string argsJson, out Type? returnType, bool isSynchronousInvocation = false)
+     {
+         returnType = null;
+         var assemblyName = callInfo.AssemblyName;
+@@ -199,6 +199,11 @@ public static class DotNetDispatcher
+ 
+         try
+         {
++            if (isSynchronousInvocation && IsAsyncReturnType(returnType))
++            {
++                throw new InvalidOperationException($"The JSInvokable method '{methodIdentifier}' returns an asynchronous value. Use 'invokeMethodAsync' to invoke it.");
++            }
++
+             // objectReference will be null if this call invokes a static JSInvokable method.
+             return methodInfo.Invoke(objectReference?.Value, suppliedArgs);
+         }
+@@ -223,6 +228,11 @@ public static class DotNetDispatcher
+         }
+     }
+ 
++    private static bool IsAsyncReturnType(Type returnType)
++        => typeof(Task).IsAssignableFrom(returnType)
++            || returnType == typeof(ValueTask)
++            || (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>));
++
+     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "We expect application code is configured to ensure return types of JSInvokable methods are retained.")]
+     internal static object?[] ParseArguments(JSRuntime jsRuntime, string methodIdentifier, string arguments, Type[] parameterTypes)
+     {
+diff --git a/src/Components/JSInterop/test/Infrastructure/DotNetDispatcherTest.cs b/src/Components/JSInterop/test/Infrastructure/DotNetDispatcherTest.cs
+index 1e3afd31db9f6b8c95d9f0be9849be4fdd8851bb..01b58fe7d31c9e7a1506cb61dabbca51099c5e2c 100644
+--- a/src/Components/JSInterop/test/Infrastructure/DotNetDispatcherTest.cs
++++ b/src/Components/JSInterop/test/Infrastructure/DotNetDispatcherTest.cs
+@@ -96,6 +96,28 @@ public class DotNetDispatcherTest
+         Assert.Equal(123, result.IntVal);
+     }
+ 
++    [Theory]
++    [InlineData(nameof(SomePublicType.InvokableAsyncMethod), true)]
++    [InlineData(nameof(SomePublicType.InvokableAsyncMethodReturningNonGenericTask), false)]
++    [InlineData(nameof(SomePublicType.InvokableAsyncMethodReturningValueTask), true)]
++    [InlineData(nameof(SomePublicType.InvokableAsyncMethodReturningValueTaskNonGeneric), false)]
++    public void CannotInvokeAsyncMethodSynchronously(string methodIdentifier, bool hasArguments)
++    {
++        var jsRuntime = new TestJSRuntime();
++        var targetReference = DotNetObjectReference.Create(new SomePublicType());
++        var argumentReference = DotNetObjectReference.Create(new TestDTO());
++        jsRuntime.Invoke<object>("unimportant", targetReference, argumentReference);
++
++        var argsJson = hasArguments
++            ? JsonSerializer.Serialize(new object[] { new TestDTO(), argumentReference }, jsRuntime.JsonSerializerOptions)
++            : "[]";
++
++        var exception = Assert.Throws<InvalidOperationException>(() =>
++            DotNetDispatcher.Invoke(jsRuntime, new DotNetInvocationInfo(null, methodIdentifier, targetReference.ObjectId, default), argsJson));
++
++        Assert.Equal($"The JSInvokable method '{methodIdentifier}' returns an asynchronous value. Use 'invokeMethodAsync' to invoke it.", exception.Message);
++    }
++
+     [Fact]
+     public void CanInvokeStaticNonVoidMethodWithoutCustomIdentifier()
+     {

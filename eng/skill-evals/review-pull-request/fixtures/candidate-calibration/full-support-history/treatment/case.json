@@ -1,0 +1,6 @@
+{
+  "packet": "full-support-history",
+  "description": "Actual source, old/head behavior, and target-revision product support history are supplied.",
+  "executionPremise": "No extra execution premise is supplied. Distinguish conditional source reachability from the supported product contract.",
+  "suppliedSupportHistory": true
+}

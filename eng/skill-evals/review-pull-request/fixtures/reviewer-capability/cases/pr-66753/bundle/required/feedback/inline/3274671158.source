@@ -1,0 +1,1 @@
+`scrollElement.scrollTo({ ..., behavior: 'instant' })` uses a non-standard scroll behavior value that may be ignored by some browsers, potentially causing smooth scrolling or inconsistent behavior. Prefer setting `scrollElement.scrollTop += delta` directly, or use the standard `behavior: 'auto'`.

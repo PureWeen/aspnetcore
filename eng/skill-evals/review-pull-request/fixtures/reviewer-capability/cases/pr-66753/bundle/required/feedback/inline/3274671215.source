@@ -1,0 +1,3 @@
+This test only asserts the returned Task is non-null, but it doesn't await it. If `ScrollToIndexAsync` faults asynchronously (e.g., due to interop or render-commit issues), the test would still pass. Consider awaiting the Task (optionally with a timeout) to ensure it completes without exceptions.
+
+This issue also appears on line 996 of the same file.

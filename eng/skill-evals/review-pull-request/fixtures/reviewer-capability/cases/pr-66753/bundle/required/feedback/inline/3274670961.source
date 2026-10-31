@@ -1,0 +1,1 @@
+The XML docs suggest background-thread callers should wrap with `ComponentBase.InvokeAsync(System.Action)`, but callers who want to observe completion should use the `InvokeAsync(Func<Task>)` overload (e.g., returning/awaiting the Task). As written, the docs encourage fire-and-forget, which can hide exceptions/cancellation.

@@ -1,0 +1,6 @@
+{
+  "packet": "support-evidence-withheld",
+  "description": "The product support-status history is intentionally withheld.",
+  "executionPremise": "Do not infer that threaded Blazor usage is either supported or prohibited. Identify any missing applicability contract needed for actionability.",
+  "suppliedSupportHistory": false
+}

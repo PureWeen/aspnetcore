@@ -1,0 +1,25 @@
+# {PR title}
+
+<!-- Thank you for submitting a pull request to our repo. -->
+
+<!-- If this is your first PR in the ASP.NET Core repo, please run through the checklist
+below to ensure a smooth review and merge process for your PR. -->
+
+- [x] You've read the [Contributor Guide](https://github.com/dotnet/aspnetcore/blob/main/CONTRIBUTING.md) and [Code of Conduct](https://github.com/dotnet/aspnetcore/blob/main/CODE-OF-CONDUCT.md).
+- [x] You've included unit or integration tests for your change, where applicable.
+- [ ] You've included inline docs for your change, where applicable.
+- [x] There's an open issue for the PR that you are making. If you'd like to propose a new feature or change, please open an issue to discuss the change or find an existing issue.
+
+<!-- Once all that is done, you're ready to go. Open the PR with the content below. -->
+
+Summary of the changes (Less than 80 chars)
+
+Make Blazor passkey registration work with CsrfProtection
+
+## Description
+
+The scaffolded Blazor Individual auth passkey flow was still using the classic antiforgery token-cookie path. Under the new fetch-metadata CsrfProtection middleware, that cookie is never issued, so the passkey option endpoints returned 500s before the browser could complete registration.
+
+- Passkey endpoints: Removed the classic `IAntiforgery.ValidateRequestAsync` checks from the scaffolded `/Account/PasskeyCreationOptions` and `/Account/PasskeyRequestOptions` endpoints so they rely on the middleware-provided CSRF protection.
+- Passkey UI: Removed the antiforgery token plumbing from the shared passkey submit component and script, so the browser no longer sends the old `requestverificationtoken` header for these requests.
+- Regression coverage: Added a template-level regression test to lock in the new passkey antiforgery behavior.

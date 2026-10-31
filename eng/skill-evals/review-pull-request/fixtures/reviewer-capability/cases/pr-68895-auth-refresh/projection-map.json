@@ -1,0 +1,9 @@
+{
+  "source": "Focused immutable Git-blob projection containing every changed file plus case-specific producer, consumer, and contract paths listed in the manifest.",
+  "diff": "Complete authoritative diff from frozen merge base to frozen review head.",
+  "changedFiles": "Complete changed-file metadata for the frozen comparison.",
+  "pull": "Current API description projected with retrieval timestamp, raw response digest, live head, and frozen historical review head recorded separately.",
+  "feedback": "Retrieved review and issue-comment snapshot through 2026-10-31T17:53:48Z.",
+  "labels": "Not staged for the subject.",
+  "limitation": "This is a one-context source-projected review task, not a historical hosted coordinator replay or a complete repository snapshot."
+}

@@ -1,0 +1,271 @@
+{
+  "comments": [],
+  "reviews": [
+    {
+      "id": 4329336456,
+      "author": {
+        "login": "copilot-pull-request-reviewer[bot]",
+        "id": 175728472,
+        "type": "Bot"
+      },
+      "body": {
+        "path": "required/feedback/reviews/4329336456.source",
+        "utf8Bytes": 2824,
+        "sha256": "e00f7efc36879273ae088fc2aff7440a0be892a3200df10a9da3c6ec1d581120"
+      },
+      "state": "COMMENTED",
+      "submittedAt": "2026-05-20T14:18:18Z",
+      "commitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa"
+    },
+    {
+      "id": 4329619468,
+      "author": {
+        "login": "ilonatommy",
+        "id": 32700855,
+        "type": "User"
+      },
+      "body": {
+        "path": "required/feedback/reviews/4329619468.source",
+        "utf8Bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "state": "COMMENTED",
+      "submittedAt": "2026-05-20T14:51:50Z",
+      "commitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa"
+    },
+    {
+      "id": 4329634049,
+      "author": {
+        "login": "ilonatommy",
+        "id": 32700855,
+        "type": "User"
+      },
+      "body": {
+        "path": "required/feedback/reviews/4329634049.source",
+        "utf8Bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "state": "COMMENTED",
+      "submittedAt": "2026-05-20T14:53:48Z",
+      "commitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa"
+    },
+    {
+      "id": 4329696698,
+      "author": {
+        "login": "ilonatommy",
+        "id": 32700855,
+        "type": "User"
+      },
+      "body": {
+        "path": "required/feedback/reviews/4329696698.source",
+        "utf8Bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "state": "COMMENTED",
+      "submittedAt": "2026-05-20T15:01:41Z",
+      "commitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa"
+    }
+  ],
+  "inline": [
+    {
+      "id": 3274670961,
+      "author": {
+        "login": "Copilot",
+        "id": 175728472,
+        "type": "Bot"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274670961.source",
+        "utf8Bytes": 326,
+        "sha256": "9e577b8d5d4c1202b1454904db695cdefb2d52277eeb966cba0e72c6074a7e48"
+      },
+      "path": "src/Components/Web/src/Virtualization/Virtualize.cs",
+      "line": null,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": null,
+      "originalLine": 235,
+      "originalStartLine": null,
+      "commitId": "fde77946a6fefb1ed50c31a7104df4e57428c6f6",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": null,
+      "createdAt": "2026-05-20T14:18:17Z",
+      "updatedAt": "2026-05-20T14:18:18Z"
+    },
+    {
+      "id": 3274671048,
+      "author": {
+        "login": "Copilot",
+        "id": 175728472,
+        "type": "Bot"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274671048.source",
+        "utf8Bytes": 431,
+        "sha256": "4813fb5cc826d05656f97d36a6543da9857f2b85ffea4c054a325c5644726cd9"
+      },
+      "path": "src/Components/Web/src/Virtualization/Virtualize.cs",
+      "line": 281,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": null,
+      "originalLine": 267,
+      "originalStartLine": null,
+      "commitId": "8269b8f5ab4afa8f9543eb409080ecdadc5cd547",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": null,
+      "createdAt": "2026-05-20T14:18:17Z",
+      "updatedAt": "2026-05-20T14:18:18Z"
+    },
+    {
+      "id": 3274671106,
+      "author": {
+        "login": "Copilot",
+        "id": 175728472,
+        "type": "Bot"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274671106.source",
+        "utf8Bytes": 369,
+        "sha256": "d22bbdcf9168e15963261b9b32442f498e3a373cf47f6d680b8b41ee423556e9"
+      },
+      "path": "src/Components/Web/src/Virtualization/VirtualizeJsInterop.cs",
+      "line": null,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": "RIGHT",
+      "originalLine": 68,
+      "originalStartLine": 65,
+      "commitId": "fde77946a6fefb1ed50c31a7104df4e57428c6f6",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": null,
+      "createdAt": "2026-05-20T14:18:17Z",
+      "updatedAt": "2026-05-20T14:18:19Z"
+    },
+    {
+      "id": 3274671158,
+      "author": {
+        "login": "Copilot",
+        "id": 175728472,
+        "type": "Bot"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274671158.source",
+        "utf8Bytes": 298,
+        "sha256": "f6f7caddf47bd6f3a1e16f13a357f610ae5372560b25295052a53078228c1961"
+      },
+      "path": "src/Components/Web.JS/src/Virtualize.ts",
+      "line": 490,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": null,
+      "originalLine": 460,
+      "originalStartLine": null,
+      "commitId": "8269b8f5ab4afa8f9543eb409080ecdadc5cd547",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": null,
+      "createdAt": "2026-05-20T14:18:18Z",
+      "updatedAt": "2026-05-20T14:18:19Z"
+    },
+    {
+      "id": 3274671215,
+      "author": {
+        "login": "Copilot",
+        "id": 175728472,
+        "type": "Bot"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274671215.source",
+        "utf8Bytes": 352,
+        "sha256": "5b952811243c4f174eeb9cfa655f13bd805c2c77f94d8bd5897ef72c744f7f9a"
+      },
+      "path": "src/Components/Web/test/Virtualization/VirtualizeTest.cs",
+      "line": null,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": "RIGHT",
+      "originalLine": 985,
+      "originalStartLine": 981,
+      "commitId": "39c389d0e1b641ff59199157c81f3c402877b0a5",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": null,
+      "createdAt": "2026-05-20T14:18:18Z",
+      "updatedAt": "2026-05-20T14:18:19Z"
+    },
+    {
+      "id": 3274917015,
+      "author": {
+        "login": "ilonatommy",
+        "id": 32700855,
+        "type": "User"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274917015.source",
+        "utf8Bytes": 176,
+        "sha256": "7df71c8cc164f2d1551970a3261255e89407744660909656f414beeadf444ecb"
+      },
+      "path": "src/Components/Web.JS/src/Virtualize.ts",
+      "line": 490,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": null,
+      "originalLine": 460,
+      "originalStartLine": null,
+      "commitId": "8269b8f5ab4afa8f9543eb409080ecdadc5cd547",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": 3274671158,
+      "createdAt": "2026-05-20T14:51:50Z",
+      "updatedAt": "2026-05-20T14:52:51Z"
+    },
+    {
+      "id": 3274929934,
+      "author": {
+        "login": "ilonatommy",
+        "id": 32700855,
+        "type": "User"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274929934.source",
+        "utf8Bytes": 85,
+        "sha256": "ad88af014cf9d8f9b5e0e7ad338a644e208d167720440cd908c33d7bd831999f"
+      },
+      "path": "src/Components/Web/src/Virtualization/VirtualizeJsInterop.cs",
+      "line": null,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": "RIGHT",
+      "originalLine": 68,
+      "originalStartLine": 65,
+      "commitId": "fde77946a6fefb1ed50c31a7104df4e57428c6f6",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": 3274671106,
+      "createdAt": "2026-05-20T14:53:47Z",
+      "updatedAt": "2026-05-20T14:53:48Z"
+    },
+    {
+      "id": 3274984041,
+      "author": {
+        "login": "ilonatommy",
+        "id": 32700855,
+        "type": "User"
+      },
+      "body": {
+        "path": "required/feedback/inline/3274984041.source",
+        "utf8Bytes": 257,
+        "sha256": "c953ab77bf1fe8a2afffb797bebfe8d7c5bec872d3c06467564947d3cb02c0fd"
+      },
+      "path": "src/Components/Web.JS/src/Virtualize.ts",
+      "line": 490,
+      "side": "RIGHT",
+      "startLine": null,
+      "startSide": null,
+      "originalLine": 460,
+      "originalStartLine": null,
+      "commitId": "8269b8f5ab4afa8f9543eb409080ecdadc5cd547",
+      "originalCommitId": "244e4ed857eac598fb1c7a71bd32476167c2a3fa",
+      "inReplyToId": 3274671158,
+      "createdAt": "2026-05-20T15:01:40Z",
+      "updatedAt": "2026-05-20T15:02:11Z"
+    }
+  ]
+}

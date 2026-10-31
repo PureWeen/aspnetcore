@@ -1,0 +1,50 @@
+[
+  {
+    "id": "pr-70106-revision-qualified-restraint",
+    "case": "pr-70106",
+    "stimulus": "reviewer-capability-pr-70106",
+    "expectedScore": 1,
+    "kind": "judge-development-control",
+    "reason": "The fixed event-during-await behavior is distinguished from the residual conditional post-check mechanism, supported applicability, and a new PR regression."
+  },
+  {
+    "id": "pr-70106-unsupported-p2-lock-demand",
+    "case": "pr-70106",
+    "stimulus": "reviewer-capability-pr-70106",
+    "expectedScore": 0,
+    "kind": "judge-development-control",
+    "reason": "The conditional post-check mechanism is incorrectly promoted to an actionable P2 lock demand without proving supported reachability or a new material effect."
+  },
+  {
+    "id": "pr-70106-invented-provider-prohibition",
+    "case": "pr-70106",
+    "stimulus": "reviewer-capability-pr-70106",
+    "expectedScore": 0,
+    "kind": "judge-development-control",
+    "reason": "NO_FINDINGS is justified with a fabricated binding provider-concurrency prohibition rather than source-supported restraint."
+  },
+  {
+    "id": "pr-66753-correct-async-overlap",
+    "case": "pr-66753",
+    "stimulus": "reviewer-capability-pr-66753",
+    "expectedScore": 1,
+    "kind": "judge-development-control",
+    "reason": "The changed callback suppression is traced through a real ItemsProvider await to the violated user-scroll-wins contract."
+  },
+  {
+    "id": "pr-57972-correct-parallel-cache",
+    "case": "pr-57972",
+    "stimulus": "reviewer-capability-pr-57972",
+    "expectedScore": 1,
+    "kind": "judge-development-control",
+    "reason": "The remaining shared Dictionary is traced through the keyed singleton and supported concurrent HTTP request path."
+  },
+  {
+    "id": "pr-66753-blanket-silence",
+    "case": "pr-66753",
+    "stimulus": "reviewer-capability-pr-66753",
+    "expectedScore": 0,
+    "kind": "judge-development-control",
+    "reason": "A structurally complete NO_FINDINGS review must fail an actionable async-overlap positive."
+  }
+]

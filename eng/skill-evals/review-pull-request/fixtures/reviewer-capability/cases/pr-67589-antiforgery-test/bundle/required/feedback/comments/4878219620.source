@@ -1,0 +1,4 @@
+
+> @copilot address the feedback. Make sure that we have requires antiforgery and that we validate the feature manually inside the handler
+
+Implemented the follow-up so the scaffolded passkey endpoints now both opt into antiforgery validation via [RequireAntiforgeryToken] and explicitly check the middleware’s IAntiforgeryValidationFeature before proceeding. This is covered in commit 485a3f11.

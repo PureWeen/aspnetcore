@@ -1,0 +1,74 @@
+[
+  {
+    "filename": "src/Components/test/E2ETest/ServerExecutionTests/ServerAuthTest.cs",
+    "status": "modified",
+    "sha": "5e1fdbbbc433086bb90e1421cc5d00be814b8375",
+    "additions": 23,
+    "deletions": 0,
+    "changes": 23
+  },
+  {
+    "filename": "src/Components/test/testassets/Components.TestServer/AuthenticationStartup.cs",
+    "status": "modified",
+    "sha": "f56b1f6d8070ff336fa4d1af97f67083920aa907",
+    "additions": 5,
+    "deletions": 1,
+    "changes": 6
+  },
+  {
+    "filename": "src/Components/test/testassets/Components.TestServer/Pages/_ServerHost.cshtml",
+    "status": "modified",
+    "sha": "794e6d72d66ea32b52ea813e7f94c3fb69c1d9b0",
+    "additions": 11,
+    "deletions": 1,
+    "changes": 12
+  },
+  {
+    "filename": "src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/.template.config/template.json",
+    "status": "modified",
+    "sha": "5688874740998558575d4586237ce7a17873de7f",
+    "additions": 0,
+    "deletions": 6,
+    "changes": 6
+  },
+  {
+    "filename": "src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/BlazorWebCSharp.1/Components/Account/IdentityComponentsEndpointRouteBuilderExtensions.cs",
+    "status": "modified",
+    "sha": "897e2bef7dd58beee65e5c3af51e413dc4862aa2",
+    "additions": 23,
+    "deletions": 0,
+    "changes": 23
+  },
+  {
+    "filename": "src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/BlazorWebCSharp.1/Components/Account/IdentityRevalidatingAuthenticationStateProvider.cs",
+    "status": "removed",
+    "sha": "489443fbeffb44495961893f4e8682f8adf2ca4d",
+    "additions": 0,
+    "deletions": 47,
+    "changes": 47
+  },
+  {
+    "filename": "src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/BlazorWebCSharp.1/Program.Main.cs",
+    "status": "modified",
+    "sha": "9a487804b1bde276e93aa52f5bda487798e9f96c",
+    "additions": 8,
+    "deletions": 6,
+    "changes": 14
+  },
+  {
+    "filename": "src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/BlazorWebCSharp.1/Program.cs",
+    "status": "modified",
+    "sha": "d9447e6a844d833572d7bb6f7886da69594b2fa0",
+    "additions": 8,
+    "deletions": 6,
+    "changes": 14
+  },
+  {
+    "filename": "src/ProjectTemplates/test/Templates.Tests/template-baselines.json",
+    "status": "modified",
+    "sha": "d3193c592f5d8f7e30ec878453ad1c0c68ab4c1b",
+    "additions": 0,
+    "deletions": 6,
+    "changes": 6
+  }
+]

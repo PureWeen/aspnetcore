@@ -1,0 +1,34 @@
+{
+  "number": 66753,
+  "state": "OPEN",
+  "title": "Add InitialIndex parameter and ScrollToIndexAsync API to `Virtualize<TItem>`",
+  "body": {
+    "path": "required/pull/body.source",
+    "utf8Bytes": 2110,
+    "sha256": "7d6d514fe614c0f84b8d5c82bd23a801380cb3e1ad244d32e6430e9b70d06d1b"
+  },
+  "draft": false,
+  "author": {
+    "id": "MDQ6VXNlcjMyNzAwODU1",
+    "is_bot": false,
+    "login": "ilonatommy",
+    "name": "Ilona Tomkowicz"
+  },
+  "labels": [],
+  "milestone": null,
+  "createdAt": "2026-05-20T14:09:09Z",
+  "url": "https://github.com/dotnet/aspnetcore/pull/66753",
+  "retrieval": {
+    "retrievedAtUtc": "2026-10-31T18:45:08.848791Z",
+    "liveHead": "8269b8f5ab4afa8f9543eb409080ecdadc5cd547",
+    "frozenReviewHead": "d98775db95835cdddf5f1dc2dc94fccee7c2c83d",
+    "baseRef": "main",
+    "source": "gh pr view",
+    "descriptionHistoricalAtCutoff": true,
+    "labelsHistoricalAtCutoff": false,
+    "note": "Exact latest PR body version before the feedback cutoff; labels and post-cutoff decision metadata omitted.",
+    "descriptionSnapshotEditedAt": "2026-05-20T14:35:33Z",
+    "descriptionSnapshotEditor": "ilonatommy",
+    "descriptionSource": "GitHub GraphQL userContentEdits.diff"
+  }
+}

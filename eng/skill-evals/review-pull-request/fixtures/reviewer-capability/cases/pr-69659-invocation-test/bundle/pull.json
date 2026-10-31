@@ -1,0 +1,35 @@
+{
+  "number": 69659,
+  "state": "OPEN",
+  "title": "Fix misleading error for synchronous async JS interop calls",
+  "body": {
+    "path": "required/pull/body.source",
+    "utf8Bytes": 1306,
+    "sha256": "d15f55451060735528ddb0d407dad03b7676e32734ef77306b1b7b602d7b7a87"
+  },
+  "draft": false,
+  "author": {
+    "id": "U_kgDOCAwXOw",
+    "is_bot": false,
+    "login": "shantanu2002git",
+    "name": "shantanu sahoo"
+  },
+  "labels": [],
+  "milestone": null,
+  "createdAt": "2026-10-04T17:22:24Z",
+  "url": "https://github.com/dotnet/aspnetcore/pull/69659",
+  "retrieval": {
+    "retrievedAtUtc": "2026-10-31T17:53:02.3014079Z",
+    "liveHead": "cc6db69d9fded6a582a3f4863b091ab3e98b5cec",
+    "frozenReviewHead": "ef3019db988cac9789209bb1062fdb793ea49358",
+    "baseRef": "main",
+    "source": "gh pr view",
+    "rawSha256": "408277b3cdb381d1ac5143ab1bca6f3b15bae2e9f7795b10f6332498127a8ea1",
+    "descriptionHistoricalAtCutoff": true,
+    "descriptionSnapshotEditedAt": "2026-10-04T17:50:04Z",
+    "descriptionSnapshotEditor": "shantanu2002git",
+    "descriptionSource": "GitHub GraphQL userContentEdits.diff",
+    "labelsHistoricalAtCutoff": false,
+    "note": "Exact latest PR body version before the feedback cutoff; labels and post-cutoff decision metadata omitted."
+  }
+}

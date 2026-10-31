@@ -1,0 +1,1 @@
+We can pass it but it won't cancel JS's side work if the call was already dispatched.

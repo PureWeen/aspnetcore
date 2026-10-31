@@ -1,0 +1,8 @@
+{
+  "repository": "dotnet/runtime",
+  "commit": "e19e40970355cfdc42c122e290678e3afbdaadac",
+  "blob": "7ee03d09f115a9d7266880d4aebe7c99ba33c47b",
+  "path": "src/mono/wasm/features.md",
+  "htmlUrl": "https://github.com/dotnet/runtime/blob/e19e40970355cfdc42c122e290678e3afbdaadac/src/mono/wasm/features.md",
+  "retrievedAtUtc": "2026-10-31T16:31:54.5245560Z"
+}

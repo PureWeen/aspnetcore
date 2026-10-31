@@ -1,0 +1,18 @@
+[
+  {
+    "filename": "src/ProjectTemplates/Web.ProjectTemplates/content/BlazorWeb-CSharp/BlazorWebCSharp.1/Components/Account/IdentityComponentsEndpointRouteBuilderExtensions.cs",
+    "status": "modified",
+    "sha": "f22a0ce357191b5b0c48c90328b633a295939adb",
+    "additions": 10,
+    "deletions": 0,
+    "changes": 10
+  },
+  {
+    "filename": "src/ProjectTemplates/test/Templates.Blazor.Tests/BlazorWebTemplateTest.cs",
+    "status": "modified",
+    "sha": "d553a175d7384c2b59302d52db7b37b0bd6fbf9a",
+    "additions": 1,
+    "deletions": 1,
+    "changes": 2
+  }
+]

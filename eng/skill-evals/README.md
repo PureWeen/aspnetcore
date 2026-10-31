@@ -20,6 +20,75 @@ beside the spec that consumes them, normally under a `fixtures` directory. Do
 not place eval specs, `evals` directories, or eval runners in runtime skill
 directories. A runtime skill may use a `fixtures` directory for non-eval assets.
 
+`review-pull-request/candidate-calibration.vally.yaml` is an opt-in supplied-candidate
+acceptance-subtask suite. It does not use the standard no-skill-versus-skilled
+experiment and does not measure discovery, recall, full coordinator/worker behavior,
+or general reviewer quality. Run only the preregistered arm:
+
+```powershell
+./eng/skill-evals/run.ps1 Run `
+  -Eval eng/skill-evals/review-pull-request/candidate-calibration.vally.yaml `
+  -OutputDirectory artifacts/skill-evals/line77-baseline `
+  --tag arm=baseline --workers 1 --max-retries 0
+```
+
+Run the matched `arm=treatment` cases only when source adjudication of the baseline
+shows the preregistered support-boundary overclaim. Each arm has one trial for each of
+three evidence packets. Failed or incomplete attempts consume the allowance; do not
+retry or substitute models. The expected labels and answer anchors remain outside the
+subject-staged fixture roots.
+
+The suite-local checker has separate result modes. `Integrity` verifies that all three
+planned trial records are complete, uniquely identified, scored (including a valid
+negative score), and retain the exact case and subject-model provenance. `Acceptance`
+additionally requires every configured grader to pass, the native review skill to be
+the first successful tool call with an actual activation event, both assigned guides
+to have successful complete read results matching their staged byte counts and hashes,
+and the exact judge identity:
+
+```powershell
+./eng/skill-evals/review-pull-request/check_candidate_calibration.ps1 `
+  -ResultsDirectory artifacts/skill-evals/line77-baseline `
+  -ExpectedArm baseline -ExpectedRunId <run-id> -ResultMode Integrity
+
+./eng/skill-evals/review-pull-request/check_candidate_calibration.ps1 `
+  -ResultsDirectory artifacts/skill-evals/line77-baseline `
+  -ExpectedArm baseline -ExpectedRunId <run-id> -ResultMode Acceptance
+```
+
+Automated acceptance is necessary but not sufficient. Independently adjudicate every
+subject output and judge rationale against the frozen source labels. Preserve semantic
+disagreements or overstatements rather than converting a green process or aggregate
+score into source truth.
+
+`review-pull-request/reviewer-capability.vally.yaml` is a separate opt-in
+natural-review development suite. It stages genuine frozen pull-request source
+projections and historical feedback cutoffs without supplying a candidate
+finding or expected answer to the subject. Its primary pilot is #70106
+restraint, #66753 async-overlap discovery, and #57972 supported-parallel
+discovery. The trusted caller explicitly uses the review skill's documented
+offline `single-reviewer` exception with the same guides and acceptance gates
+in one context and no workers. It is not a hosted review replay, a
+coordinator/worker fidelity test, a holdout benchmark, or demonstrated repair.
+Run its model-free integrity and schema checks with:
+
+```powershell
+./eng/skill-evals/review-pull-request/check_reviewer_capability.ps1
+./eng/skill-evals/review-pull-request/test_check_reviewer_capability.ps1
+./eng/skill-evals/run.ps1 Lint `
+  -Eval eng/skill-evals/review-pull-request/reviewer-capability.vally.yaml
+./eng/skill-evals/run.ps1 Validate `
+  -Eval eng/skill-evals/review-pull-request/reviewer-capability.vally.yaml
+./eng/skill-evals/run.ps1 Test
+```
+
+The suite's derivative trajectories are judge-development controls, not subject
+attempts. They must be graded through the same configured prompt-grader path,
+and their individual expected score relations must be asserted because a valid
+negative `vally grade` result exits zero without `--require-pass`. Automated
+acceptance remains necessary but not sufficient; every novel finding requires
+manual source adjudication.
+
 The experiment deliberately does not override `runs`. A standard spec owns its
 trial count through `defaults.runs`. The existing specs retain five runs and 25
 trials each. The dotnet/skills quality gate uses five trials as the minimum at

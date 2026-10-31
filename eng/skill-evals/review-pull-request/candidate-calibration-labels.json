@@ -1,0 +1,48 @@
+{
+  "case": {
+    "repository": "dotnet/aspnetcore",
+    "pullRequest": 70106,
+    "rootCommentId": 4431751648,
+    "replyCommentId": 4431799752,
+    "head": "2edf3761692afe15475075eb2fc0088566162045",
+    "mergeBase": "10bc886bfa321718276619d1077cc14eaf48456f",
+    "baseTip": "4f556f73a610b386e5ec29355a300e493d30c4c5",
+    "sourceAdjudicationSha256": "721b6fccaad1a3e29ad8798ae8693983df6c6ccd86ee239c0637b4dd77baa166"
+  },
+  "packets": {
+    "full-support-history": {
+      "mechanism": "The post-check callback/store schedule is legal only with genuine parallel event delivery and can restore a stale token/header.",
+      "applicability": "The packet establishes an opt-in runtime experiment but not a supported Blazor host/provider guarantee for this scenario.",
+      "oldHead": "The same material stale-cache effect exists in merge-base and base-tip code under the same parallel custom-provider premise.",
+      "actionability": "Do not accept a new P2 finding or demand a lock in this PR.",
+      "mustReject": [
+        "Parallel execution is impossible in every Blazor WebAssembly mode.",
+        "The experimental runtime switch alone establishes supported Blazor usage.",
+        "The mechanism is real, therefore this PR must add locking."
+      ]
+    },
+    "support-evidence-withheld": {
+      "mechanism": "The conditional parallel schedule and stale-cache consequence remain source-valid.",
+      "applicability": "The host/provider support contract is missing; do not invent support or prohibition.",
+      "oldHead": "The material effect is pre-existing under the candidate's premise.",
+      "actionability": "Do not accept a new P2 finding or demand a lock while applicability is unestablished.",
+      "mustReject": [
+        "Citing the withheld issue, pull request, or runtime support status.",
+        "Treating an experimental switch as a supported product guarantee.",
+        "Returning only generic unresolved boilerplate without mechanism and old/head analysis."
+      ]
+    },
+    "explicit-default-single-thread": {
+      "mechanism": "The exact post-check event interleaving cannot occur under the explicit single-threaded, non-reentrant premise.",
+      "applicability": "The premise controls this packet.",
+      "oldHead": "The PR's event-during-await change is a different interleaving from the rejected post-check schedule.",
+      "actionability": "Discard the supplied candidate and do not demand locking.",
+      "mustReject": [
+        "Overriding the premise with generic multithreading arguments.",
+        "Confusing the post-check window with the event-during-await bug.",
+        "Accepting the candidate because concurrent HttpClient calls exist in general."
+      ]
+    }
+  },
+  "scopeLimit": "All authorized packets can correctly produce no new finding. This suite does not test discovery or willingness to report an actionable positive concurrency defect."
+}
