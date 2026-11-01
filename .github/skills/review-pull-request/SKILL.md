@@ -208,9 +208,39 @@ Independently check every returned candidate before acceptance. Require:
    return path before accepting **or discarding** a claim.
 4. No equivalent earlier issue, review, resolved inline comment, or current
    feedback; no speculative, stylistic, or otherwise unsupported clause.
+5. For a race, thread-safety, atomicity, lock, or concurrent or re-entrant ordering
+   claim, the shared mutable state or resource and one concrete overlap of the exact
+   raced operations: a yield (an `await` or re-entrant call) between the read and its
+   use while an identified producer changes that state, or truly parallel execution
+   on that state with no synchronization on the path. Show that the host where this
+   code runs permits that overlap; for example, single-threaded browser WebAssembly
+   interleaves only at yields. A general base-type concurrency contract alone
+   establishes an obligation, not that the instance is shared or that the host runs
+   callers concurrently. An `await`, a missing lock, a shared lifetime, an extension
+   point, or a plausible interleaving without such an overlap is not proof.
+
+A worker's claim, citations, and repro are hypotheses, not evidence; establish each
+required element yourself from frozen source, applicable primary contracts, or eligible
+validation. Eligible validation may establish the trigger, overlap, and effect when it
+exercises an unmodified supported path. Instrumentation that inserts pause hooks or
+otherwise forces an interleaving may establish the consequence of that interleaving,
+but not that supported execution can produce it. How plausible, common, or severe a
+claim sounds is not evidence. A public or protected extension point establishes
+reachability, not concurrent scheduling or overlap. Old-side behavior is not applicable
+only for a genuinely new observable path with no predecessor; judge that path against
+its own contract, descriptor, documentation, or tests at `head`. If a claim holds but
+its line or repro is inaccurate, replace them with a verified changed-line anchor and
+faithful repro before accepting it. Accept a candidate only when every applicable
+element holds. Discard it only when a search of the frozen tree shows that an element
+the head code must contain (a state writer, guard, or the `await` on the path) is
+absent, and record what was searched. A producer that only external callers can
+supply, or a host or framework fact, is not a tree absence: establish it from a public
+contract or record the candidate as `UNRESOLVED` with the missing element.
 
 For an incomplete-fix or new-feature omission, require a binding issue, API, or
-repository contract; a missing test or unclear intent alone is not a material
+repository contract, including a new feature's own descriptor or documentation at
+`head` that states the behavior (its tests count only when they assert that stated
+behavior); a missing test or unclear intent alone is not a material
 behavioral finding. Do not create a candidate that merely requests a test or a
 rationale without a concrete effect.
 
