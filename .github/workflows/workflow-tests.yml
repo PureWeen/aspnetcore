@@ -1,101 +1,97 @@
 name: Workflow tests
+run-name: Fork-only reviewer reliability canary
 
 on:
-  pull_request:
-    paths:
-      - '.github/agents/**'
-      - '.github/workflows/**'
-      - '.github/skills/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: reviewer-reliability-canary-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Python and JavaScript fixtures
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 24.x
-
-      - name: Discover and run workflow test scripts
-        shell: bash
-        run: |
-          shopt -s globstar nullglob
-          tests=(.github/workflows/**/test_*.py .github/workflows/**/test_*.js .github/workflows/**/test_*.cjs .github/workflows/**/*.test.mjs)
-          if ((${#tests[@]} == 0)); then
-            echo "::error::No workflow test scripts found."
-            exit 1
-          fi
-          for test in "${tests[@]}"; do
-            echo "::group::$test"
-            case "$test" in
-              *.py) python3 -B "$test" ;;
-              *.js|*.cjs|*.mjs) node "$test" ;;
-            esac
-            echo "::endgroup::"
-          done
-
-  pulse:
-    name: PR attention pulse fixtures
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 24.x
-
-      - name: Install matching gh-aw CLI and runtime sources
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_CONFIG_DIR: ${{ runner.temp }}/pulse-toolchain
-        run: |
-          version=$(python3 -c 'import json; from pathlib import Path; print(json.loads(Path(".github/workflows/pr-attention-pulse.lock.yml").read_text().splitlines()[0].removeprefix("# gh-aw-metadata: "))["compiler_version"])')
-          gh extension install github/gh-aw --pin "$version"
-          git clone --quiet --depth 1 --branch "$version" --filter=blob:none --sparse \
-            https://github.com/github/gh-aw.git "$GH_CONFIG_DIR/extensions/gh-aw"
-          git -C "$GH_CONFIG_DIR/extensions/gh-aw" sparse-checkout set actions/setup/js
-
-      - name: Run PR attention pulse fixtures
-        shell: pwsh
-        env:
-          GH_CONFIG_DIR: ${{ runner.temp }}/pulse-toolchain
-        run: ./.github/workflows/pr-attention-pulse-tests/Test-PRAttentionPulse.ps1
-
   review_producer:
-    name: PR review producer fixtures
-    runs-on: ubuntu-latest
+    if: github.repository == 'PureWeen/aspnetcore' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Checkout repository
+      - name: Check out the exact reviewed producer revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
+          submodules: false
 
-      - name: Install repository .NET SDK
+      - name: Install trusted producer SDK
         run: ./eng/common/dotnet.sh
 
-      - name: Run PR review producer fixtures
+      - name: Run complete producer fixture suite
         run: |
           source ./activate.sh
           dotnet run --project .github/skills/review-pull-request/scripts/PrepareReview.Tests.csproj -- \
-            -preEnumerateTheories -noColor
+            -preEnumerateTheories -noColor -xml "$RUNNER_TEMP/producer-tests.xml"
+
+      - name: Enforce nonempty complete fixture results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "producer-tests.xml").getroot()
+          tests = root.findall(".//test")
+          if not tests or any(test.get("result") != "Pass" for test in tests):
+              raise SystemExit("Producer fixtures failed, skipped or did not execute")
+          print(f"Passed all {len(tests)} producer fixtures.")
+          PY
+
+      - name: Run trusted dependency preparation fixtures
+        run: |
+          node --test --test-reporter=junit \
+            .github/workflows/tests/pull-request-review-dependencies.test.mjs \
+            > "$RUNNER_TEMP/dependency-tests.xml"
+
+      - name: Retain fixture case results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reviewer-producer-fixtures
+          path: |
+            ${{ runner.temp }}/producer-tests.xml
+            ${{ runner.temp }}/dependency-tests.xml
+          if-no-files-found: error
+          retention-days: 7
+
+  managed_components:
+    if: github.repository == 'PureWeen/aspnetcore' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out trusted canary helpers, not the target
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: false
+
+      - name: Install pinned AWF without unpinned image pulls
+        uses: github/gh-aw-firewall@5953f2a985320a549f579a4a9d1977e603435744 # v0.28.57
+        with:
+          version: v0.28.57
+          pull-images: "false"
+
+      - name: Execute the eight frozen managed Facts inside AWF
+        env:
+          PILOT_IMPLEMENTATION_SHA: ${{ github.sha }}
+        run: python3 .github/scripts/review-build-sandbox/host.py
+
+      - name: Retain bounded execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reviewer-managed-components
+          path: ${{ runner.temp }}/review-build-evidence
+          if-no-files-found: error
+          retention-days: 7
