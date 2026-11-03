@@ -1,5 +1,5 @@
 ---
-if: ${{ github.event.repository.fork == false }}
+if: github.repository == 'PureWeen/aspnetcore'
 
 on:
   # Deliberately use direct slash commands: v0.88.7 centralized membership rejects community
@@ -525,7 +525,7 @@ safe-outputs:
   # Its detector tracking helper can still attempt issue writes on warning/failure.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   needs: [freeze_pr_head, verify_live_head]
-  staged: false
+  staged: true
   activation-comments: false
   report-incomplete:
     create-issue: false
