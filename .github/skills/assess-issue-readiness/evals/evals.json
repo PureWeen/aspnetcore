@@ -1,0 +1,43 @@
+{
+  "skill_name": "assess-issue-readiness",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Assess whether dotnet/aspnetcore#NNNN is ready to begin fix investigation. It is a supported released-SDK runtime report with an attached minimal repro. Keep this read-only and do not suggest a fix.",
+      "expected_output": "A validated local readiness receipt backed by executable evidence, with one disposition and ready issues routed neutrally to fix_investigation.",
+      "files": [],
+      "expectations": [
+        "The readiness assessment consumes existing upstream triage rather than assigning new labels or type.",
+        "The receipt records issue revision, repository SHA, environment, checks, commands, evidence hashes, confidence, blockers, reason code, disposition, and route.",
+        "The schema 2.0 receipt records a frozen cohort/protocol, source hashes, coherent timing, tool/model versions, attempts, and cost or explicit unknown reasons.",
+        "Ready for fix investigation requires executable reproduction evidence when feasible.",
+        "Reporter-controlled repro code runs only in a credential-free sandbox with external networking denied, explicit loopback, and authorized disposable/cache/temp roots.",
+        "No fix is proposed and no GitHub resource is mutated."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Tell me whether a Blazor issue that only reproduces under InteractiveAuto is ready to begin fix investigation. The reporter omitted a sample and SDK version. Do not change the issue or build a fix.",
+      "expected_output": "A bounded receipt that reports missing reporter evidence, records missing upstream signals, and delegates any eventual browser mechanics to validate-blazor-feature.",
+      "files": [],
+      "expectations": [
+        "Missing issue evidence is reported rather than guessed.",
+        "Components browser mechanics are delegated to validate-blazor-feature.",
+        "The issue is not marked ready based on source inspection alone.",
+        "The output names one primary disposition and keeps other observations as supporting findings."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Assess an ASP.NET Core issue whose current labels and maintainer comment identify it as a duplicate of a released fix. Do not post anything.",
+      "expected_output": "A high-confidence duplicate-or-already-fixed readiness receipt citing the canonical existing issue or release and stopping before reproduction.",
+      "files": [],
+      "expectations": [
+        "Verified duplicate or already-fixed evidence wins by deterministic precedence.",
+        "The assessment stops without unnecessary build or reproduction work.",
+        "The receipt remains bound to dotnet/aspnetcore and the observed issue revision.",
+        "The safety attestation records no GitHub mutations, Microsoft 365 writes, or fixes."
+      ]
+    }
+  ]
+}
