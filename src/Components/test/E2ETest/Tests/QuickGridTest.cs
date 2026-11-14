@@ -241,4 +241,16 @@ public class QuickGridTest : ServerTestBase<ToggleExecutionModeServerFixture<Pro
             return row ? getComputedStyle(row).cursor : null;");
         Assert.Equal("pointer", cursorStyle);
     }
+
+    [Fact]
+    public void FilteringToEmptyResetsCurrentPage()
+    {
+        app = Browser.MountTestComponent<QuickGridFilterComponent>();
+        var filterInput = app.FindElement(By.Id("filter-input"));
+        filterInput.Clear();
+        filterInput.SendKeys("NoMatchingItems");
+        app.FindElement(By.Id("apply-filter-refresh-data-btn")).Click();
+        System.Threading.Thread.Sleep(500);
+        Assert.Equal("2", app.FindElement(By.Id("items-provider-calls")).Text);
+    }
 }
