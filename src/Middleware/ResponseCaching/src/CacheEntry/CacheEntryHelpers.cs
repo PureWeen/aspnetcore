@@ -83,4 +83,9 @@ internal static class CacheEntryHelpers
             return size;
         }
     }
+
+    internal static bool ExceedsMaxBodySize(CachedResponse? cachedResponse, long maxBodySize)
+    {
+        return cachedResponse!.Body.Length >= maxBodySize;
+    }
 }
