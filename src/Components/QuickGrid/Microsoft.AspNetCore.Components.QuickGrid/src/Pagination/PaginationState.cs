@@ -66,6 +66,12 @@ public class PaginationState
 
         TotalItemCount = totalItemCount;
 
+        if (totalItemCount == 0 && CurrentPageIndex > 0)
+        {
+            _ = SetCurrentPageIndexAsync(LastPageIndex!.Value);
+            return Task.CompletedTask;
+        }
+
         if (CurrentPageIndex > 0 && CurrentPageIndex > LastPageIndex)
         {
             // If the number of items has reduced such that the current page index is no longer valid, move
