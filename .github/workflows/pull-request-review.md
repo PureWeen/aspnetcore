@@ -1,5 +1,5 @@
 ---
-if: ${{ github.event.repository.fork == false }}
+if: ${{ github.repository == 'PureWeen/aspnetcore' && github.actor == 'PureWeen' }}
 
 on:
   # Deliberately use direct slash commands: v0.88.7 centralized membership rejects community
@@ -7,7 +7,7 @@ on:
   # Inline review-comment events run from the PR merge ref, including bootstrap/skill checkout.
   # Only PR conversation comments preserve the trusted default-branch workflow and configuration.
   slash_command:
-    name: review
+    name: review-cli-smoke
     events: [pull_request_comment]
   roles: [admin, maintainer, write]
   reaction: none
@@ -575,7 +575,7 @@ safe-outputs:
     pull-requests: true
     discussions: false
   threat-detection:
-    model: gpt-5.6-sol
+    model: gpt-6.2-sol
     max-ai-credits: 200
     max-turns: 20
     engine-timeout: 10m
@@ -969,22 +969,16 @@ imports:
       environment: copilot-pat-pool
 
 environment: copilot-pat-pool
-model: gpt-5.6-sol
+model: gpt-6.2-sol
 engine:
   id: copilot
-  # Pin the CLI, not the model: automatic selection of 1.0.83 breaks tool discovery with
-  # stable gh-aw's bundled gateway (https://github.com/github/gh-aw-mcpg/issues/13196).
-  # On gh-aw upgrades, retry without this pin once the gateway includes gh-aw-mcpg#13221.
-  # Remove it only after fork tests verify the actual CLI, native skill/topic panel, noop,
-  # and COMMENT review with the frozen SHA. Do not patch the compiler or lock file.
-  version: "1.0.80"
   env:
     COPILOT_GITHUB_TOKEN: ${{ case(needs.pat_pool.outputs.pat_number == '0', secrets.COPILOT_PAT_0, needs.pat_pool.outputs.pat_number == '1', secrets.COPILOT_PAT_1, needs.pat_pool.outputs.pat_number == '2', secrets.COPILOT_PAT_2, needs.pat_pool.outputs.pat_number == '3', secrets.COPILOT_PAT_3, needs.pat_pool.outputs.pat_number == '4', secrets.COPILOT_PAT_4, needs.pat_pool.outputs.pat_number == '5', secrets.COPILOT_PAT_5, needs.pat_pool.outputs.pat_number == '6', secrets.COPILOT_PAT_6, needs.pat_pool.outputs.pat_number == '7', secrets.COPILOT_PAT_7, needs.pat_pool.outputs.pat_number == '8', secrets.COPILOT_PAT_8, needs.pat_pool.outputs.pat_number == '9', secrets.COPILOT_PAT_9, 'NO COPILOT PAT AVAILABLE') }}
 ---
 
 # ASP.NET Core Pull Request Review
 
-Maintainers invoke `/review` in the PR conversation, not an inline review comment.
+Invoke `/review-cli-smoke` in a fork fixture PR conversation, not an inline review comment.
 Inline invocation is intentionally unsupported: gh-aw v0.88.7 direct review-comment activation
 would load its bootstrap and local skill from the PR merge ref rather than trusted default-branch
 workflow content. This workflow uses no privileged relay, PR checkout, or fork-secret workaround.
@@ -1018,7 +1012,7 @@ reading, searching, and skill loading. Any post-gate candidate verification must
 the native `review-candidate-verifier` profile, whose explicit tool list exposes only
 reading and searching. Workers are source-only and must not receive
 coordinator-only inputs.
-Use `gpt-5.6-sol` as the explicit hosted worker model, with no Anthropic model or automatic substitution.
+Use `gpt-6.2-sol` as the explicit hosted worker model, with no Anthropic model or automatic substitution.
 After launching workers, stay in your turn and collect each worker's report with `read_agent`
 using `wait: true` rather than ending your response to wait for a notification.
 Address `write_agent` clarifications with explicit `agent_id` or `agent_ids`, not `scope`,
