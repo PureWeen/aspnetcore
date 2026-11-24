@@ -1,5 +1,5 @@
 ---
-if: ${{ github.event.repository.fork == false }}
+if: ${{ github.repository == 'PureWeen/aspnetcore' && github.actor == 'PureWeen' && (github.event.issue.number == 85 || github.event.issue.number == 134) }}
 
 on:
   # Deliberately use direct slash commands: v0.88.7 centralized membership rejects community
@@ -7,7 +7,7 @@ on:
   # Inline review-comment events run from the PR merge ref, including bootstrap/skill checkout.
   # Only PR conversation comments preserve the trusted default-branch workflow and configuration.
   slash_command:
-    name: review
+    name: review-cli-live-smoke
     events: [pull_request_comment]
   roles: [admin, maintainer, write]
   reaction: none
@@ -115,10 +115,14 @@ post-steps:
           !event.data?.parentToolCallId &&
           typeof event.data?.toolName === 'string' &&
           event.data.toolName.startsWith('safeoutputs-'));
-        if (safeOutputStarts.length !== 2) {
+        const stoppedOutputStarts = safeOutputStarts.some(event =>
+          ['safeoutputs-report_incomplete', 'safeoutputs-missing_data'].includes(event.data.toolName))
+          ? safeOutputStarts.filter(event => event.data.toolName !== 'safeoutputs-missing_tool')
+          : safeOutputStarts;
+        if (stoppedOutputStarts.length !== 2) {
           return false;
         }
-        const safeOutputCallIds = safeOutputStarts.map(event => event.data?.toolCallId);
+        const safeOutputCallIds = stoppedOutputStarts.map(event => event.data?.toolCallId);
         if (safeOutputCallIds.some(toolCallId =>
             typeof toolCallId !== 'string' || toolCallId.length === 0) ||
             new Set(safeOutputCallIds).size !== safeOutputCallIds.length) {
@@ -134,9 +138,9 @@ post-steps:
             matchingCompletions.some(event => event.data?.success !== true)) {
           return false;
         }
-        const statusComments = safeOutputStarts.filter(event =>
+        const statusComments = stoppedOutputStarts.filter(event =>
           event.data.toolName === 'safeoutputs-add_comment');
-        const incompleteCalls = safeOutputStarts.filter(event =>
+        const incompleteCalls = stoppedOutputStarts.filter(event =>
           [
             'safeoutputs-report_incomplete',
             'safeoutputs-missing_data',
@@ -351,7 +355,8 @@ post-steps:
         const firstPublicationIndex = events.findIndex(event =>
           isTopLevelToolStart(event) &&
           typeof event.data?.toolName === 'string' &&
-          event.data.toolName.startsWith('safeoutputs-'));
+          event.data.toolName.startsWith('safeoutputs-') &&
+          event.data.toolName !== 'safeoutputs-missing_tool');
         if (expectedWorkerCount === 0) {
           violations.push(
             'A review with no expected workers must publish a valid status-only stopped result.');
@@ -575,7 +580,7 @@ safe-outputs:
     pull-requests: true
     discussions: false
   threat-detection:
-    model: gpt-5.6-sol
+    model: gpt-6.2-sol
     max-ai-credits: 200
     max-turns: 20
     engine-timeout: 10m
@@ -753,7 +758,12 @@ safe-outputs:
             const reviews = count('submit_pull_request_review');
             const noop = count('noop');
             const statusComments = output.items.filter(item => item.type === 'add_comment');
-            const incompleteItems = output.items.filter(item =>
+            const publicationItems = output.items.filter(item => item.type !== 'missing_tool');
+            const stoppedItems = publicationItems.some(item =>
+              ['report_incomplete', 'missing_data'].includes(item.type))
+              ? publicationItems
+              : output.items;
+            const incompleteItems = stoppedItems.filter(item =>
               ['report_incomplete', 'missing_data', 'missing_tool'].includes(item.type));
             const incompleteReason = incompleteItems.length === 1 &&
               typeof incompleteItems[0].reason === 'string'
@@ -766,10 +776,10 @@ safe-outputs:
                   `Review not published (${status}): ${incompleteReason}\n\nNo partial findings were published.`)
               : [];
             const findings = comments >= 1 && comments <= 5 && reviews === 1 &&
-              output.items.length === comments + 1;
-            const clean = noop === 1 && output.items.length === 1;
+              publicationItems.length === comments + 1;
+            const clean = noop === 1 && publicationItems.length === 1;
             const stopped = incompleteItems.length === 1 && statusComments.length === 1 &&
-              output.items.length === 2 && typeof statusComments[0].body === 'string' &&
+              stoppedItems.length === 2 && typeof statusComments[0].body === 'string' &&
               expectedStatusBodies.includes(statusComments[0].body);
             if (!findings && !clean && !stopped) {
               core.setFailed('Incomplete or partial review output cannot be published.');
@@ -969,22 +979,23 @@ imports:
       environment: copilot-pat-pool
 
 environment: copilot-pat-pool
-model: gpt-5.6-sol
+model: gpt-6.2-sol
 engine:
   id: copilot
-  # Pin the CLI, not the model: automatic selection of 1.0.83 breaks tool discovery with
-  # stable gh-aw's bundled gateway (https://github.com/github/gh-aw-mcpg/issues/13196).
-  # On gh-aw upgrades, retry without this pin once the gateway includes gh-aw-mcpg#13221.
-  # Remove it only after fork tests verify the actual CLI, native skill/topic panel, noop,
-  # and COMMENT review with the frozen SHA. Do not patch the compiler or lock file.
-  version: "1.0.80"
+  # With gh-aw v0.92.0, a staged fork run without the pin selected CLI 1.0.103 at
+  # runtime, loaded the native skill, and staged a COMMENT review on the frozen SHA:
+  # https://github.com/PureWeen/aspnetcore/actions/runs/45446187126
+  # Remove the pin only after fork tests without it verify the actual CLI, native
+  # skill/topic panel, noop, and real COMMENT publication on the frozen SHA.
+  # Do not patch the compiler or lock file.
+  version: "1.0.103"
   env:
     COPILOT_GITHUB_TOKEN: ${{ case(needs.pat_pool.outputs.pat_number == '0', secrets.COPILOT_PAT_0, needs.pat_pool.outputs.pat_number == '1', secrets.COPILOT_PAT_1, needs.pat_pool.outputs.pat_number == '2', secrets.COPILOT_PAT_2, needs.pat_pool.outputs.pat_number == '3', secrets.COPILOT_PAT_3, needs.pat_pool.outputs.pat_number == '4', secrets.COPILOT_PAT_4, needs.pat_pool.outputs.pat_number == '5', secrets.COPILOT_PAT_5, needs.pat_pool.outputs.pat_number == '6', secrets.COPILOT_PAT_6, needs.pat_pool.outputs.pat_number == '7', secrets.COPILOT_PAT_7, needs.pat_pool.outputs.pat_number == '8', secrets.COPILOT_PAT_8, needs.pat_pool.outputs.pat_number == '9', secrets.COPILOT_PAT_9, 'NO COPILOT PAT AVAILABLE') }}
 ---
 
 # ASP.NET Core Pull Request Review
 
-Maintainers invoke `/review` in the PR conversation, not an inline review comment.
+Invoke `/review-cli-live-smoke` in a fork fixture PR conversation, not an inline review comment.
 Inline invocation is intentionally unsupported: gh-aw v0.88.7 direct review-comment activation
 would load its bootstrap and local skill from the PR merge ref rather than trusted default-branch
 workflow content. This workflow uses no privileged relay, PR checkout, or fork-secret workaround.
@@ -1018,7 +1029,7 @@ reading, searching, and skill loading. Any post-gate candidate verification must
 the native `review-candidate-verifier` profile, whose explicit tool list exposes only
 reading and searching. Workers are source-only and must not receive
 coordinator-only inputs.
-Use `gpt-5.6-sol` as the explicit hosted worker model, with no Anthropic model or automatic substitution.
+Use `gpt-6.2-sol` as the explicit hosted worker model, with no Anthropic model or automatic substitution.
 After launching workers, stay in your turn and collect each worker's report with `read_agent`
 using `wait: true` rather than ending your response to wait for a notification.
 Address `write_agent` clarifications with explicit `agent_id` or `agent_ids`, not `scope`,
@@ -1026,6 +1037,7 @@ so the transcript verifier can attribute each required follow-up collection.
 
 No live GitHub tool is available to the agent;
 the trusted safe-output dependency checks the live head after agent completion. Do not execute target code.
+The `bash`, `shell`, and `powershell` tools are intentionally disabled for the coordinator too, so do not probe them (including for bundle SHA checks) or invoke `missing_tool` for them.
 
 Determine the skill's structured result before selecting the safe output below. Your final
 assistant message must contain the complete structured result required by the skill, starting
