@@ -1,0 +1,12 @@
+name: step1-linux-preflight
+evals:
+  - preflight.vally.yaml
+vary:
+  - /environment/files
+baseline: probe
+variants:
+  probe: {}
+  alternate:
+    environment:
+      files:
+        - { src: preflight.vally.yaml, dest: staging-marker.yaml }

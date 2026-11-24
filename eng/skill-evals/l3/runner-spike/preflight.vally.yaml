@@ -1,0 +1,29 @@
+name: step1-preflight
+description: Stage both complete producer bundles without invoking a model.
+type: capability
+defaults:
+  executor: mock
+  runs: 1
+  model: ${REVIEW_MODEL}
+  timeout: 240s
+scoring:
+  weights:
+    tool-calls: 1
+  threshold: 1
+stimuli:
+  - name: pr60724
+    prompt: Offline staging probe
+    agent_environment:
+      files:
+        - { src: bundles/pr60724, dest: bundle }
+    graders: &graders
+      - type: tool-calls
+        config:
+          disallowed:
+            - name: '.*'
+  - name: pr69871
+    prompt: Offline staging probe
+    agent_environment:
+      files:
+        - { src: bundles/pr69871, dest: bundle }
+    graders: *graders

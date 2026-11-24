@@ -1,0 +1,24 @@
+name: step1-linux-review
+evals:
+  - review.vally.yaml
+vary:
+  - /environment/skills
+  - /environment/files
+  - /environment/commands
+baseline: single
+variants:
+  single:
+    environment:
+      skills: []
+      files:
+        - { src: single.md, dest: entry.md }
+      commands:
+        - "find bundle -type f \\( -name CrossCuttingGuidance.md.source -o -name BlazorComponentsGuidance.md.source \\) -print -exec chmod 000 {} + > masked-guide-paths.txt"
+  pipeline:
+    environment:
+      skills:
+        - ../aspnetcore/.github/skills/review-pull-request
+      files:
+        - { src: pipeline.md, dest: entry.md }
+        - { src: ../aspnetcore/.github/agents/review-guide-worker.agent.md, dest: .github/agents/review-guide-worker.agent.md }
+        - { src: ../aspnetcore/.github/agents/review-candidate-verifier.agent.md, dest: .github/agents/review-candidate-verifier.agent.md }
