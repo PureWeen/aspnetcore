@@ -602,6 +602,7 @@ safe-outputs:
         uses: actions/github-script@v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          FORK_SMOKE_EXPECTED_RESULT: ${{ case(needs.freeze_pr_head.outputs.pr_number == '85', 'noop', needs.freeze_pr_head.outputs.pr_number == '134', 'comment', 'invalid') }}
         with:
           script: |
             const fs = require('fs');
@@ -789,6 +790,12 @@ safe-outputs:
               item.type === 'create_pull_request_review_comment' &&
               typeof item.body === 'string' &&
               isDiscardedInline(item.body));
+            const expected = process.env.FORK_SMOKE_EXPECTED_RESULT;
+            if (expected !== undefined &&
+                !(expected === 'noop' && clean || expected === 'comment' && findings && comments > discarded.length)) {
+              core.setFailed('The fork smoke fixture did not produce its expected result; nothing was published.');
+              return;
+            }
             if (discarded.length > 0) {
               output.items = output.items.filter(item => !discarded.includes(item));
               const remaining = comments - discarded.length;
