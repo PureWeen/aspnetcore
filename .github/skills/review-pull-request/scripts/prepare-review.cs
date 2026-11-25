@@ -45,14 +45,7 @@ internal static partial class PrepareReviewProgram
         bool Check = false,
         string? BaseTip = null,
         string? MergeBase = null,
-        string? BaseRef = null,
-        string? ObjectStore = null,
-        bool CodeOnly = false,
-        string? Title = null);
-
-    private sealed record ReplayInputs(JsonObject Target, JsonObject Guidance, Dictionary<string, byte[]> Files);
-    private sealed class MissingReplayObjectsException(Exception? inner = null)
-        : Exception("The frozen Git objects are unavailable.", inner);
+        string? BaseRef = null);
 
     internal sealed record Dependencies(
         Func<string, string?, Task<JsonNode?>>? Api = null,
@@ -72,12 +65,6 @@ internal static partial class PrepareReviewProgram
         try
         {
             var parsed = ParseArguments(args);
-            if (parsed.CodeOnly)
-            {
-                var verdict = await RebuildCodeOnlyAsync(parsed, dependencies?.ProducerSourcePath);
-                Console.Out.WriteLine(SerializeJson(verdict, indented: false));
-                return verdict["verdict"]!.GetValue<string>() == "unavailable" ? 1 : 0;
-            }
             var repo = parsed.Repo;
             if (repo is null)
             {
@@ -116,8 +103,6 @@ internal static partial class PrepareReviewProgram
         string? repo = null, pr = null, output = null, head = null, hostname = null, guidance = null, guidanceRoot = null;
         string? baseTip = null, mergeBase = null, baseRef = null;
         var check = false;
-        var codeOnly = false;
-        string? objectStore = null, title = null;
         for (var index = 0; index < args.Length; index++)
         {
             var name = args[index];
@@ -126,13 +111,7 @@ internal static partial class PrepareReviewProgram
                 check = true;
                 continue;
             }
-            if (name == "--code-only")
-            {
-                codeOnly = true;
-                continue;
-            }
             Require(name is "--repo" or "--pr" or "--output" or "--head" or "--hostname" or "--guidance" or "--guidance-root" or "--base-tip" or "--merge-base" or "--base-ref"
-                or "--objects" or "--title"
                 && index + 1 < args.Length, $"Unknown or incomplete option: {name}");
             var value = args[++index];
             switch (name)
@@ -147,147 +126,12 @@ internal static partial class PrepareReviewProgram
                 case "--base-tip": baseTip = value; break;
                 case "--merge-base": mergeBase = value; break;
                 case "--base-ref": baseRef = value; break;
-                case "--objects": objectStore = value; break;
-                case "--title": title = value; break;
             }
         }
-        Require(title is null || codeOnly, "--title requires --code-only.");
-        Require(objectStore is null || codeOnly, "--objects requires --code-only.");
-        Require(!codeOnly
-            || !string.IsNullOrEmpty(objectStore) && !string.IsNullOrEmpty(output) && !string.IsNullOrEmpty(baseRef)
-                && head is not null && baseTip is not null && mergeBase is not null && guidance is not null
-                && !check && guidanceRoot is null,
-            "--code-only requires --head, --base-tip, --merge-base, --base-ref, --guidance, --objects, and --output without another mode.");
-        return new(repo, pr, output ?? string.Empty, head, hostname, guidance, guidanceRoot, check, baseTip, mergeBase, baseRef,
-            objectStore, codeOnly, title);
+        return new(repo, pr, output ?? string.Empty, head, hostname, guidance, guidanceRoot, check, baseTip, mergeBase, baseRef);
     }
 
     internal static string[] GitArguments(params string[] args) => ["-c", "core.longpaths=true", .. args];
-
-    internal static Task<JsonObject> RebuildCodeOnlyAsync(Options options, string? producerSourcePath)
-    {
-        var parts = options.Guidance!.Split('@');
-        Require(parts.Length == 2 && RepositoryNameRegex().IsMatch(parts[0]) && FullShaRegex().IsMatch(parts[1]),
-            "--guidance requires OWNER/REPO@FULL_COMMIT.");
-        var repo = options.Repo ?? parts[0];
-        int? pr = null;
-        if (options.Pr is not null)
-        {
-            Require(int.TryParse(options.Pr, NumberStyles.None, CultureInfo.InvariantCulture, out var number)
-                && PositiveIntegerRegex().IsMatch(options.Pr), "--pr must be a positive integer.");
-            pr = number;
-        }
-        var target = new JsonObject
-        {
-            ["hostname"] = options.Hostname ?? "github.com", ["repository"] = repo, ["repositoryId"] = null, ["pr"] = pr,
-            ["headRepository"] = repo, ["head"] = options.Head, ["baseRepository"] = repo, ["baseRef"] = options.BaseRef,
-            ["baseTip"] = options.BaseTip, ["mergeBase"] = options.MergeBase,
-        };
-        var guidance = new JsonObject { ["mode"] = "remote", ["repository"] = parts[0], ["commit"] = parts[1] };
-        var files = new Dictionary<string, byte[]>(StringComparer.Ordinal)
-        {
-            ["pull.json"] = Utf8NoBom.GetBytes(SerializeJson(new JsonObject
-            {
-                ["number"] = pr, ["state"] = "open", ["title"] = options.Title ?? "Code-only replay", ["body"] = null, ["draft"] = false,
-                ["author"] = null, ["labels"] = new JsonArray(), ["milestone"] = null, ["createdAt"] = "", ["updatedAt"] = "",
-            })),
-            ["feedback.json"] = Utf8NoBom.GetBytes(SerializeJson(new JsonObject
-            {
-                ["comments"] = new JsonArray(), ["reviews"] = new JsonArray(), ["inline"] = new JsonArray(),
-            })),
-        };
-        return RebuildOfflineAsync(options with { Repo = repo }, new(target, guidance, files), producerSourcePath);
-    }
-
-    private static async Task<JsonObject> RebuildOfflineAsync(
-        Options options, ReplayInputs inputs, string? producerSourcePath)
-    {
-        var (target, guidance, _) = inputs;
-        var commits = new[] { target["head"]!, target["baseTip"]!, target["mergeBase"]!, guidance["commit"]! }
-            .Select(node => node.GetValue<string>()).Distinct(StringComparer.Ordinal).ToArray();
-        Require(commits.All(FullShaRegex().IsMatch) && guidance["mode"]?.GetValue<string>() == "remote",
-            "Invalid frozen commits or guidance.");
-        var objects = Path.Combine(Path.GetFullPath(options.ObjectStore!), "objects");
-        Require(objects.IndexOfAny(['\r', '\n']) < 0, "Invalid Git object store path.");
-        async Task UseLocalObjects(string _, IReadOnlyList<string> __, string store)
-        {
-            if (File.Exists(Path.Combine(store, "shallow")))
-            {
-                return;
-            }
-            if (!Directory.Exists(objects))
-            {
-                throw new MissingReplayObjectsException();
-            }
-            PatchObjects(store, "config", "protocol.allow", "never");
-            await File.WriteAllTextAsync(Path.Combine(store, "objects", "info", "alternates"), objects.Replace('\\', '/') + "\n", Utf8NoBom);
-            // Only the frozen trees are needed, even when the donor is shallow.
-            await File.WriteAllLinesAsync(Path.Combine(store, "shallow"), commits, Utf8NoBom);
-            try
-            {
-                var ids = Utf8NoBom.GetString(PatchObjects(store, ["rev-list", "--objects", "--no-object-names", "--missing=print", .. commits]));
-                if (ids.Split('\n').Any(id => id.StartsWith('?')))
-                {
-                    throw new MissingReplayObjectsException();
-                }
-            }
-            catch (InvalidOperationException error)
-            {
-                throw new MissingReplayObjectsException(error);
-            }
-        }
-
-        try
-        {
-            await PrepareOnceAsync(options, new(Fetch: UseLocalObjects, ProducerSourcePath: producerSourcePath), inputs);
-            return new JsonObject { ["verdict"] = "reconstructed" };
-        }
-        catch (MissingReplayObjectsException error)
-        {
-            return new JsonObject { ["verdict"] = "unavailable", ["reason"] = error.Message };
-        }
-    }
-
-    private static JsonArray ReplayGitFiles(string store, string[] diffArguments)
-    {
-        var raw = Utf8NoBom.GetString(PatchObjects(store, [.. diffArguments, "--raw", "--no-abbrev", "-z"])).Split('\0');
-        var numstat = Utf8NoBom.GetString(PatchObjects(store, [.. diffArguments, "--numstat", "-z"])).Split('\0');
-        var files = new JsonArray();
-        var statIndex = 0;
-        for (var index = 0; index < raw.Length - 1;)
-        {
-            var header = raw[index++].Split(' ');
-            var status = header[4][0];
-            var name = raw[index++];
-            var previous = status == 'R' ? name : null;
-            if (previous is not null)
-            {
-                name = raw[index++];
-            }
-            var stat = numstat[statIndex++].Split('\t', 3);
-            Require(previous is null ? stat[2] == name
-                : stat[2].Length == 0 && numstat[statIndex++] == previous && numstat[statIndex++] == name,
-                "Git raw diff and numstat paths disagree.");
-            var additions = stat[0] == "-" ? 0 : int.Parse(stat[0], CultureInfo.InvariantCulture);
-            var deletions = stat[1] == "-" ? 0 : int.Parse(stat[1], CultureInfo.InvariantCulture);
-            var file = new JsonObject
-            {
-                ["filename"] = name,
-                ["status"] = status switch { 'A' => "added", 'D' => "removed", 'R' => "renamed", _ => "modified" },
-                ["sha"] = header[status == 'D' ? 2 : 3],
-                ["additions"] = additions,
-                ["deletions"] = deletions,
-                ["changes"] = additions + deletions,
-            };
-            if (previous is not null)
-            {
-                file["previous_filename"] = previous;
-            }
-            files.Add(file);
-        }
-        Require(statIndex == numstat.Length - 1, "Git raw diff and numstat lengths disagree.");
-        return files;
-    }
 
     internal static byte[] ExpandBinaryIndexLines(byte[] diff, IReadOnlySet<string> knownIds)
     {
@@ -317,29 +161,8 @@ internal static partial class PrepareReviewProgram
     private static byte[] Objects(string directory, params string[] args) =>
         Run("git", GitArguments(["--git-dir", directory, .. args]));
 
-    private static readonly string NullDevice = OperatingSystem.IsWindows() ? "NUL" : "/dev/null";
-
-    // Offline replay must depend only on the frozen objects, not on the runner's Git configuration or environment.
-    // Every inherited GIT_* variable is dropped (for example GIT_ATTR_SOURCE, GIT_INDEX_FILE, GIT_ALTERNATE_OBJECT_DIRECTORIES).
-    private static Dictionary<string, string?> IsolatedEnvironment()
-    {
-        var environment = Environment.GetEnvironmentVariables().Keys.Cast<string>()
-            .Where(name => name.StartsWith("GIT_", StringComparison.OrdinalIgnoreCase)
-                && !name.Equals("GIT_TERMINAL_PROMPT", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(name => name, string? (_) => null, StringComparer.OrdinalIgnoreCase);
-        environment["GIT_CONFIG_NOSYSTEM"] = "1";
-        environment["GIT_CONFIG_GLOBAL"] = NullDevice;
-        environment["GIT_ATTR_NOSYSTEM"] = "1";
-        return environment;
-    }
-
-    private static byte[] PatchObjects(string directory, params string[] args) =>
-        Run("git", GitArguments(["-c", $"core.attributesFile={NullDevice}", "-c", "core.quotePath=true", "-c", "diff.noprefix=false",
-            "-c", "diff.mnemonicPrefix=false", "-c", "diff.suppressBlankEmpty=false", "-c", "diff.renameLimit=1000",
-            "--git-dir", directory, .. args]), environment: IsolatedEnvironment());
-
     internal static byte[] Run(string command, IReadOnlyList<string> args, string? workingDirectory = null, byte[]? input = null,
-        int maximumProcessOutputBytes = MaximumProcessOutputBytes, IReadOnlyDictionary<string, string?>? environment = null)
+        int maximumProcessOutputBytes = MaximumProcessOutputBytes)
     {
         Require(maximumProcessOutputBytes > 0, "The maximum process output must be positive.");
         var start = new ProcessStartInfo(command)
@@ -348,26 +171,15 @@ internal static partial class PrepareReviewProgram
             RedirectStandardInput = input is not null,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            InheritedHandles = [],
+            UseShellExecute = false,
             CreateNoWindow = true,
         };
         start.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        foreach (var (name, value) in environment ?? new Dictionary<string, string?>())
-        {
-            if (value is null)
-            {
-                start.Environment.Remove(name);
-            }
-            else
-            {
-                start.Environment[name] = value;
-            }
-        }
         foreach (var arg in args)
         {
             start.ArgumentList.Add(arg);
         }
-        using var process = Process.Start(start)!;
+        using var process = Process.Start(start) ?? throw new InvalidOperationException($"Cannot start {command}.");
         if (input is not null)
         {
             process.StandardInput.BaseStream.Write(input);
@@ -767,11 +579,11 @@ internal static partial class PrepareReviewProgram
             $"Prepared {name} author metadata is malformed.");
     }
 
-    private static void ValidateProjectedPull(JsonObject pull, bool allowMissingNumber = false)
+    private static void ValidateProjectedPull(JsonObject pull)
     {
         RequireProperties(pull, "pull",
             ["number", "state", "title", "body", "draft", "author", "labels", "milestone", "createdAt", "updatedAt"]);
-        Require((allowMissingNumber && pull["number"] is null || pull["number"]!.GetValue<int>() > 0)
+        Require(pull["number"]!.GetValue<int>() > 0
             && pull["state"]!.GetValue<string>() == "open"
             && pull["title"]!.GetValue<string>().Length > 0,
             "Prepared pull metadata is malformed.");
@@ -963,24 +775,10 @@ internal static partial class PrepareReviewProgram
         }
     }
 
-    private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-
-    private static List<TreeEntry> TreeEntries(string store, string commit, bool isolated = false)
+    private static List<TreeEntry> TreeEntries(string store, string commit)
     {
         var result = new List<TreeEntry>();
-        string listing;
-        try
-        {
-            // Offline replay rejects non-UTF-8 paths instead of exporting them under a replacement-character name.
-            listing = (isolated ? StrictUtf8 : Utf8NoBom).GetString(isolated
-                ? PatchObjects(store, "ls-tree", "-r", "-z", "--full-tree", commit)
-                : Objects(store, "ls-tree", "-r", "-z", "--full-tree", commit));
-        }
-        catch (DecoderFallbackException)
-        {
-            throw new InvalidOperationException("The frozen tree contains a path that is not valid UTF-8.");
-        }
-        foreach (var line in listing.Split('\0',
+        foreach (var line in Utf8NoBom.GetString(Objects(store, "ls-tree", "-r", "-z", "--full-tree", commit)).Split('\0',
             StringSplitOptions.RemoveEmptyEntries))
         {
             var tab = line.IndexOf('\t');
@@ -1236,10 +1034,10 @@ internal static partial class PrepareReviewProgram
     }
 
     internal static async Task<JsonObject> ExportTreeAsync(
-        string store, string commit, string destination, Func<string, bool>? selection = null, bool isolated = false)
+        string store, string commit, string destination, Func<string, bool>? selection = null)
     {
         selection ??= static _ => true;
-        var entries = TreeEntries(store, commit, isolated).Where(entry => selection(entry.Name)).ToList();
+        var entries = TreeEntries(store, commit).Where(entry => selection(entry.Name)).ToList();
         CheckPaths(entries.Select(entry => entry.Name));
         CreateNewDirectory(destination);
         var blobs = entries.Where(entry => entry.Type == "blob").ToList();
@@ -1248,25 +1046,14 @@ internal static partial class PrepareReviewProgram
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            InheritedHandles = [],
+            UseShellExecute = false,
             CreateNoWindow = true,
         };
         foreach (var arg in GitArguments("--git-dir", store, "cat-file", "--batch"))
         {
             start.ArgumentList.Add(arg);
         }
-        foreach (var (name, value) in isolated ? IsolatedEnvironment() : new Dictionary<string, string?>())
-        {
-            if (value is null)
-            {
-                start.Environment.Remove(name);
-            }
-            else
-            {
-                start.Environment[name] = value;
-            }
-        }
-        using var child = Process.Start(start)!;
+        using var child = Process.Start(start) ?? throw new InvalidOperationException("Cannot start git.");
         var inputTask = WriteBlobRequestsAsync(child, blobs);
         var stderrTask = child.StandardError.ReadToEndAsync();
         using var stdout = new BufferedByteReader(child.StandardOutput.BaseStream, 1024 * 1024);
@@ -1518,7 +1305,7 @@ internal static partial class PrepareReviewProgram
         }
     }
 
-    private static async Task<JsonObject> PrepareOnceAsync(Options options, Dependencies? dependencies, ReplayInputs? replayInputs = null)
+    private static async Task<JsonObject> PrepareOnceAsync(Options options, Dependencies? dependencies)
     {
         dependencies ??= new();
         var timings = new JsonObject();
@@ -1535,8 +1322,7 @@ internal static partial class PrepareReviewProgram
             }
         }
 
-        Require(RepositoryNameRegex().IsMatch(options.Repo ?? "")
-            && (options.CodeOnly && options.Pr is null || PositiveIntegerRegex().IsMatch(options.Pr ?? "")),
+        Require(RepositoryNameRegex().IsMatch(options.Repo ?? "") && PositiveIntegerRegex().IsMatch(options.Pr ?? ""),
             "Cannot resolve a single target repository; specify --repo OWNER/REPO and --pr NUMBER.");
         Require(options.Output.Length > 0, "Specify a new --output directory, or --check an existing prepared directory.");
         Require(options.Head is null || FullShaRegex().IsMatch(options.Head), "--head must be a full immutable commit.");
@@ -1550,14 +1336,10 @@ internal static partial class PrepareReviewProgram
         var host = options.Hostname ?? "github.com";
         Require(HostnameRegex().IsMatch(host), "Invalid GitHub hostname.");
         Run("git", GitArguments("--version"));
-        if (replayInputs is null)
-        {
-            Run("gh", ["--version"]);
-        }
+        Run("gh", ["--version"]);
 
         async Task<JsonNode?> Api(string endpoint, string? accept = null)
         {
-            Require(replayInputs is null, "Offline replay cannot read the GitHub API.");
             if (dependencies.Api is not null)
             {
                 return await dependencies.Api(endpoint, accept);
@@ -1576,10 +1358,6 @@ internal static partial class PrepareReviewProgram
         string endpoint = null!;
         async Task<(JsonObject Identity, JsonObject Pull)> Freeze()
         {
-            if (replayInputs is not null)
-            {
-                return (replayInputs.Target, new JsonObject());
-            }
             var pull = (await Api($"{endpoint}/pulls/{options.Pr}"))!.AsObject();
             Require(pull["number"]!.GetValue<int>() == int.Parse(options.Pr!, CultureInfo.InvariantCulture)
                 && pull["state"]!.GetValue<string>() == "open"
@@ -1622,10 +1400,6 @@ internal static partial class PrepareReviewProgram
 
         var frozen = await Timed("apiFreeze", async () =>
         {
-            if (replayInputs is not null)
-            {
-                return await Freeze();
-            }
             repository = (await Api($"repos/{options.Repo}"))!.AsObject();
             Require(RepositoryNameRegex().IsMatch(repository["full_name"]?.GetValue<string>() ?? "")
                 && TryJsonSafeInteger(repository["id"], out _), "Invalid target repository metadata.");
@@ -1634,11 +1408,7 @@ internal static partial class PrepareReviewProgram
         });
         var output = Path.GetFullPath(options.Output);
         JsonObject guidance;
-        if (replayInputs is not null)
-        {
-            guidance = replayInputs.Guidance.DeepClone().AsObject();
-        }
-        else if (options.Guidance is not null)
+        if (options.Guidance is not null)
         {
             var parts = options.Guidance.Split('@');
             Require(parts.Length == 2 && RepositoryNameRegex().IsMatch(parts[0]) && FullShaRegex().IsMatch(parts[1]),
@@ -1659,12 +1429,8 @@ internal static partial class PrepareReviewProgram
 
         CreateOutputDirectory(output);
         var store = Path.Combine(output, ".objects");
-        var isolated = replayInputs is not null;
-        byte[] Store(params string[] args) => isolated ? PatchObjects(store, args) : Objects(store, args);
-        // An empty template keeps inherited template config out of the store's local config.
-        Run("git", GitArguments("init", "--bare", "--quiet", "--template=", "--object-format=sha1", store),
-            environment: isolated ? IsolatedEnvironment() : null);
-        Store("config", "core.hooksPath", Path.Combine(store, "disabled-hooks"));
+        Run("git", GitArguments("init", "--bare", "--quiet", "--object-format=sha1", store));
+        Objects(store, "config", "core.hooksPath", Path.Combine(store, "disabled-hooks"));
         async Task Fetch(string repo, IReadOnlyList<string> commits)
         {
             if (dependencies.Fetch is not null)
@@ -1708,16 +1474,8 @@ internal static partial class PrepareReviewProgram
             return true;
         });
 
-        string[] diffArguments = replayInputs is null ? [] : ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-relative",
-            "--find-renames=50%", "--ignore-submodules=none", "--submodule=short", "--diff-algorithm=myers",
-            "--indent-heuristic",
-            frozen.Identity["mergeBase"]!.GetValue<string>(), frozen.Identity["head"]!.GetValue<string>()];
         var files = await Timed("changedFiles", async () =>
         {
-            if (replayInputs is not null)
-            {
-                return ReplayGitFiles(store, diffArguments);
-            }
             var result = new JsonArray();
             for (var page = 1; ; page++)
             {
@@ -1733,11 +1491,11 @@ internal static partial class PrepareReviewProgram
                 }
             }
         });
-        Require((replayInputs is not null || files.Count == frozen.Pull["changed_files"]!.GetValue<int>())
+        Require(files.Count == frozen.Pull["changed_files"]!.GetValue<int>()
             && files.Select(file => file!["filename"]!.GetValue<string>()).Distinct(StringComparer.Ordinal).Count() == files.Count,
             "GitHub returned an incomplete or duplicate changed-file list.");
-        var changedPaths = Utf8NoBom.GetString(Store("diff", "--no-ext-diff", "--no-textconv", "--no-renames",
-            "--ignore-submodules=none", "--name-only", "-z", frozen.Identity["mergeBase"]!.GetValue<string>(), frozen.Identity["head"]!.GetValue<string>()))
+        var changedPaths = Utf8NoBom.GetString(Objects(store, "diff", "--no-ext-diff", "--no-textconv", "--no-renames",
+            "--name-only", "-z", frozen.Identity["mergeBase"]!.GetValue<string>(), frozen.Identity["head"]!.GetValue<string>()))
             .Split('\0', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal).ToArray();
         var listedPaths = files.SelectMany(file => new[]
             {
@@ -1750,48 +1508,35 @@ internal static partial class PrepareReviewProgram
             var name = file!["filename"]!.GetValue<string>();
             var side = file["status"]!.GetValue<string>() == "removed"
                 ? frozen.Identity["mergeBase"]!.GetValue<string>() : frozen.Identity["head"]!.GetValue<string>();
-            Require(Utf8NoBom.GetString(Store("rev-parse", $"{side}:{name}")).Trim() == file["sha"]!.GetValue<string>(),
+            Require(Utf8NoBom.GetString(Objects(store, "rev-parse", $"{side}:{name}")).Trim() == file["sha"]!.GetValue<string>(),
                 $"GitHub file identity does not match the frozen tree: {name}");
         }
 
         await Timed("diff", async () =>
         {
-            byte[] diff;
-            if (replayInputs is not null)
-            {
-                // Match the observed REST rendering: C# hunk labels, 12-digit index IDs, and binary summaries.
-                await WriteAsync(store, "info/attributes", "*.cs diff=csharp\n");
-                diff = PatchObjects(store, [.. diffArguments, "--patch", "--unified=3", "--inter-hunk-context=0", "--abbrev=12", "--src-prefix=a/", "--dst-prefix=b/"]);
-            }
-            else
-            {
-                var node = await Api($"{endpoint}/pulls/{options.Pr}", "application/vnd.github.diff");
-                Require(node is JsonValue, "GitHub did not return the authoritative diff bytes.");
-                diff = Convert.FromBase64String(node!.GetValue<string>());
-            }
+            var node = await Api($"{endpoint}/pulls/{options.Pr}", "application/vnd.github.diff");
+            Require(node is JsonValue, "GitHub did not return the authoritative diff bytes.");
+            var diff = Convert.FromBase64String(node!.GetValue<string>());
             await WriteAsync(output, "diff.patch", diff);
-            Store("read-tree", frozen.Identity["mergeBase"]!.GetValue<string>());
+            Objects(store, "read-tree", frozen.Identity["mergeBase"]!.GetValue<string>());
             if (diff.Length > 0)
             {
                 // REST omits binary payloads; resolve its prefixes against the frozen changed objects, not supplied bytes.
-                var knownIds = Utf8NoBom.GetString(Store("diff", "--raw", "--no-abbrev", "-z", "--no-renames", "--ignore-submodules=none",
+                var knownIds = Utf8NoBom.GetString(Objects(store, "diff", "--raw", "--no-abbrev", "-z", "--no-renames",
                     "--no-ext-diff", "--no-textconv", frozen.Identity["mergeBase"]!.GetValue<string>(), frozen.Identity["head"]!.GetValue<string>()))
                     .Split('\0').Where((_, index) => index % 2 == 0)
                     .SelectMany(entry => entry.Split(' ').Skip(2).Take(2)).ToHashSet(StringComparer.Ordinal);
                 Run("git", GitArguments(["--git-dir", store, "apply", "--cached", "--binary", "--whitespace=nowarn", "-"]),
-                    input: ExpandBinaryIndexLines(diff, knownIds), environment: isolated ? IsolatedEnvironment() : null);
+                    input: ExpandBinaryIndexLines(diff, knownIds));
             }
-            Require(Utf8NoBom.GetString(Store("write-tree")).Trim()
-                == Utf8NoBom.GetString(Store("rev-parse", $"{frozen.Identity["head"]!.GetValue<string>()}^{{tree}}")).Trim(),
+            Require(Utf8NoBom.GetString(Objects(store, "write-tree")).Trim()
+                == Utf8NoBom.GetString(Objects(store, "rev-parse", $"{frozen.Identity["head"]!.GetValue<string>()}^{{tree}}")).Trim(),
                 "The authoritative diff does not reconstruct the frozen head; incomplete or unsupported diff.");
             return true;
         });
         var projectedFiles = ProjectFiles(files);
         await WriteJsonAsync(output, "files.json", projectedFiles);
-        if (replayInputs is null)
-        {
-            await WriteJsonAsync(output, "pull.json", await ProjectPullAsync(output, frozen.Pull));
-        }
+        await WriteJsonAsync(output, "pull.json", await ProjectPullAsync(output, frozen.Pull));
 
         async Task<JsonArray> Paginate(string uri)
         {
@@ -1806,14 +1551,6 @@ internal static partial class PrepareReviewProgram
         }
         await Timed("feedback", async () =>
         {
-            if (replayInputs is not null)
-            {
-                foreach (var (name, bytes) in replayInputs.Files)
-                {
-                    await WriteAsync(output, name, bytes);
-                }
-                return true;
-            }
             var feedback = await ProjectFeedbackAsync(
                 output,
                 await Paginate($"issues/{options.Pr}/comments"),
@@ -1833,12 +1570,12 @@ internal static partial class PrepareReviewProgram
             {
                 var root = $"source/{commit}";
                 var treeExport = await Timed($"exportTree:{commit}",
-                    () => ExportTreeAsync(store, commit, Path.Combine(output, root.Replace('/', Path.DirectorySeparatorChar)), isolated: isolated));
+                    () => ExportTreeAsync(store, commit, Path.Combine(output, root.Replace('/', Path.DirectorySeparatorChar))));
                 source = new JsonObject
                 {
                     ["root"] = root,
                     ["commit"] = commit,
-                    ["tree"] = Utf8NoBom.GetString(Store("rev-parse", $"{commit}^{{tree}}")).Trim(),
+                    ["tree"] = Utf8NoBom.GetString(Objects(store, "rev-parse", $"{commit}^{{tree}}")).Trim(),
                 };
                 foreach (var pair in treeExport) source[pair.Key] = pair.Value?.DeepClone();
                 exported[commit] = source;
@@ -1848,8 +1585,7 @@ internal static partial class PrepareReviewProgram
         if (guidance["mode"]!.GetValue<string>() == "remote")
         {
             var exportedGuidance = await Timed("exportGuidance", () => ExportTreeAsync(store,
-                guidance["commit"]!.GetValue<string>(), Path.Combine(output, "guidance"), name => name.EndsWith(".md", StringComparison.Ordinal),
-                isolated: isolated));
+                guidance["commit"]!.GetValue<string>(), Path.Combine(output, "guidance"), name => name.EndsWith(".md", StringComparison.Ordinal)));
             guidance["root"] = "guidance";
             foreach (var pair in exportedGuidance) guidance[pair.Key] = pair.Value?.DeepClone();
         }
@@ -1984,19 +1720,14 @@ internal static partial class PrepareReviewProgram
             ["limitations"] = "Tracked Git bytes only. Symlinks, submodules and LFS pointers are inert data and cannot establish their target behavior.",
         };
         await WriteJsonAsync(output, "manifest.pending", manifest);
-        if (replayInputs is not null)
-        {
-            await CheckPreparedAsync(output, producer, frozen.Identity, guidance, () => Task.FromResult(frozen),
-                manifestName: "manifest.pending");
-        }
         File.Move(Path.Combine(output, "manifest.pending"), Path.Combine(output, "manifest.json"));
         return manifest;
     }
 
     private static async Task<JsonObject> CheckPreparedAsync(string output, string producer, JsonObject identity,
-        JsonObject guidance, Func<Task<(JsonObject Identity, JsonObject Pull)>> freeze, string manifestName = "manifest.json")
+        JsonObject guidance, Func<Task<(JsonObject Identity, JsonObject Pull)>> freeze)
     {
-        var manifestBytes = await File.ReadAllBytesAsync(Path.Combine(output, manifestName));
+        var manifestBytes = await File.ReadAllBytesAsync(Path.Combine(output, "manifest.json"));
         RequireMaximumLineLength(manifestBytes, "manifest.json", "Prepared serialized JSON");
         var manifest = JsonNode.Parse(manifestBytes)!.AsObject();
         Require(manifest["version"]!.GetValue<int>() == 2 && manifest["ready"]!.GetValue<bool>()
@@ -2058,7 +1789,7 @@ internal static partial class PrepareReviewProgram
         }
         var pull = JsonNode.Parse(await File.ReadAllBytesAsync(Path.Combine(output, "pull.json")))!.AsObject();
         var feedback = JsonNode.Parse(await File.ReadAllBytesAsync(Path.Combine(output, "feedback.json")))!.AsObject();
-        ValidateProjectedPull(pull, allowMissingNumber: identity["pr"] is null);
+        ValidateProjectedPull(pull);
         ValidateProjectedFeedback(feedback);
         const string instructions = ".github/copilot-instructions.md";
         var preparedSecurityExclusion = ResolvePolicy(
