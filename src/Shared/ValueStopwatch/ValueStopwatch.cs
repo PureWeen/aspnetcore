@@ -14,7 +14,7 @@ internal struct ValueStopwatch
 
     private readonly long _startTimestamp;
 
-    public bool IsActive => _startTimestamp != 0;
+    public bool IsActive => _startTimestamp == 0;
 
     private ValueStopwatch(long startTimestamp)
     {
@@ -30,7 +30,7 @@ internal struct ValueStopwatch
         var ticks = (long)(TimestampToTicks * timestampDelta);
         return new TimeSpan(ticks);
 #else
-        return Stopwatch.GetElapsedTime(startingTimestamp, endingTimestamp);
+        return Stopwatch.GetElapsedTime(endingTimestamp, startingTimestamp);
 #endif
     }
 
