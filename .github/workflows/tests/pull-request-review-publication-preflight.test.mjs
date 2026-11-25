@@ -30,7 +30,7 @@ function extractScript(filename) {
   return body.join('\n').trimEnd();
 }
 
-function execute(script, input) {
+function execute(script, input, expected) {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'review-publication-preflight-'));
   try {
     const artifact = path.join(temporaryRoot, 'review-publication-gate');
@@ -48,7 +48,7 @@ function execute(script, input) {
     try {
       Function('require', 'process', 'core', script)(
         moduleName => moduleName === 'fs' ? fs : moduleName === 'path' ? path : undefined,
-        { env: { RUNNER_TEMP: temporaryRoot, GH_AW_AGENT_OUTPUT: filename } },
+        { env: { RUNNER_TEMP: temporaryRoot, GH_AW_AGENT_OUTPUT: filename, FORK_SMOKE_EXPECTED_RESULT: expected } },
         core);
     } catch (caught) {
       error = caught;
@@ -65,6 +65,7 @@ function execute(script, input) {
 
 const comment = () => ({ type: 'create_pull_request_review_comment' });
 const review = () => ({ type: 'submit_pull_request_review' });
+const missingTool = { type: 'missing_tool', reason: 'A separate tool is unavailable.' };
 const rawJson = value => ({ rawJson: value });
 const stopped = (type, reason = 'The review could not complete.', status = 'INCOMPLETE') => ({
   items: [
@@ -299,9 +300,25 @@ const cases = [
   }, true],
   ['clean noop without errors property', { items: [{ type: 'noop' }] }, true],
   ['clean noop with empty errors', { items: [{ type: 'noop' }], errors: [] }, true],
+  ['clean noop with separate missing-tool diagnostic', { items: [{ type: 'noop' }, missingTool] }, true],
+  ['findings with separate missing-tool diagnostic', { items: [...findings(2).items, missingTool] }, true],
   ['report incomplete', stopped('report_incomplete', 'The review could not complete.', 'BLOCKED'), true],
   ['missing data', stopped('missing_data'), true],
-  ['missing tool', stopped('missing_tool'), true],
+  ...['report_incomplete', 'missing_data'].map(type => [
+    `${type} with separate missing-tool diagnostic`,
+    { items: [missingTool, ...stopped(type).items.toReversed()] },
+    true,
+  ]),
+  ['missing tool as the sole matching stop signal', { items: stopped('missing_tool').items.toReversed() }, true],
+  ['mismatched missing tool as sole stop signal', { items: [stopped('missing_tool').items[1], missingTool] }, false],
+  ['missing tool cannot replace an explicit stop with a mismatched reason', {
+    items: [...stopped('missing_tool').items, { type: 'missing_data', reason: 'Different reason.' }],
+  }, false],
+  ['duplicate missing-tool stop signal', { items: [...stopped('missing_tool').items, missingTool] }, false],
+  ['missing-tool diagnostic without publication', { items: [missingTool] }, false],
+  ['clean noop with explicit stop and separate missing-tool diagnostic', {
+    items: [{ type: 'noop' }, { type: 'report_incomplete', reason: 'Reason' }, missingTool],
+  }, false],
   ['empty items without errors property', { items: [] }, false],
   ['empty items with empty errors', { items: [], errors: [] }, false],
   ['collector errors with otherwise valid item',
@@ -412,6 +429,21 @@ const cases = [
 const mismatches = [];
 for (const filename of [workflowSource, workflowLock]) {
   const script = extractScript(filename);
+  for (const [expected, input, accepts] of [
+    ['noop', { items: [{ type: 'noop' }, missingTool] }, true],
+    ['noop', findings(1), false],
+    ['noop', stopped('report_incomplete'), false],
+    ['comment', findings(1), true],
+    ['comment', findingWithBody('[DISCARDED] Unverified.'), false],
+    ['comment', { items: [{ type: 'noop' }] }, false],
+    ['invalid', findings(1), false],
+  ]) {
+    const result = execute(script, input, expected);
+    assert.equal(result.error, undefined);
+    assert.deepEqual(result.failures, accepts ? [] : [
+      'The fork smoke fixture did not produce its expected result; nothing was published.',
+    ]);
+  }
   for (const [name, input, accepted, dropped = []] of cases) {
     const result = execute(script, input);
     if (result.error !== undefined) {
