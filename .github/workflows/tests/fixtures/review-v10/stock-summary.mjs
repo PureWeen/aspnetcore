@@ -1,5 +1,5 @@
 export function countAvailable(items) {
-  return items.filter(item => item.available).length;
+  return items.filter(item => !item.available).length;
 }
 
 export function countUnavailable(items) {
