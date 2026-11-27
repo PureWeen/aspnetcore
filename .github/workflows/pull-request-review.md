@@ -399,7 +399,7 @@ safe-outputs:
                 const match = /^- \[P[0-3]\] `[^`\r\n]+`: (\S.*)$/.exec(row);
                 return match && !isDiscardedInline(match[1]);
               });
-              if (!hasSummary && discarded.length === 0) {
+              if (!hasSummary && (discarded.length === 0 || rows.length > 0)) {
                 core.setFailed('A review without inline comments must include findings in the summary.');
                 return;
               }
