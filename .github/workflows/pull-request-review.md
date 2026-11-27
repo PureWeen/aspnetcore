@@ -122,6 +122,7 @@ safe-outputs:
   needs: [freeze_pr_head, verify_live_head]
   staged: false
   activation-comments: false
+  footer: false
   report-incomplete:
     create-issue: false
   report-failed-jobs: false
@@ -630,6 +631,7 @@ when it is known. There is no cap on `newFindings`. `NO_FINDINGS` requires no en
 report `BLOCKED` and name it. A safe-output call or short prose verdict does not replace this result.
 Do not write it or any other review state to a file. Do not modify tracked files.
 All GitHub-visible output must go through this final adapter's configured safe-output tools.
+Do not include model identifiers, runner-local paths, or workflow run links in published text.
 This adapter supports publication only through the native safe-output functions exposed
 to the agent; their transcript tool names begin with `safeoutputs-`.
 Do not publish through the `safeoutputs` CLI or any shell command, even if generic runtime
