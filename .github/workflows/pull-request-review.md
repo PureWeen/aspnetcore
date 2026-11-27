@@ -68,7 +68,7 @@ env:
 
 post-steps:
   - name: Verify single review transcript
-    if: always()
+    if: ${{ always() && steps.check_frozen_pins.outcome == 'success' }}
     run: |
       set -euo pipefail
       node - <<'NODE'
@@ -120,7 +120,7 @@ safe-outputs:
   # Its detector tracking helper can still attempt issue writes on warning/failure.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   needs: [freeze_pr_head, verify_live_head]
-  staged: false
+  staged: true
   activation-comments: false
   footer: false
   report-incomplete:
@@ -543,6 +543,7 @@ jobs:
 
 pre-agent-steps:
   - name: Check the checkout matches the frozen pins
+    id: check_frozen_pins
     env:
       # The outcome collector reads these pins from the step's environment log.
       REVIEW_HEAD: ${{ needs.freeze_pr_head.outputs.head_sha }}
@@ -610,12 +611,13 @@ This should match GitHub's PR diff. Validate anchors against the GitHub PR diff 
 Read target-base contracts with `git show ${{ needs.freeze_pr_head.outputs.base_tip }}:<path>`.
 For changed files under `.github/`, read the PR version with
 `git show ${{ needs.freeze_pr_head.outputs.head_sha }}:<path>`; the working tree has the
-default-branch version. Read any `AGENTS.md` in or above the directories of the changed files.
+default-branch version. For deleted files, read the old version at the frozen merge base.
+Read any `AGENTS.md` in or above the directories of the changed files.
 
 Use the GitHub tools to read the PR description and page through all reviews, review threads,
-and conversation comments. Do not repeat existing feedback. If a pinned commit or changed file
-cannot be read, or a feedback read is incomplete, report `BLOCKED` or `INCOMPLETE` through the
-incomplete-publication path below; never report `NO_FINDINGS` in that case.
+and conversation comments. Do not repeat existing feedback. If a pinned commit or an expected
+version of a changed file cannot be read, or a feedback read is incomplete, report `BLOCKED` or
+`INCOMPLETE` through the incomplete-publication path below; never report `NO_FINDINGS` in that case.
 Only the main agent calls safe-output functions, from one final consolidated result.
 Subagents return findings to the main agent without publishing.
 
@@ -701,3 +703,11 @@ Never submit `APPROVE` or `REQUEST_CHANGES`.
 
 Review outputs publish advisory comments directly to the triggering pull request.
 To return to preview-only operation, set `safe-outputs.staged: true` and recompile the workflow.
+
+## Validation fixture
+
+Use a page size of 1 in the GitHub feedback queries for this fixture and consume every page.
+After you invoke the main review skill, use the native delegation tool if it is available:
+have one child review the stock reporting change and explicitly invoke `skill(skill="code-review")`
+before reviewing. Wait for its observations and consolidate the result in the main agent.
+If the native tool is unavailable, note that observation in the final structured result.
