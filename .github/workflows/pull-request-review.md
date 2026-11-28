@@ -366,8 +366,26 @@ safe-outputs:
               let inSummary = false;
               let details = 0;
               let fence;
+              let discardedIndent = 0;
+              let canContinueParagraph = false;
+              let malformedSummary = false;
+              const columns = prefix => [...prefix].reduce((width, char) =>
+                char === '\t' ? width + 4 - width % 4 : width + 1, 0);
               const lines = review.body.split('\n').filter(rawLine => {
                 const line = rawLine.trimEnd();
+                if (discardedIndent > 0) {
+                  // A blank line ends lazy wrapping, but indented blocks still belong to the item.
+                  if (line === '') {
+                    canContinueParagraph = false;
+                    return true;
+                  }
+                  const indent = columns(/^[ \t]*/.exec(line)[0]);
+                  const startsBlock = /^ {0,3}(?:[-+*][ \t]+|\d{1,9}[.)][ \t]+|#{1,6}(?:[ \t]|$)|>|`{3,}|~{3,}|<|(?:[-*_][ \t]*){3,}$)/.test(line);
+                  if (indent >= discardedIndent || (canContinueParagraph && !startsBlock)) {
+                    return false;
+                  }
+                  discardedIndent = 0;
+                }
                 if (!details) {
                   const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
                   if (fence) {
@@ -393,17 +411,27 @@ safe-outputs:
                 if (heading) {
                   inSummary = heading[1]?.replace(/[ \t]+#+$/, '') === 'Findings without an inline comment';
                 } else if (inSummary) {
-                  const finding = /^ {0,3}- \[P[0-3]\] `[^`\r\n]+`: (\S.*)$/.exec(line);
-                  if (finding) {
-                    if (isDiscardedInline(finding[1])) {
+                  const bullet = /^( {0,3}[-+*][ \t]{1,4})\[P[0-3]\](.*)$/.exec(line);
+                  if (bullet) {
+                    const finding = /^[ \t]+`([^`]+)`[ \t]*:[ \t]*(\S.*)$/.exec(bullet[2]);
+                    if (!finding || !finding[1].trim()) {
+                      malformedSummary = true;
+                    } else if (isDiscardedInline(finding[2])) {
                       discardedSummary++;
+                      discardedIndent = columns(bullet[1]);
+                      canContinueParagraph = true;
                       return false;
+                    } else {
+                      hasSummary = true;
                     }
-                    hasSummary = true;
                   }
                 }
                 return true;
               });
+              if (malformedSummary) {
+                core.setFailed('A summary finding must include a path and a non-empty claim.');
+                return;
+              }
               if (remaining === 0 && !hasSummary && discarded.length === 0) {
                 core.setFailed('A review without inline comments must include findings in the summary.');
                 return;
@@ -495,17 +523,23 @@ jobs:
     needs: [freeze_pr_head]
   safe_outputs:
     if: needs.verify_live_head.result == 'success'
+    permissions:
+      contents: read
     pre-steps:
       - name: Reject a moved pull request inside safe outputs
         uses: actions/github-script@v9.0.0
         env:
           REVIEW_BASE_REF: ${{ needs.freeze_pr_head.outputs.base_ref }}
+          REVIEW_BASE: ${{ needs.freeze_pr_head.outputs.base_tip }}
         with:
           github-token: ${{ github.token }}
           script: |
             const pullNumber = Number('${{ needs.freeze_pr_head.outputs.pr_number }}');
             const expected = '${{ needs.freeze_pr_head.outputs.head_sha }}';
-            if (!Number.isSafeInteger(pullNumber) || !/^[a-f0-9]{40}$/.test(expected)) {
+            const baseRef = process.env.REVIEW_BASE_REF;
+            const baseTip = process.env.REVIEW_BASE;
+            if (!Number.isSafeInteger(pullNumber) || !/^[a-f0-9]{40}$/.test(expected) ||
+                !baseRef || !/^[a-f0-9]{40}$/.test(baseTip)) {
               core.setFailed('The frozen review identity is unavailable.');
               return;
             }
@@ -516,26 +550,38 @@ jobs:
             });
             if (data.number !== pullNumber || data.state !== 'open' ||
                 data.base.repo.full_name.toLowerCase() !== `${context.repo.owner}/${context.repo.repo}`.toLowerCase() ||
-                data.head.sha !== expected || data.base.ref !== process.env.REVIEW_BASE_REF) {
+                data.head.sha !== expected || data.base.ref !== baseRef) {
               core.setFailed('The PR head moved, the base branch changed, or the PR closed after review; safe outputs are blocked.');
+              return;
+            }
+            const { data: branch } = await github.rest.git.getRef({
+              owner: context.repo.owner, repo: context.repo.repo, ref: `heads/${baseRef}`,
+            });
+            if (branch.object.sha !== baseTip) {
+              core.setFailed('The PR base tip moved after review; safe outputs are blocked. Run /review again.');
             }
   verify_live_head:
     needs: [agent, freeze_pr_head]
     if: needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       pull-requests: read
     steps:
       - name: Reject a moved pull request before safe outputs
         uses: actions/github-script@v9.0.0
         env:
           REVIEW_BASE_REF: ${{ needs.freeze_pr_head.outputs.base_ref }}
+          REVIEW_BASE: ${{ needs.freeze_pr_head.outputs.base_tip }}
         with:
           github-token: ${{ github.token }}
           script: |
             const pullNumber = Number('${{ needs.freeze_pr_head.outputs.pr_number }}');
             const expected = '${{ needs.freeze_pr_head.outputs.head_sha }}';
-            if (!Number.isSafeInteger(pullNumber) || !/^[a-f0-9]{40}$/.test(expected)) {
+            const baseRef = process.env.REVIEW_BASE_REF;
+            const baseTip = process.env.REVIEW_BASE;
+            if (!Number.isSafeInteger(pullNumber) || !/^[a-f0-9]{40}$/.test(expected) ||
+                !baseRef || !/^[a-f0-9]{40}$/.test(baseTip)) {
               core.setFailed('The frozen review identity is unavailable.');
               return;
             }
@@ -546,8 +592,15 @@ jobs:
             });
             if (data.number !== pullNumber || data.state !== 'open' ||
                 data.base.repo.full_name.toLowerCase() !== `${context.repo.owner}/${context.repo.repo}`.toLowerCase() ||
-                data.head.sha !== expected || data.base.ref !== process.env.REVIEW_BASE_REF) {
+                data.head.sha !== expected || data.base.ref !== baseRef) {
               core.setFailed('The PR head moved, the base branch changed, or the PR closed after review; safe outputs are blocked.');
+              return;
+            }
+            const { data: branch } = await github.rest.git.getRef({
+              owner: context.repo.owner, repo: context.repo.repo, ref: `heads/${baseRef}`,
+            });
+            if (branch.object.sha !== baseTip) {
+              core.setFailed('The PR base tip moved after review; safe outputs are blocked. Run /review again.');
             }
 
 pre-agent-steps:
@@ -680,7 +733,7 @@ endorsement, a new finding, or a grade of a previous reviewer. Keep the skill's 
 and unresolved candidates visible.
 
 The trusted `verify_live_head` gate must pass before the safe-output job begins, and a
-supported `jobs.safe_outputs.pre-steps` hook rechecks the live head inside that job before
+supported `jobs.safe_outputs.pre-steps` hook rechecks the live head and base tip inside that job before
 publication. Neither read is atomic with publication; the trusted `commit-id` pins
 attribution to the reviewed SHA if a push races the in-job check.
 

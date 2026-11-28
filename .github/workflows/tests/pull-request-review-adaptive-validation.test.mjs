@@ -46,6 +46,47 @@ assert.doesNotMatch(workflowLock, /\/tmp\/gh-aw\/review-worktree/);
 assert.doesNotMatch(workflowLock, /review_execution|review-execution|review-build-sandbox/);
 assert.equal(workflowLock.split(retargetDiagnostic).length - 1, 2);
 assert.doesNotMatch(workflowLock, /The PR head moved or closed after review; safe outputs are blocked\./);
+for (const job of ['verify_live_head', 'safe_outputs']) {
+  const definition = workflowLock.match(new RegExp(`^  ${job}:\\r?\\n([\\s\\S]*?)(?=^  \\w+:|(?![\\s\\S]))`, 'm'))?.[1];
+  assert.match(definition, /^    permissions:\r?\n(?:^ {6}[^\r\n]+\r?\n)*?^      contents: read\r?$/m);
+}
+
+const executeGuard = async (workflow, position, baseTip) => {
+  const step = workflow.match(new RegExp(
+    `name: Reject a moved pull request ${position} safe outputs\\r?\\n([\\s\\S]*?)script: \\|\\r?\\n((?: {12}[^\\r\\n]*\\r?\\n|\\r?\\n)+)`));
+  assert.ok(step, `${position} publication guard must be extractable`);
+  assert.match(step[1], /REVIEW_BASE: \$\{\{ needs\.freeze_pr_head\.outputs\.base_tip \}\}/);
+  const head = 'a'.repeat(40);
+  const failures = [];
+  const repository = { owner: 'dotnet', repo: 'aspnetcore' };
+  const script = step[2]
+    .replace('${{ needs.freeze_pr_head.outputs.pr_number }}', '42')
+    .replace('${{ needs.freeze_pr_head.outputs.head_sha }}', head);
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  await new AsyncFunction('github', 'context', 'core', 'process', script)({
+    rest: {
+      pulls: { get: async () => ({ data: {
+        number: 42, state: 'open', head: { sha: head },
+        base: { ref: 'release/test', repo: { full_name: 'dotnet/aspnetcore' } },
+      } }) },
+      git: { getRef: async args => {
+        assert.deepEqual(args, { ...repository, ref: 'heads/release/test' });
+        return { data: { object: { sha: baseTip } } };
+      } },
+    },
+  }, { repo: repository }, { setFailed: reason => failures.push(reason) },
+  { env: { REVIEW_BASE_REF: 'release/test', REVIEW_BASE: 'b'.repeat(40) } });
+  return failures;
+};
+for (const workflow of [workflowSource, workflowLock]) {
+  const frozen = 'b'.repeat(40);
+  const moved = 'c'.repeat(40);
+  assert.deepEqual(await executeGuard(workflow, 'before', frozen), []);
+  assert.deepEqual(await executeGuard(workflow, 'inside', frozen), []);
+  assert.match((await executeGuard(workflow, 'before', moved)).join('\n'), /base tip moved/);
+  assert.match((await executeGuard(workflow, 'inside', moved)).join('\n'), /base tip moved/);
+}
+console.log('Validated 3 base-tip scenarios against both publication guards in source and compiled lock.');
 
 assert.match(workflowTests, /- '\.github\/agents\/\*\*'/);
 

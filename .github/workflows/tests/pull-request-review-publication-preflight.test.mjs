@@ -286,6 +286,15 @@ const cases = [
     summary.replace('\n', '\n\nIntroductory text.\n') + '\n  Wrapped continuation.\n\nTrailing paragraph.'), true],
   ['mixed review removes a discarded summary bullet', findings(1,
     `${summary}\n- [P3] \`src/old.cs\`: [DISCARDED] Old behavior.`), true, [], false, summary],
+  ['wrapped discarded bullet is removed before the next valid bullet', findings(1,
+    summary.replace('\n- ', '\n- [P3] `src/old.cs`: [DISCARDED] Old behavior.\n  Wrapped detail.\nLazy continuation.\n\n  More detail.\n- ')),
+  true, [], false, summary.replace('\n- ', '\n\n- ')],
+  ['bounded summary bullet variation', findings(0,
+    summary.replace('- [P', '*  [P')), true],
+  ['mixed review rejects malformed finding with an empty claim', findings(1,
+    `${summary}\n- [P3] \`src/old.cs\`:`), false],
+  ['mixed review rejects malformed finding with no path', findings(1,
+    `${summary}\n- [P3] No path.`), false],
   ['summary-only review retains valid findings and drops discarded bullets', findings(0,
     `${summary}\n- [P3] \`src/old.cs\`: [DISCARDED] Old behavior.`), true, [], false, summary],
   ...bodyCases.map(([name, input, retained]) => [name, input, true, retained ? [] : [0], !retained]),
@@ -322,13 +331,20 @@ const cases = [
     ],
     errors: [],
   }, true, [0]],
-  ['all discarded inline candidates with no well-formed summary finding become a noop', {
+  ['all discarded inline candidates with only summary prose become a noop', {
     items: [
       { ...comment(), body: '[DISCARDED] Old behavior.' },
       review('## Findings without an inline comment\n\nMissing severity and path.'),
     ],
     errors: [],
   }, true, [0], true],
+  ['all discarded inline candidates with a malformed summary finding are rejected', {
+    items: [
+      { ...comment(), body: '[DISCARDED] Old behavior.' },
+      review('## Findings without an inline comment\n\n- [P3] No path.'),
+    ],
+    errors: [],
+  }, false],
   ['discarded audit summary with real finding', {
     items: [
       { ...comment(), body: 'Real regression.\nConfidence: verified' },
