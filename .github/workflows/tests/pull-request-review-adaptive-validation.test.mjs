@@ -51,11 +51,11 @@ for (const job of ['verify_live_head', 'safe_outputs']) {
   assert.match(definition, /^    permissions:\r?\n(?:^ {6}[^\r\n]+\r?\n)*?^      contents: read\r?$/m);
 }
 
-const executeGuard = async (workflow, position, baseTip) => {
+const executeGuard = async (workflow, position, comparison) => {
   const step = workflow.match(new RegExp(
     `name: Reject a moved pull request ${position} safe outputs\\r?\\n([\\s\\S]*?)script: \\|\\r?\\n((?: {12}[^\\r\\n]*\\r?\\n|\\r?\\n)+)`));
   assert.ok(step, `${position} publication guard must be extractable`);
-  assert.match(step[1], /REVIEW_BASE: \$\{\{ needs\.freeze_pr_head\.outputs\.base_tip \}\}/);
+  assert.match(step[1], /REVIEW_MERGE_BASE: \$\{\{ needs\.freeze_pr_head\.outputs\.merge_base \}\}/);
   const head = 'a'.repeat(40);
   const failures = [];
   const repository = { owner: 'dotnet', repo: 'aspnetcore' };
@@ -69,24 +69,34 @@ const executeGuard = async (workflow, position, baseTip) => {
         number: 42, state: 'open', head: { sha: head },
         base: { ref: 'release/test', repo: { full_name: 'dotnet/aspnetcore' } },
       } }) },
-      git: { getRef: async args => {
-        assert.deepEqual(args, { ...repository, ref: 'heads/release/test' });
-        return { data: { object: { sha: baseTip } } };
+      repos: { compareCommits: async args => {
+        assert.deepEqual(args, { ...repository, base: 'release/test', head });
+        if (comparison instanceof Error) {
+          throw comparison;
+        }
+        return { data: comparison };
       } },
     },
   }, { repo: repository }, { setFailed: reason => failures.push(reason) },
-  { env: { REVIEW_BASE_REF: 'release/test', REVIEW_BASE: 'b'.repeat(40) } });
+  { env: { REVIEW_BASE_REF: 'release/test', REVIEW_MERGE_BASE: 'b'.repeat(40) } });
   return failures;
 };
 for (const workflow of [workflowSource, workflowLock]) {
   const frozen = 'b'.repeat(40);
-  const moved = 'c'.repeat(40);
-  assert.deepEqual(await executeGuard(workflow, 'before', frozen), []);
-  assert.deepEqual(await executeGuard(workflow, 'inside', frozen), []);
-  assert.match((await executeGuard(workflow, 'before', moved)).join('\n'), /base tip moved/);
-  assert.match((await executeGuard(workflow, 'inside', moved)).join('\n'), /base tip moved/);
+  const same = { base_commit: { sha: 'c'.repeat(40) }, merge_base_commit: { sha: frozen } };
+  const moved = { ...same, merge_base_commit: { sha: 'd'.repeat(40) } };
+  const retry = /merge base changed or could not be verified.*Run \/review again/;
+  for (const position of ['before', 'inside']) {
+    assert.deepEqual(await executeGuard(workflow, position, same), []);
+    assert.match((await executeGuard(workflow, position, moved)).join('\n'), retry);
+    const error = (await executeGuard(workflow, position, new Error('Compare unavailable'))).join('\n');
+    assert.match(error, retry);
+    assert.match(error, /Compare unavailable/);
+  }
+  assert.deepEqual(await executeGuard(workflow, 'before', same), []);
+  assert.match((await executeGuard(workflow, 'inside', moved)).join('\n'), retry);
 }
-console.log('Validated 3 base-tip scenarios against both publication guards in source and compiled lock.');
+console.log('Validated 4 merge-base scenarios against publication guards in source and compiled lock.');
 
 assert.match(workflowTests, /- '\.github\/agents\/\*\*'/);
 

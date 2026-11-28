@@ -76,6 +76,7 @@ function execute(script, input) {
 const comment = () => ({ type: 'create_pull_request_review_comment' });
 const review = (body = 'Review summary.') => ({ type: 'submit_pull_request_review', body });
 const summary = '## Findings without an inline comment\n\n- [P2] `src/example.cs`: Retain the removed check.';
+const unreadableReason = 'The review summary contains no readable finding.';
 const missingTool = { type: 'missing_tool', reason: 'A separate tool is unavailable.' };
 const rawJson = value => ({ rawJson: value });
 const stopped = (type, reason = 'The review could not complete.', status = 'INCOMPLETE') => ({
@@ -291,10 +292,20 @@ const cases = [
   true, [], false, summary.replace('\n- ', '\n\n- ')],
   ['bounded summary bullet variation', findings(0,
     summary.replace('- [P', '*  [P')), true],
-  ['mixed review rejects malformed finding with an empty claim', findings(1,
-    `${summary}\n- [P3] \`src/old.cs\`:`), false],
-  ['mixed review rejects malformed finding with no path', findings(1,
-    `${summary}\n- [P3] No path.`), false],
+  ...['[P2] src/example.cs: Retain the removed check.',
+    '[P2] **src/example.cs**: Retain the removed check.',
+    '**[P2]** `src/example.cs`: Retain the removed check.',
+    '[P2] `src/example.cs:17` - Retain the removed check.',
+    '**[P2]** src/example.cs:17: Retain the removed check.'].map(bullet =>
+    [`readable variant: ${bullet}`, findings(0, `## Findings without an inline comment\n\n- ${bullet}`), true]),
+  ['mixed review publishes with an unreadable bullet', findings(1,
+    '## Findings without an inline comment\n\n- [P3] No path.'), true],
+  ['discarded marker in mid-claim is retained', findings(0,
+    summary.replace('Retain the removed check.', 'Do not match [DISCARDED] here.')), true],
+  ['bold-tag discarded summary bullet is dropped', findings(1,
+    `${summary}\n- **[P3]** **src/old.cs** - [DISCARDED] Old behavior.`), true, [], false, summary],
+  ['untagged bullets do not count as findings', findings(0,
+    summary.replace('[P2] ', '')), false],
   ['summary-only review retains valid findings and drops discarded bullets', findings(0,
     `${summary}\n- [P3] \`src/old.cs\`: [DISCARDED] Old behavior.`), true, [], false, summary],
   ...bodyCases.map(([name, input, retained]) => [name, input, true, retained ? [] : [0], !retained]),
@@ -338,13 +349,13 @@ const cases = [
     ],
     errors: [],
   }, true, [0], true],
-  ['all discarded inline candidates with a malformed summary finding are rejected', {
+  ['all discarded inline candidates with an unreadable summary finding are incomplete', {
     items: [
       { ...comment(), body: '[DISCARDED] Old behavior.' },
       review('## Findings without an inline comment\n\n- [P3] No path.'),
     ],
     errors: [],
-  }, false],
+  }, true, [], false, undefined, true],
   ['discarded audit summary with real finding', {
     items: [
       { ...comment(), body: 'Real regression.\nConfidence: verified' },
@@ -396,8 +407,10 @@ const cases = [
   ['zero inline items with no summary findings', findings(0), false],
   ['zero inline items with a blank summary section', findings(0,
     '## Findings without an inline comment\n\n<details><summary>DISCARDED</summary>\nOld behavior.\n</details>'), false],
-  ['zero inline items with malformed summary findings', findings(0,
-    '## Findings without an inline comment\n\n- [P2] `src/example.cs`:'), false],
+  ['zero inline items with unreadable summary findings are incomplete', findings(0,
+    '## Findings without an inline comment\n\n- [P2] `src/example.cs`:'), true, [], false, undefined, true],
+  ['a bare path line number is not a claim', findings(0,
+    '## Findings without an inline comment\n\n- [P2] src/example.cs:17'), true, [], false, undefined, true],
   ['discarded details do not count as summary findings', findings(0,
     `<details><summary>DISCARDED</summary>\n\n${summary}\n\n</details>`), false],
   ['fenced example does not count as summary findings', findings(0, `\`\`\`markdown\n${summary}\n\`\`\``), false],
@@ -493,7 +506,7 @@ const cases = [
 const mismatches = [];
 for (const filename of [workflowSource, workflowLock]) {
   const script = extractScript(filename);
-  for (const [name, input, accepted, dropped = [], becomesNoop = false, cleanedSummary] of cases) {
+  for (const [name, input, accepted, dropped = [], becomesNoop = false, cleanedSummary, becomesIncomplete] of cases) {
     const result = execute(script, input);
     if (result.error !== undefined) {
       mismatches.push(`${path.basename(filename)} ${name} threw instead of failing through core.setFailed: ${result.error}`);
@@ -503,7 +516,9 @@ for (const filename of [workflowSource, workflowLock]) {
     } else if (accepted) {
       try {
         const remaining = input.items.filter((_, index) => !dropped.includes(index));
-        if (becomesNoop) {
+        if (becomesIncomplete) {
+          assert.deepEqual(result.output, stopped('report_incomplete', unreadableReason));
+        } else if (becomesNoop) {
           assert.equal(result.output.items.length, 1);
           assert.equal(result.output.items[0].type, 'noop');
           assert.match(result.output.items[0].message, /^STATUS: NO_FINDINGS\b/);
@@ -513,7 +528,7 @@ for (const filename of [workflowSource, workflowLock]) {
             item.type === 'submit_pull_request_review' ? { ...item, body: cleanedSummary } : item);
           assert.deepEqual(result.output, { ...input, items });
         }
-        assert.equal(result.notices.length, dropped.length > 0 || cleanedSummary !== undefined ? 1 : 0);
+        assert.equal(result.notices.length, dropped.length > 0 || cleanedSummary !== undefined || becomesIncomplete ? 1 : 0);
       } catch (error) {
         mismatches.push(`${path.basename(filename)} ${name} published the wrong items: ${error.message}`);
       }

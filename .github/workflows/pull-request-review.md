@@ -368,7 +368,7 @@ safe-outputs:
               let fence;
               let discardedIndent = 0;
               let canContinueParagraph = false;
-              let malformedSummary = false;
+              let unreadableSummary = false;
               const columns = prefix => [...prefix].reduce((width, char) =>
                 char === '\t' ? width + 4 - width % 4 : width + 1, 0);
               const lines = review.body.split('\n').filter(rawLine => {
@@ -411,12 +411,16 @@ safe-outputs:
                 if (heading) {
                   inSummary = heading[1]?.replace(/[ \t]+#+$/, '') === 'Findings without an inline comment';
                 } else if (inSummary) {
-                  const bullet = /^( {0,3}[-+*][ \t]{1,4})\[P[0-3]\](.*)$/.exec(line);
+                  const bullet = /^( {0,3}[-+*][ \t]{1,4})(?:\*\*\[P[0-3]\]\*\*|\[P[0-3]\])(.*)$/.exec(line);
                   if (bullet) {
-                    const finding = /^[ \t]+`([^`]+)`[ \t]*:[ \t]*(\S.*)$/.exec(bullet[2]);
-                    if (!finding || !finding[1].trim()) {
-                      malformedSummary = true;
-                    } else if (isDiscardedInline(finding[2])) {
+                    const finding = /^[ \t]+(?:`([^`]+)`|\*\*([^*]+)\*\*|([^\s:`*]+(?::\d+)?))(?:[ \t]*:[ \t]+|[ \t]+[-–—][ \t]+)(\S.*)$/.exec(bullet[2]);
+                    const file = (finding?.[1] ?? finding?.[2] ?? finding?.[3] ?? '').trim();
+                    const claim = finding?.[4] ?? '';
+                    const isDiscarded = /^(?:\*\*)?\[DISCARDED\](?:\*\*|(?=$|[\s:]))/i.test(claim);
+                    if (!/^(?!.*[<>])[^\s:]+(?:[./\\][^\s:]+)(?::\d+)?$/.test(file) ||
+                        (!isDiscarded && !/[\p{L}\p{N}]/u.test(claim))) {
+                      unreadableSummary = true;
+                    } else if (isDiscarded) {
                       discardedSummary++;
                       discardedIndent = columns(bullet[1]);
                       canContinueParagraph = true;
@@ -428,8 +432,14 @@ safe-outputs:
                 }
                 return true;
               });
-              if (malformedSummary) {
-                core.setFailed('A summary finding must include a path and a non-empty claim.');
+              if (remaining === 0 && !hasSummary && unreadableSummary) {
+                const reason = 'The review summary contains no readable finding.';
+                output.items = [
+                  { type: 'report_incomplete', reason },
+                  { type: 'add_comment', body: `Review not published (INCOMPLETE): ${reason}\n\nNo partial findings were published.` },
+                ];
+                fs.writeFileSync(filename, JSON.stringify(output));
+                core.notice(reason);
                 return;
               }
               if (remaining === 0 && !hasSummary && discarded.length === 0) {
@@ -530,16 +540,16 @@ jobs:
         uses: actions/github-script@v9.0.0
         env:
           REVIEW_BASE_REF: ${{ needs.freeze_pr_head.outputs.base_ref }}
-          REVIEW_BASE: ${{ needs.freeze_pr_head.outputs.base_tip }}
+          REVIEW_MERGE_BASE: ${{ needs.freeze_pr_head.outputs.merge_base }}
         with:
           github-token: ${{ github.token }}
           script: |
             const pullNumber = Number('${{ needs.freeze_pr_head.outputs.pr_number }}');
             const expected = '${{ needs.freeze_pr_head.outputs.head_sha }}';
             const baseRef = process.env.REVIEW_BASE_REF;
-            const baseTip = process.env.REVIEW_BASE;
+            const mergeBase = process.env.REVIEW_MERGE_BASE;
             if (!Number.isSafeInteger(pullNumber) || !/^[a-f0-9]{40}$/.test(expected) ||
-                !baseRef || !/^[a-f0-9]{40}$/.test(baseTip)) {
+                !baseRef || !/^[a-f0-9]{40}$/.test(mergeBase)) {
               core.setFailed('The frozen review identity is unavailable.');
               return;
             }
@@ -554,11 +564,19 @@ jobs:
               core.setFailed('The PR head moved, the base branch changed, or the PR closed after review; safe outputs are blocked.');
               return;
             }
-            const { data: branch } = await github.rest.git.getRef({
-              owner: context.repo.owner, repo: context.repo.repo, ref: `heads/${baseRef}`,
-            });
-            if (branch.object.sha !== baseTip) {
-              core.setFailed('The PR base tip moved after review; safe outputs are blocked. Run /review again.');
+            const retry = 'The PR merge base changed or could not be verified; safe outputs are blocked. Run /review again.';
+            let currentMergeBase;
+            try {
+              const { data: comparison } = await github.rest.repos.compareCommits({
+                owner: context.repo.owner, repo: context.repo.repo, base: baseRef, head: expected,
+              });
+              currentMergeBase = comparison.merge_base_commit?.sha;
+            } catch (error) {
+              core.setFailed(`${retry} ${error.message}`);
+              return;
+            }
+            if (currentMergeBase !== mergeBase) {
+              core.setFailed(retry);
             }
   verify_live_head:
     needs: [agent, freeze_pr_head]
@@ -572,16 +590,16 @@ jobs:
         uses: actions/github-script@v9.0.0
         env:
           REVIEW_BASE_REF: ${{ needs.freeze_pr_head.outputs.base_ref }}
-          REVIEW_BASE: ${{ needs.freeze_pr_head.outputs.base_tip }}
+          REVIEW_MERGE_BASE: ${{ needs.freeze_pr_head.outputs.merge_base }}
         with:
           github-token: ${{ github.token }}
           script: |
             const pullNumber = Number('${{ needs.freeze_pr_head.outputs.pr_number }}');
             const expected = '${{ needs.freeze_pr_head.outputs.head_sha }}';
             const baseRef = process.env.REVIEW_BASE_REF;
-            const baseTip = process.env.REVIEW_BASE;
+            const mergeBase = process.env.REVIEW_MERGE_BASE;
             if (!Number.isSafeInteger(pullNumber) || !/^[a-f0-9]{40}$/.test(expected) ||
-                !baseRef || !/^[a-f0-9]{40}$/.test(baseTip)) {
+                !baseRef || !/^[a-f0-9]{40}$/.test(mergeBase)) {
               core.setFailed('The frozen review identity is unavailable.');
               return;
             }
@@ -596,11 +614,19 @@ jobs:
               core.setFailed('The PR head moved, the base branch changed, or the PR closed after review; safe outputs are blocked.');
               return;
             }
-            const { data: branch } = await github.rest.git.getRef({
-              owner: context.repo.owner, repo: context.repo.repo, ref: `heads/${baseRef}`,
-            });
-            if (branch.object.sha !== baseTip) {
-              core.setFailed('The PR base tip moved after review; safe outputs are blocked. Run /review again.');
+            const retry = 'The PR merge base changed or could not be verified; safe outputs are blocked. Run /review again.';
+            let currentMergeBase;
+            try {
+              const { data: comparison } = await github.rest.repos.compareCommits({
+                owner: context.repo.owner, repo: context.repo.repo, base: baseRef, head: expected,
+              });
+              currentMergeBase = comparison.merge_base_commit?.sha;
+            } catch (error) {
+              core.setFailed(`${retry} ${error.message}`);
+              return;
+            }
+            if (currentMergeBase !== mergeBase) {
+              core.setFailed(retry);
             }
 
 pre-agent-steps:
@@ -733,7 +759,7 @@ endorsement, a new finding, or a grade of a previous reviewer. Keep the skill's 
 and unresolved candidates visible.
 
 The trusted `verify_live_head` gate must pass before the safe-output job begins, and a
-supported `jobs.safe_outputs.pre-steps` hook rechecks the live head and base tip inside that job before
+supported `jobs.safe_outputs.pre-steps` hook rechecks the live head and merge base inside that job before
 publication. Neither read is atomic with publication; the trusted `commit-id` pins
 attribution to the reviewed SHA if a push races the in-job check.
 
